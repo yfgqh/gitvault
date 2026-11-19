@@ -1,0 +1,104 @@
+name: iOS Build
+
+# 在 GitHub 托管的 macOS runner 上编译 GitVault，产出：
+#   1) 未签名 .ipa（可自行签名后安装到真机，或直接拖进 iOS Simulator 调试包）
+#   2) 已生成的 .xcodeproj（本地无需安装 XcodeGen 也能直接打开）
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 选择最新的 Xcode
+        run: |
+          set -e
+          INSTALLED=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
+          echo "使用 Xcode: $INSTALLED"
+          sudo xcode-select -s "$INSTALLED/Contents/Developer"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: 安装 XcodeGen
+        run: brew install xcodegen
+
+      - name: 生成 Xcode 工程
+        run: |
+          set -e
+          xcodegen --version
+          xcodegen generate
+          ls -la
+
+      - name: 编译（无签名）
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project GitVault.xcodeproj \
+            -scheme GitVault \
+            -configuration Debug \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            ENABLE_BITCODE=NO \
+            build 2>&1 | tee build.log | tail -n 60
+
+      - name: 打包未签名 IPA
+        run: |
+          set -e
+          APP_PATH=$(find build/Build/Products/Debug-iphoneos -maxdepth 1 -name "*.app" | head -1)
+          if [ -z "$APP_PATH" ]; then echo "未找到 .app 产物"; exit 1; fi
+          echo "APP: $APP_PATH"
+          rm -rf Payload GitVault-unsigned.ipa
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -qry GitVault-unsigned.ipa Payload
+          unzip -l GitVault-unsigned.ipa | head -30
+          ls -lh GitVault-unsigned.ipa
+
+      - name: 上传 IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: GitVault-unsigned-ipa
+          path: GitVault-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: 上传 Xcode 工程（免装 XcodeGen）
+        run: |
+          set -e
+          zip -qry GitVault-XcodeProject.zip GitVault.xcodeproj
+          ls -lh GitVault-XcodeProject.zip
+
+      - name: 上传工程包
+        uses: actions/upload-artifact@v4
+        with:
+          name: GitVault-xcodeproj
+          path: GitVault-XcodeProject.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: 上传编译日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          if-no-files-found: warn
+          retention-days: 7

@@ -1,0 +1,22 @@
+# macOS / Xcode
+.DS_Store
+build/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcuserstate
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+Pods/
+.swiftpm/
+
+# 由 XcodeGen 生成，不入库（project.yml 为准）
+*.xcodeproj
+*.xcworkspace
+
+# 其他
+.env
+*.log
