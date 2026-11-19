@@ -10,9 +10,10 @@ on:
     paths-ignore:
       - '**.md'
 
+# 并发组会互相取消：这里显式禁用，避免排队中的运行时被新提交"取消"而无任何日志
 concurrency:
   group: ios-build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
