@@ -94,7 +94,8 @@ struct RemoteLLMClassifier: LLMClassifierProtocol {
         self.session = URLSession(configuration: configuration)
     }
 
-    convenience init?(endpointString: String, apiKey: String, model: String = "openai") {
+    /// 结构体不允许 convenience init，这里用可失败 init 委托到指定 init
+    init?(endpointString: String, apiKey: String, model: String = "openai") {
         let trimmed = endpointString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, URL(string: trimmed) != nil else { return nil }
         self.init(config: LLMConfig(endpoint: trimmed, model: model, apiKey: apiKey))
