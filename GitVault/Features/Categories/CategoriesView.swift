@@ -215,14 +215,7 @@ struct CategoryFeedView: View {
 
     @ViewBuilder
     private var footer: some View {
-        if vm.isLoadingMore {
-            HStack {
-                Spacer()
-                ProgressView().tint(DS.accent)
-                Spacer()
-            }
-            .padding(.vertical, DS.Space.m)
-        } else if let hint = vm.truncatedHint {
+        if let hint = vm.truncatedHint {
             Text(hint)
                 .font(DS.Typo.caption)
                 .foregroundStyle(DS.textTertiary)
