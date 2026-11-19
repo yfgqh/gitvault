@@ -326,7 +326,9 @@ struct FlowLayout: Layout {
     var spacing: CGFloat = 8
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let maxWidth = proposal.width ?? .infinity
+        // 防御：ScrollView 里 proposal.width 可能是 nil / 0 / inf，直接参与布局会得到非法尺寸
+        let raw = proposal.width ?? 0
+        let maxWidth: CGFloat = (raw.isFinite && raw > 1) ? raw : 320
         var x: CGFloat = 0
         var y: CGFloat = 0
         var rowHeight: CGFloat = 0
@@ -341,10 +343,11 @@ struct FlowLayout: Layout {
             x += size.width + spacing
             rowHeight = max(rowHeight, size.height)
         }
-        return CGSize(width: maxWidth == .infinity ? x : maxWidth, height: y + rowHeight)
+        return CGSize(width: max(maxWidth.isFinite ? maxWidth : 320, x), height: max(y + rowHeight, 0))
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard bounds.width.isFinite, bounds.height.isFinite else { return }
         var x = bounds.minX
         var y = bounds.minY
         var rowHeight: CGFloat = 0

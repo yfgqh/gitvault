@@ -66,11 +66,12 @@ struct StatRing: View {
             let fraction = CGFloat(segment.value) / CGFloat(sum)
             // 留一点缝隙，环形更像分段刻度
             let gap: CGFloat = 0.008
-            result.append(Arc(
-                start: cursor + gap / 2,
-                end: cursor + fraction - gap / 2,
-                color: segment.color
-            ))
+            // 钳制到 0...1 且保证 end >= start，避免 trim 收到非法区间
+            let start = min(max(cursor + gap / 2, 0), 1)
+            let end = min(max(cursor + fraction - gap / 2, start), 1)
+            if end > start {
+                result.append(Arc(start: start, end: end, color: segment.color))
+            }
             cursor += fraction
         }
         return result

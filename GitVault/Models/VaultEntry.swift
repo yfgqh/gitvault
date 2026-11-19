@@ -2,7 +2,9 @@
 //  VaultEntry.swift
 //  GitVault
 //
-//  SwiftData 实体：用户收藏库中的一条记录（含阶段 2 新增字段）。
+//  SwiftData 实体。
+//  重要：每个存储属性都必须有默认值或为可选 —— 否则 SwiftData 无法做轻量迁移，
+//  旧版本升级上来会在打开容器 / @Query 时崩溃（真机闪退的经典成因）。
 //
 
 import Foundation
@@ -11,27 +13,26 @@ import SwiftData
 @Model
 final class VaultEntry {
     /// GitHub fullName，作为唯一键，避免重复收藏
-    @Attribute(.unique) var repoID: String
-    var owner: String
-    var name: String
-    var summary: String
-    var language: String
-    var stars: Int
-    var forks: Int
-    var categoryRaw: String
-    var markRaw: String
-    var licenseRaw: String
+    @Attribute(.unique) var repoID: String = ""
+    var owner: String = ""
+    var name: String = ""
+    var summary: String = ""
+    var language: String = ""
+    var stars: Int = 0
+    var forks: Int = 0
+    var categoryRaw: String = RepoCategory.learning.rawValue
+    var markRaw: String = MyMark.starred.rawValue
+    var licenseRaw: String = LicenseTag.none.rawValue
     /// 用户自定义文件夹名（nil 表示未分组）
-    var folderName: String?
-    /// 文件夹内排序
-    var sortIndex: Int
-    var savedAt: Date
-    var updatedAt: Date?
+    var folderName: String? = nil
+    var sortIndex: Int = 0
+    var savedAt: Date = Date(timeIntervalSince1970: 0)
+    var updatedAt: Date? = nil
 
-    // 阶段 2 新增（带默认值，兼容旧库）
-    var avatarURL: String?
-    var htmlURL: String
-    var topicsJoined: String
+    // 阶段 2 新增字段：全部带默认值，兼容任意旧库
+    var avatarURL: String? = nil
+    var htmlURL: String = ""
+    var topicsJoined: String = ""
 
     init(
         repoID: String,
@@ -76,12 +77,18 @@ final class VaultEntry {
     }
 
     var mark: MyMark {
-        get { MyMark(rawValue: markRaw) ?? .starred }
+        get {
+            let raw = markRaw
+            return MyMark(rawValue: raw) ?? .starred
+        }
         set { markRaw = newValue.rawValue }
     }
 
     var license: LicenseTag {
-        get { LicenseTag(rawValue: licenseRaw) ?? .none }
+        get {
+            let raw = licenseRaw
+            return LicenseTag(rawValue: raw) ?? .none
+        }
         set { licenseRaw = newValue.rawValue }
     }
 
@@ -117,10 +124,10 @@ final class VaultEntry {
 
 @Model
 final class VaultFolder {
-    @Attribute(.unique) var name: String
-    var emoji: String
-    var sortIndex: Int
-    var createdAt: Date
+    @Attribute(.unique) var name: String = ""
+    var emoji: String = "📁"
+    var sortIndex: Int = 0
+    var createdAt: Date = Date(timeIntervalSince1970: 0)
 
     init(name: String, emoji: String = "📁", sortIndex: Int = 0, createdAt: Date = .now) {
         self.name = name

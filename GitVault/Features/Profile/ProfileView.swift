@@ -19,6 +19,7 @@ struct ProfileView: View {
     @State private var showAISheet = false
     @State private var exportFile: ExportFile?
     @State private var cacheSizeText = "—"
+    @State private var showDiagnostics = false
 
     private var appearance: AppearanceMode {
         AppearanceMode(rawValue: appearanceRaw) ?? .dark
@@ -58,6 +59,11 @@ struct ProfileView: View {
             .sheet(item: $exportFile) { file in
                 ShareSheet(items: [file.url])
                     .presentationDetents([.medium, .large])
+            }
+            .sheet(isPresented: $showDiagnostics) {
+                DiagnosticsView()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
             .task { updateCacheSize() }
         }
@@ -267,6 +273,22 @@ struct ProfileView: View {
             Text("关于")
                 .font(DS.Typo.headline)
                 .foregroundStyle(DS.textPrimary)
+
+            VStack(spacing: 0) {
+                SettingsRow(symbol: "stethoscope", title: "诊断日志",
+                            detail: "\(CrashReporter.lineCount()) 行") {
+                    showDiagnostics = true
+                }
+                Divider().padding(.leading, 52)
+                SettingsRow(symbol: "square.and.arrow.up.on.square", title: "复制环境信息", detail: nil) {
+                    UIPasteboard.general.string = CrashReporter.environmentSummary()
+                    env.show("环境信息已复制", kind: .success)
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                    .fill(DS.bgSecondary)
+            )
 
             VStack(spacing: 0) {
                 SettingsRow(symbol: "info.circle", title: "关于 GitVault", detail: versionText) {
@@ -686,4 +708,60 @@ struct AIConfigSheetView: View {
     ProfileView()
         .environment(AppEnvironment.live())
         .modelContainer(for: [VaultEntry.self, VaultFolder.self], inMemory: true)
+}
+
+// MARK: - 诊断日志（真机闪退取证）
+
+struct DiagnosticsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(AppEnvironment.self) private var env
+    @State private var text = ""
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: DS.Space.s) {
+                Text("如果 App 在启动或某个页面闪退，把这份日志贴到 issue 里就能定位到具体步骤。日志只记录启动阶段与错误摘要，不包含 Token。")
+                    .font(.system(size: 11))
+                    .foregroundStyle(DS.textTertiary)
+                    .padding(.horizontal, DS.Space.m)
+                    .padding(.top, DS.Space.s)
+
+                ScrollView {
+                    Text(text.isEmpty ? "暂无日志" : text)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(DS.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                        .padding(DS.Space.m)
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                        .fill(DS.bgSecondary)
+                )
+                .padding(.horizontal, DS.Space.m)
+            }
+            .background(DS.bgPrimary)
+            .navigationTitle("诊断日志")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("清空") {
+                        CrashReporter.clear()
+                        text = CrashReporter.readLog()
+                        Haptics.tap()
+                    }
+                    .font(DS.Typo.caption)
+                    .foregroundStyle(DS.danger)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("完成") { dismiss() }
+                        .font(DS.Typo.caption)
+                        .foregroundStyle(DS.accent)
+                }
+            }
+            .task {
+                text = CrashReporter.readLog()
+            }
+        }
+    }
 }
