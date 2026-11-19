@@ -1,8 +1,11 @@
 name: iOS Build
 
-# 在 GitHub 托管的 macOS runner 上编译 GitVault，产出：
-#   1) 未签名 .ipa（可自行签名后安装到真机，或直接拖进 iOS Simulator 调试包）
-#   2) 已生成的 .xcodeproj（本地无需安装 XcodeGen 也能直接打开）
+# 在 GitHub 托管的 macOS runner 上编译 GitVault（iOS 16.0 部署目标），产出：
+#   1) 未签名 .ipa（可自行签名，或直接用 TrollStore / Sideloadly 处理）
+#   2) 已生成的 .xcodeproj（本地无需安装 XcodeGen）
+#
+# 双矩阵原因：macOS arm64 托管机经常排队超时（"not acquired by Runner"），
+# Intel 池与 arm64 池分开排队，任一命中即可出包。
 on:
   workflow_dispatch:
   push:
@@ -10,15 +13,19 @@ on:
     paths-ignore:
       - '**.md'
 
-# 并发组会互相取消：这里显式禁用，避免排队中的运行时被新提交"取消"而无任何日志
 concurrency:
   group: ios-build-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   build:
-    runs-on: macos-latest
-    timeout-minutes: 45
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-latest]
 
     steps:
       - name: Checkout
@@ -41,7 +48,7 @@ jobs:
           set -e
           xcodegen --version
           xcodegen generate
-          ls -la
+          grep -n "IPHONEOS_DEPLOYMENT_TARGET" GitVault.xcodeproj/project.pbxproj | head -3
 
       - name: 编译（无签名）
         run: |
@@ -66,22 +73,23 @@ jobs:
           APP_PATH=$(find build/Build/Products/Release-iphoneos -maxdepth 1 -name "*.app" | head -1)
           if [ -z "$APP_PATH" ]; then echo "未找到 .app 产物"; exit 1; fi
           echo "APP: $APP_PATH"
+          /usr/libexec/PlistBuddy -c "Print :MinimumOSVersion" "$APP_PATH/Info.plist" || true
           rm -rf Payload GitVault-unsigned.ipa
           mkdir -p Payload
           cp -R "$APP_PATH" Payload/
           zip -qry GitVault-unsigned.ipa Payload
-          unzip -l GitVault-unsigned.ipa | head -30
+          unzip -l GitVault-unsigned.ipa | head -20
           ls -lh GitVault-unsigned.ipa
 
       - name: 上传 IPA
         uses: actions/upload-artifact@v4
         with:
-          name: GitVault-unsigned-ipa
+          name: ipa-${{ matrix.os }}
           path: GitVault-unsigned.ipa
           if-no-files-found: error
           retention-days: 30
 
-      - name: 上传 Xcode 工程（免装 XcodeGen）
+      - name: 打包 Xcode 工程
         run: |
           set -e
           zip -qry GitVault-XcodeProject.zip GitVault.xcodeproj
@@ -90,7 +98,7 @@ jobs:
       - name: 上传工程包
         uses: actions/upload-artifact@v4
         with:
-          name: GitVault-xcodeproj
+          name: xcodeproj-${{ matrix.os }}
           path: GitVault-XcodeProject.zip
           if-no-files-found: error
           retention-days: 30
@@ -99,7 +107,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-log
+          name: build-log-${{ matrix.os }}
           path: build.log
           if-no-files-found: warn
           retention-days: 7
