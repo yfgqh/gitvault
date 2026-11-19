@@ -18,23 +18,27 @@ import UIKit
 
 private var crashFD: Int32 = -1
 
-/// 信号名映射：返回静态 C 字符串，避免可变参数格式化（Swift 不支持 snprintf 变参）
-private func signalMarker(_ sig: Int32) -> UnsafePointer<CChar>? {
+/// 信号名映射：StaticString 走静态存储，不分配内存，可在信号处理器里安全读取
+private func signalMarker(_ sig: Int32) -> (pointer: UnsafePointer<CChar>, count: Int)? {
+    let text: StaticString
     switch sig {
-    case SIGABRT: return "\n[CrashReporter] fatal SIGABRT\n"
-    case SIGSEGV: return "\n[CrashReporter] fatal SIGSEGV\n"
-    case SIGBUS: return "\n[CrashReporter] fatal SIGBUS\n"
-    case SIGILL: return "\n[CrashReporter] fatal SIGILL\n"
-    case SIGFPE: return "\n[CrashReporter] fatal SIGFPE\n"
-    case SIGTRAP: return "\n[CrashReporter] fatal SIGTRAP\n"
-    default: return "\n[CrashReporter] fatal signal\n"
+    case SIGABRT: text = "\n[CrashReporter] fatal SIGABRT\n"
+    case SIGSEGV: text = "\n[CrashReporter] fatal SIGSEGV\n"
+    case SIGBUS: text = "\n[CrashReporter] fatal SIGBUS\n"
+    case SIGILL: text = "\n[CrashReporter] fatal SIGILL\n"
+    case SIGFPE: text = "\n[CrashReporter] fatal SIGFPE\n"
+    case SIGTRAP: text = "\n[CrashReporter] fatal SIGTRAP\n"
+    default: text = "\n[CrashReporter] fatal signal\n"
     }
+    guard text.hasPointerRepresentation else { return nil }
+    let pointer = UnsafeRawPointer(text.utf8Start).assumingMemoryBound(to: CChar.self)
+    return (pointer, text.utf8CodeUnitCount)
 }
 
 /// 信号处理里只做 async-signal-safe 的事：预打开 fd + write(2)
 private func handleFatalSignal(_ sig: Int32) {
     if crashFD >= 0, let marker = signalMarker(sig) {
-        _ = write(crashFD, marker, strlen(marker))
+        _ = write(crashFD, marker.pointer, marker.count)
     }
     signal(sig, SIG_DFL)
     raise(sig)
