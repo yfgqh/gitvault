@@ -102,7 +102,7 @@ struct ProfileView: View {
                 HStack(spacing: DS.Space.s) {
                     Button {
                         Haptics.tap()
-                        if let url = env.auth.user?.htmlURL.flatMap { URL(string: $0) } { openURL(url) }
+                        if let raw = env.auth.user?.htmlURL, let url = URL(string: raw) { openURL(url) }
                     } label: {
                         Text("打开主页")
                             .font(DS.Typo.caption)
