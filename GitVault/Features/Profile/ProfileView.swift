@@ -292,11 +292,11 @@ struct ProfileView: View {
                 }
                 Divider().padding(.leading, 52)
                 SettingsRow(symbol: "paperplane.fill", title: "关于 GitVault", detail: versionText) {
-                    if let url = URL(string: "https://t.me/+pPpbGnYycFphZWVl") { openURL(url) }
+                    if let url = URL(string: "https://t.me/GitVaultipa") { openURL(url) }
                 }
                 Divider().padding(.leading, 52)
                 SettingsRow(symbol: "bubble.left.and.bubble.right", title: "加入 Telegram 群", detail: "反馈 / 交流") {
-                    if let url = URL(string: "https://t.me/+pPpbGnYycFphZWVl") { openURL(url) }
+                    if let url = URL(string: "https://t.me/GitVaultipa") { openURL(url) }
                 }
             }
             .background(

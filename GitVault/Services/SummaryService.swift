@@ -158,6 +158,12 @@ enum SummaryService {
         }
 
         var text = kept.joined(separator: "\n")
+        // 去掉 GitHub 短代码表情（:grin: / :rocket: 这类）
+        text = text.replacingOccurrences(
+            of: "(:[a-zA-Z0-9_+\\-]{2,30}:)",
+            with: "",
+            options: .regularExpression
+        )
         while text.contains("\n\n\n") {
             text = text.replacingOccurrences(of: "\n\n\n", with: "\n\n")
         }
@@ -169,6 +175,23 @@ enum SummaryService {
         }
         return text
     }
+    /// 是否以中文为主（汉字占字母类字符 30% 以上即视为中文）。
+    /// 韩文/日文/英文都会返回 false，从而触发翻译。
+    static func isMostlyChinese(_ text: String) -> Bool {
+        var han = 0
+        var letters = 0
+        for scalar in text.unicodeScalars {
+            if CharacterSet.letters.contains(scalar) {
+                letters += 1
+                if (0x4E00...0x9FFF).contains(scalar.value) || (0x3400...0x4DBF).contains(scalar.value) {
+                    han += 1
+                }
+            }
+        }
+        guard letters > 0 else { return false }
+        return Double(han) / Double(letters) > 0.30
+    }
+
     /// 是否包含中日韩统一表意文字
     static func containsCJK(_ text: String) -> Bool {
         text.unicodeScalars.contains { scalar in

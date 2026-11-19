@@ -84,6 +84,7 @@ struct CategoryFeedView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: DS.Space.m) {
                 banner
+                subcategoryBar
                 filterBar
                 content
                 footer
@@ -123,6 +124,30 @@ struct CategoryFeedView: View {
         .frame(height: 120)
         .clipShape(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous))
         .screenPadding()
+    }
+
+    /// 二级子分类：先粗分，再看具体项目
+    private var subcategoryBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: DS.Space.s) {
+                FilterChip(title: "全部", emoji: "🗂", isActive: vm.activeSub == nil) {
+                    Haptics.selection()
+                    withAnimation(DS.Motion.snappy) { vm.setSubcategory(nil) }
+                }
+                ForEach(category.subcategories) { sub in
+                    FilterChip(
+                        title: "\(sub.title) \(vm.counts(for: sub))",
+                        isActive: vm.activeSub?.id == sub.id
+                    ) {
+                        Haptics.selection()
+                        withAnimation(DS.Motion.snappy) {
+                            vm.setSubcategory(vm.activeSub?.id == sub.id ? nil : sub)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, DS.Space.screen)
+        }
     }
 
     private var filterBar: some View {
@@ -182,11 +207,6 @@ struct CategoryFeedView: View {
                     }
                     .buttonStyle(.springPressCard)
                     .staggerAppear(min(entry.index, 10))
-                    .onAppear {
-                        if entry.index == vm.displayed.count - 1 {
-                            Task { await vm.loadMore() }
-                        }
-                    }
                 }
             }
             .screenPadding()

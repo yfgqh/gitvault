@@ -2,10 +2,34 @@
 //  RepoCategory.swift
 //  GitVault
 //
-//  第一层分类：6 大主题场景。这是全 App 的导航骨架。
+//  第一层分类：6 大主题场景；并为每类提供「二级子分类」与「抓取用 topic」。
+//
+//  重要：GitHub 搜索里多个 `topic:` 是 AND 关系（必须同时具备），
+//  所以一个分类不能靠拼多个 topic 查询，否则结果恒为 0。
+//  这里改为「每个子分类一个代表 topic，逐个查询后合并去重」。
 //
 
 import SwiftUI
+
+struct RepoSubcategory: Identifiable, Hashable {
+    let id: String
+    let title: String
+    /// 该子分类用于搜索的代表性 topic（GitHub 已小写）
+    let topics: [String]
+    /// 命中语言时也算匹配（用于本地二次过滤）
+    let languages: [String]
+
+    func matches(_ repo: ShowcaseRepo) -> Bool {
+        if !topics.isEmpty {
+            let repoTopics = Set(repo.topics.map { $0.lowercased() })
+            if topics.contains(where: { repoTopics.contains($0) }) { return true }
+        }
+        if !languages.isEmpty {
+            return languages.contains(repo.language.lowercased())
+        }
+        return false
+    }
+}
 
 enum RepoCategory: String, CaseIterable, Identifiable, Codable {
     case ai
@@ -17,7 +41,6 @@ enum RepoCategory: String, CaseIterable, Identifiable, Codable {
 
     var id: String { rawValue }
 
-    /// 中文主题名
     var title: String {
         switch self {
         case .ai: return "AI 与智能"
@@ -40,7 +63,6 @@ enum RepoCategory: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    /// 一句话定位，出现在分类页卡片与 Tab 提示
     var subtitle: String {
         switch self {
         case .ai: return "LLM · Agent · 视觉 · RAG"
@@ -52,7 +74,6 @@ enum RepoCategory: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    /// 分类封面渐变（每类一个独立色相区间，保持整体紫蓝基调）
     var gradient: [Color] {
         switch self {
         case .ai: return [Color(hex: 0x6E7BFF), Color(hex: 0xA66CFF)]
@@ -64,7 +85,6 @@ enum RepoCategory: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    /// SF Symbol（用于胶囊快捷入口）
     var symbol: String {
         switch self {
         case .ai: return "sparkles"
@@ -76,12 +96,12 @@ enum RepoCategory: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    /// 规则分类器关键词（阶段 2 使用；阶段 1 先随模型一起落地，保证契约稳定）
+    /// 规则分类器关键词（英文 topic + 中文词）
     var keywords: [String] {
         switch self {
         case .ai:
             return ["llm", "gpt", "agent", "diffusion", "rag", "transformer", "embedding",
-                    "inference", "vision", "cuda", "finetune", "prompt", "ml", "ai",
+                    "inference", "vision", "cuda", "finetune", "prompt", "machine-learning",
                     "大模型", "推理", "多模态"]
         case .tooling:
             return ["cli", "terminal", "vscode", "plugin", "build", "bundler", "linter",
@@ -93,11 +113,11 @@ enum RepoCategory: String, CaseIterable, Identifiable, Codable {
                     "组件", "设计系统", "动效"]
         case .backend:
             return ["database", "redis", "kafka", "microservice", "grpc", "distributed",
-                    "postgres", "mysql", "storage", "server", "cloud", "native",
+                    "postgres", "mysql", "storage", "server", "cloud", "cloud-native",
                     "数据库", "微服务", "分布式"]
         case .mobile:
             return ["ios", "swift", "swiftui", "android", "kotlin", "flutter", "react-native",
-                    "harmony", "compose", "mobile", "app",
+                    "harmonyos", "compose", "mobile", "app",
                     "移动端", "跨端", "鸿蒙"]
         case .learning:
             return ["awesome", "tutorial", "guide", "course", "interview", "algorithm",
@@ -106,12 +126,72 @@ enum RepoCategory: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    /// 主题强调色（文字/图标着色）
+    /// 抓取项目时使用的代表性 topic（每个都单独查一次再合并）
+    var searchTopics: [String] {
+        switch self {
+        case .ai: return ["llm", "machine-learning", "stable-diffusion"]
+        case .tooling: return ["cli", "devtools", "vscode-extension"]
+        case .frontend: return ["react", "ui-components", "css"]
+        case .backend: return ["database", "microservices", "kubernetes"]
+        case .mobile: return ["ios", "android", "flutter"]
+        case .learning: return ["awesome-list", "tutorial", "roadmap"]
+        }
+    }
+
+    /// 二级子分类：进入分类后先看到这一层，再筛项目
+    var subcategories: [RepoSubcategory] {
+        switch self {
+        case .ai:
+            return [
+                RepoSubcategory(id: "ai.llm", title: "大模型", topics: ["llm", "gpt", "transformer"], languages: []),
+                RepoSubcategory(id: "ai.agent", title: "Agent", topics: ["agent", "agents", "autonomous-agents"], languages: []),
+                RepoSubcategory(id: "ai.cv", title: "视觉生成", topics: ["stable-diffusion", "image-generation", "computer-vision"], languages: []),
+                RepoSubcategory(id: "ai.rag", title: "RAG 检索", topics: ["rag", "vector-database", "embedding"], languages: [])
+            ]
+        case .tooling:
+            return [
+                RepoSubcategory(id: "tool.cli", title: "命令行", topics: ["cli", "command-line", "terminal"], languages: ["go", "rust", "shell"]),
+                RepoSubcategory(id: "tool.editor", title: "编辑器插件", topics: ["vscode-extension", "neovim", "jetbrains-plugin"], languages: []),
+                RepoSubcategory(id: "tool.build", title: "构建打包", topics: ["build-tool", "bundler", "monorepo"], languages: []),
+                RepoSubcategory(id: "tool.devops", title: "DevOps", topics: ["devops", "docker", "kubernetes"], languages: [])
+            ]
+        case .frontend:
+            return [
+                RepoSubcategory(id: "fe.ui", title: "组件库", topics: ["ui-components", "component-library", "design-system"], languages: []),
+                RepoSubcategory(id: "fe.motion", title: "动效", topics: ["animation", "motion", "gsap"], languages: []),
+                RepoSubcategory(id: "fe.framework", title: "跨端框架", topics: ["react", "vue", "svelte"], languages: []),
+                RepoSubcategory(id: "fe.style", title: "样式方案", topics: ["css", "tailwindcss", "styling"], languages: [])
+            ]
+        case .backend:
+            return [
+                RepoSubcategory(id: "be.db", title: "数据库", topics: ["database", "postgresql", "sql"], languages: []),
+                RepoSubcategory(id: "be.mq", title: "中间件", topics: ["kafka", "redis", "message-queue"], languages: []),
+                RepoSubcategory(id: "be.micro", title: "微服务", topics: ["microservices", "grpc", "api-gateway"], languages: []),
+                RepoSubcategory(id: "be.cloud", title: "云原生", topics: ["kubernetes", "serverless", "cloud-native"], languages: [])
+            ]
+        case .mobile:
+            return [
+                RepoSubcategory(id: "mob.ios", title: "iOS", topics: ["ios", "swiftui"], languages: ["swift", "objective-c"]),
+                RepoSubcategory(id: "mob.android", title: "Android", topics: ["android", "jetpack-compose"], languages: ["kotlin", "java"]),
+                RepoSubcategory(id: "mob.flutter", title: "Flutter", topics: ["flutter"], languages: ["dart"]),
+                RepoSubcategory(id: "mob.rn", title: "React Native", topics: ["react-native"], languages: []),
+                RepoSubcategory(id: "mob.harmony", title: "鸿蒙", topics: ["harmonyos", "arkts"], languages: [])
+            ]
+        case .learning:
+            return [
+                RepoSubcategory(id: "learn.list", title: "Awesome 清单", topics: ["awesome-list", "awesome"], languages: []),
+                RepoSubcategory(id: "learn.tutorial", title: "教程", topics: ["tutorial", "course", "guide"], languages: []),
+                RepoSubcategory(id: "learn.interview", title: "面试算法", topics: ["interview", "leetcode", "algorithms"], languages: []),
+                RepoSubcategory(id: "learn.book", title: "书籍", topics: ["books", "ebook", "free-programming-books"], languages: [])
+            ]
+        }
+    }
+
     var tint: Color { gradient.first ?? DS.accent }
 }
 
 extension RepoCategory {
-    /// 轻量映射：从 GitHub topics 里命中最多的分类
+    /// 从 GitHub topics 里命中最多的分类
     static func infer(fromTopics topics: [String], description: String?, language: String?) -> RepoCategory {
         var scores: [RepoCategory: Int] = [:]
         let topicsLower = topics.map { $0.lowercased() }
@@ -129,7 +209,6 @@ extension RepoCategory {
         if let best = scores.max(by: { $0.value < $1.value }), best.value > 0 {
             return best.key
         }
-        // 兜底：按主语言推断
         if let language = language?.lowercased() {
             if ["swift", "kotlin", "dart", "objective-c"].contains(language) { return .mobile }
             if ["typescript", "javascript", "css", "html"].contains(language) { return .frontend }

@@ -25,8 +25,10 @@ protocol GitHubAPI {
     func languages(owner: String, name: String) async throws -> RepositoryLanguages
     func readme(owner: String, name: String) async throws -> String
     func currentUser() async throws -> GitHubUserDTO
-    func searchByCategory(_ category: RepoCategory, page: Int, perPage: Int) async throws -> RepositorySearchPage
-    func totalCount(for category: RepoCategory) async throws -> Int
+    /// 按分类抓取项目（内部按代表 topic 逐个查询后合并去重）
+    func fetchCategory(_ category: RepoCategory, limit: Int) async throws -> [RepositoryDTO]
+    /// 分类总项目数（取代表 topic 的 total_count）
+    func categoryTotal(_ category: RepoCategory) async throws -> Int
 }
 
 struct GitHubService: GitHubAPI {
@@ -68,20 +70,46 @@ struct GitHubService: GitHubAPI {
         return try await request(path: "/search/repositories", query: items, as: RepositorySearchPage.self)
     }
 
-    /// 按主题抓取（分类页 / 推荐用）。perPage 最大 100（GitHub 硬上限）。
-    func searchByCategory(_ category: RepoCategory,
-                          page: Int = 1,
-                          perPage: Int = 100) async throws -> RepositorySearchPage {
-        let keys = Array(category.keywords.prefix(4))
-        let topicQuery = keys.map { "topic:\($0.replacingOccurrences(of: " ", with: "-"))" }
-            .joined(separator: " ")
-        let query = "\(topicQuery) stars:>100"
-        return try await searchRepositories(query: query, sort: .stars, page: page, perPage: min(perPage, 100))
+    /// 按分类抓取项目。
+    /// 关键点：GitHub 搜索中多个 `topic:` 是 AND（必须同时具备），
+    /// 拼在一起会得到 0 条结果 —— 这正是之前「分类下没有项目」的原因。
+    /// 这里对每个代表 topic 单独查询，再合并去重。
+    func fetchCategory(_ category: RepoCategory, limit: Int = 100) async throws -> [RepositoryDTO] {
+        var merged: [Int: RepositoryDTO] = [:]
+        var lastError: Error?
+
+        for topic in category.searchTopics {
+            let query = "topic:\(topic) stars:>50"
+            do {
+                let page = try await searchRepositories(query: query, sort: .stars, page: 1, perPage: 50)
+                for item in page.items {
+                    merged[item.id] = item
+                }
+            } catch {
+                lastError = error
+            }
+            if merged.count >= limit { break }
+        }
+
+        if merged.isEmpty, let lastError {
+            throw lastError
+        }
+        return merged.values
+            .sorted { $0.stargazersCount > $1.stargazersCount }
+            .prefix(limit)
+            .map { $0 }
     }
 
-    /// 只取总数：per_page=1，代价极小，用于分类页的「N 个项目」
-    func totalCount(for category: RepoCategory) async throws -> Int {
-        try await searchByCategory(category, page: 1, perPage: 1).totalCount
+    /// 分类总项目数：取第一个代表 topic 的 total_count（近似值，用于「N 个项目」展示）
+    func categoryTotal(_ category: RepoCategory) async throws -> Int {
+        guard let topic = category.searchTopics.first else { return 0 }
+        let page = try await searchRepositories(
+            query: "topic:\(topic) stars:>50",
+            sort: .stars,
+            page: 1,
+            perPage: 1
+        )
+        return page.totalCount
     }
 
     /// 「飙升榜」：GitHub 没有官方 trending 接口，

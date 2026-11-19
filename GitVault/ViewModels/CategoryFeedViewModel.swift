@@ -2,7 +2,8 @@
 //  CategoryFeedViewModel.swift
 //  GitVault
 //
-//  二级主题页（iOS 16 兼容：ObservableObject）。
+//  二级主题页：先按「子分类」筛，再按状态 / 语言 / 排序筛选。
+//  抓取走 GitHubService.fetchCategory（逐 topic 查询合并，不再出现 0 结果）。
 //
 
 import Foundation
@@ -27,28 +28,38 @@ final class CategoryFeedViewModel: ObservableObject {
     @Published var items: [ShowcaseRepo] = []
     @Published var totalCount = 0
     @Published var isLoading = false
-    @Published var isLoadingMore = false
     @Published var errorMessage: String?
 
+    @Published var activeSub: RepoSubcategory?
     @Published var sortMode: SortMode = .stars
     @Published var activeActivity: ActivityTag?
     @Published var activeLanguage: String?
 
-    private var page = 1
     private let api: any GitHubAPI
     private var didLoad = false
+    private let fetchLimit = 100
 
     init(category: RepoCategory, api: any GitHubAPI = GitHubService.shared) {
         self.category = category
         self.api = api
     }
 
+    // MARK: 展示
+
     var languages: [String] {
         Array(Set(items.map(\.language))).sorted()
     }
 
+    /// 子分类各自命中的数量，用于 chip 上的角标
+    func counts(for sub: RepoSubcategory) -> Int {
+        items.filter { sub.matches($0) }.count
+    }
+
     var displayed: [ShowcaseRepo] {
         var list = items
+        if let activeSub {
+            list = list.filter { activeSub.matches($0) }
+        }
         if let activeActivity { list = list.filter { $0.activity == activeActivity } }
         if let activeLanguage { list = list.filter { $0.language == activeLanguage } }
         switch sortMode {
@@ -59,12 +70,15 @@ final class CategoryFeedViewModel: ObservableObject {
         return list
     }
 
-    /// 只取前 100（GitHub 单页上限），够用且省额度
-    let fetchLimit = 100
-    var canLoadMore: Bool { false }
     var truncatedHint: String? {
-        totalCount > items.count ? "共 \(totalCount) 个，展示前 \(items.count) 名" : nil
+        guard totalCount > 0 else { return nil }
+        if activeSub != nil {
+            return "该子分类命中 \(displayed.count) 个（本次抓取前 \(fetchLimit) 名内）"
+        }
+        return totalCount > items.count ? "共 \(totalCount) 个，已展示前 \(items.count) 名" : nil
     }
+
+    // MARK: 加载
 
     func loadIfNeeded() async {
         guard !didLoad else { return }
@@ -73,14 +87,21 @@ final class CategoryFeedViewModel: ObservableObject {
     }
 
     func reload() async {
+        guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
-        page = 1
+
         do {
-            let result = try await api.searchByCategory(category, page: 1, perPage: fetchLimit)
-            items = result.items.map(ShowcaseRepo.init(dto:))
-            totalCount = result.totalCount
+            async let fetchedCall = api.fetchCategory(category, limit: fetchLimit)
+            async let totalCall = api.categoryTotal(category)
+
+            let fetched = try await fetchedCall
+            let total = (try? await totalCall) ?? fetched.count
+
+            items = fetched.map(ShowcaseRepo.init(dto:))
+            totalCount = max(total, items.count)
+            CrashReporter.log("category \(category.rawValue): \(items.count) items / total \(totalCount)")
         } catch {
             errorMessage = error.localizedDescription
             if items.isEmpty {
@@ -90,6 +111,7 @@ final class CategoryFeedViewModel: ObservableObject {
         }
     }
 
-    /// 首屏已经拿满 100 条，这里保留接口但不再翻页（保持调用方兼容）
-    func loadMore() async { }
+    func setSubcategory(_ sub: RepoSubcategory?) {
+        activeSub = sub
+    }
 }

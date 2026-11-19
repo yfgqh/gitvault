@@ -54,7 +54,7 @@ final class AppEnvironment: ObservableObject {
 
         var result: [RepoCategory: Int] = [:]
         for category in RepoCategory.allCases {
-            if let count = try? await api.totalCount(for: category) {
+            if let count = try? await api.categoryTotal(category) {
                 result[category] = count
             }
         }

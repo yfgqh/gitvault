@@ -45,12 +45,12 @@ final class ExploreViewModel: ObservableObject {
 
         do {
             async let trendingDTOs = api.trending(days: 14)
-            async let aiPage = api.searchByCategory(.ai, page: 1, perPage: 12)
-            async let toolPage = api.searchByCategory(.tooling, page: 1, perPage: 12)
+            async let aiItems = api.fetchCategory(.ai, limit: 12)
+            async let toolItems = api.fetchCategory(.tooling, limit: 12)
 
             let trending = try await trendingDTOs
-            let ai = try await aiPage
-            let tools = try await toolPage
+            let ai = try await aiItems
+            let tools = try await toolItems
 
             let mapped = trending.map(ShowcaseRepo.init(dto:))
             self.trending = mapped
@@ -61,7 +61,7 @@ final class ExploreViewModel: ObservableObject {
             }
 
             let featuredIDs = Set(self.featured.map(\.id))
-            self.forYou = (ai.items.map(ShowcaseRepo.init(dto:)) + tools.items.map(ShowcaseRepo.init(dto:)))
+            self.forYou = (ai.map(ShowcaseRepo.init(dto:)) + tools.map(ShowcaseRepo.init(dto:)))
                 .filter { !featuredIDs.contains($0.id) }
                 .sorted { $0.stars > $1.stars }
                 .prefix(8)

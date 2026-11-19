@@ -146,7 +146,7 @@ final class DetailViewModel: ObservableObject {
         readmeSource = "原文"
 
         // 已是中文就不翻译
-        guard !SummaryService.containsCJK(excerpt) else {
+        guard !SummaryService.isMostlyChinese(excerpt) else {
             readmeSource = "原文（中文）"
             return
         }

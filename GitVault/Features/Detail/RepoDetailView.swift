@@ -28,10 +28,7 @@ struct RepoDetailView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            DS.bgPrimary.ignoresSafeArea()
-
-            VStack(spacing: 0) {
+        VStack(spacing: 0) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: DS.Space.l) {
                         hero
@@ -48,10 +45,11 @@ struct RepoDetailView: View {
 
                 bottomBar
             }
-
-            backButton
-        }
-        .navigationBarHidden(true)
+        .background(DS.bgPrimary.ignoresSafeArea())
+        .navigationTitle(vm.repo.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(DS.bgPrimary, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .task {
             vm.llm = env.llm
             if let item = vault.item(id: repo.id) {
@@ -397,25 +395,6 @@ struct RepoDetailView: View {
         .accessibilityLabel(label)
     }
 
-    // MARK: 返回
-
-    private var backButton: some View {
-        Button {
-            Haptics.tap()
-            dismiss()
-        } label: {
-            Image(systemName: "chevron.left")
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(DS.textPrimary)
-                .frame(width: 36, height: 36)
-                .background(Circle().fill(DS.bgSecondary))
-                .overlay(Circle().strokeBorder(DS.separator, lineWidth: 1))
-        }
-        .buttonStyle(.springPressSilent)
-        .padding(.leading, DS.Space.m)
-        .padding(.top, DS.Space.s)
-        .accessibilityLabel("返回")
-    }
 
     // MARK: 动作
 
