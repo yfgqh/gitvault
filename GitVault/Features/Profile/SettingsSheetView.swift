@@ -2,14 +2,14 @@
 //  SettingsSheetView.swift
 //  GitVault
 //
-//  首页齿轮弹出的快捷设置面板（外观 + 关于）。
+//  首页齿轮弹出的快捷设置面板（外观 + 默认偏好）。
 //
 
 import SwiftUI
 
 struct SettingsSheetView: View {
     @Environment(\.dismiss) private var dismiss
-    @AppStorage(PreferenceKey.appearance) private var appearanceRaw: String = AppearanceMode.dark.rawValue
+    @AppStorage(AppPrefs.appearance) private var appearanceRaw: String = AppearanceMode.dark.rawValue
 
     private var appearance: AppearanceMode {
         AppearanceMode(rawValue: appearanceRaw) ?? .dark

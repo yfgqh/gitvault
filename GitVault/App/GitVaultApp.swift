@@ -11,7 +11,7 @@ import SwiftData
 @main
 struct GitVaultApp: App {
     /// 外观偏好（深色为默认）
-    @AppStorage(PreferenceKey.appearance) private var appearanceRaw: String = AppearanceMode.dark.rawValue
+    @AppStorage(AppPrefs.appearance) private var appearanceRaw: String = AppearanceMode.dark.rawValue
 
     /// SwiftData 容器：阶段 2 会补充更多实体与迁移策略
     private let container: ModelContainer = {

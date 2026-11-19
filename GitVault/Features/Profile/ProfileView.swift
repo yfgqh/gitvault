@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ProfileView: View {
-    @AppStorage(PreferenceKey.appearance) private var appearanceRaw: String = AppearanceMode.dark.rawValue
+    @AppStorage(AppPrefs.appearance) private var appearanceRaw: String = AppearanceMode.dark.rawValue
     @State private var showLoginSheet = false
 
     private var appearance: AppearanceMode {
@@ -141,7 +141,9 @@ struct ProfileView: View {
                         .padding(.vertical, 14)
                         .background(
                             RoundedRectangle(cornerRadius: DS.Radius.chip + 4, style: .continuous)
-                                .fill(appearance == mode ? AnyShapeStyle(DS.accentGradient) : AnyShapeStyle(DS.bgSecondary))
+                                .fill(appearance == mode
+                                      ? AnyShapeStyle(DS.accentGradient)
+                                      : AnyShapeStyle(DS.bgSecondary))
                         )
                     }
                     .buttonStyle(.springPressSilent)

@@ -41,7 +41,7 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
 }
 
 /// 全局偏好键，集中管理避免各处硬编码字符串
-enum PreferenceKey {
+enum AppPrefs {
     static let appearance = "gv.appearance"
     static let hasSeenOnboarding = "gv.hasSeenOnboarding"
     static let searchHistory = "gv.searchHistory"
