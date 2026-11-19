@@ -908,18 +908,24 @@ struct AboutSheetView: View {
     }
 
     private let highlights: [AboutHighlight] = [
-        ("square.grid.2x2.fill", "双层分类体系",
-         "六大主题场景 + 二级子分类，配合状态、语言、许可、用途四组智能标签，把「收藏」变成可检索的结构化资料。"),
-        ("text.alignleft", "中文优先的阅读体验",
-         "项目简介与 README 先呈现原文，非中文内容自动交由 AI 译为简洁中文；未联网或模型不可用时回落本地规则，始终有内容可读。"),
-        ("bookmark.fill", "本地优先的收藏库",
-         "收藏、观察、在用、归档四态标记，自定义文件夹与拖拽排序，数据全部保存在设备本地，随时可导出 JSON / Markdown。"),
-        ("magnifyingglass", "为找项目而设计的搜索",
-         "输入即联想，可按主题、语言、星标区间组合筛选，并记住你的搜索历史。"),
-        ("iphone.gen3", "原生体验",
-         "SwiftUI 构建，深色为默认外观，支持浅色与跟随系统；iPhone 与 iPad 自适应布局，完整支持动态字体与旁白。"),
-        ("lock.shield.fill", "隐私优先",
-         "GitHub 令牌仅存于系统钥匙串，不采集任何个人数据，不上传收藏内容。")
+        AboutHighlight(icon: "square.grid.2x2.fill",
+                       title: "双层分类体系",
+                       detail: "六大主题场景 + 二级子分类，配合状态、语言、许可、用途四组智能标签，把「收藏」变成可检索的结构化资料。"),
+        AboutHighlight(icon: "text.alignleft",
+                       title: "中文优先的阅读体验",
+                       detail: "项目简介与 README 先呈现原文，非中文内容自动交由 AI 译为简洁中文；未联网或模型不可用时回落本地规则，始终有内容可读。"),
+        AboutHighlight(icon: "bookmark.fill",
+                       title: "本地优先的收藏库",
+                       detail: "收藏、观察、在用、归档四态标记，自定义文件夹与拖拽排序，数据全部保存在设备本地，随时可导出 JSON / Markdown。"),
+        AboutHighlight(icon: "magnifyingglass",
+                       title: "为找项目而设计的搜索",
+                       detail: "输入即联想，可按主题、语言、星标区间组合筛选，并记住你的搜索历史。"),
+        AboutHighlight(icon: "iphone.gen3",
+                       title: "原生体验",
+                       detail: "SwiftUI 构建，深色为默认外观，支持浅色与跟随系统；iPhone 与 iPad 自适应布局，完整支持动态字体与旁白。"),
+        AboutHighlight(icon: "lock.shield.fill",
+                       title: "隐私优先",
+                       detail: "GitHub 令牌仅存于系统钥匙串，不采集任何个人数据，不上传收藏内容。")
     ]
 
     var body: some View {
