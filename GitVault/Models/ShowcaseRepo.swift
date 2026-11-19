@@ -152,7 +152,7 @@ struct ShowcaseRepo: Identifiable, Hashable {
 // MARK: - 由收藏记录反构造（离线展示用）
 
 extension ShowcaseRepo {
-    init(entry: VaultEntry) {
+    init(entry: VaultItem) {
         self.init(
             id: entry.repoID,
             owner: entry.owner,

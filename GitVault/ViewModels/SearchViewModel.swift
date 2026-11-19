@@ -2,29 +2,26 @@
 //  SearchViewModel.swift
 //  GitVault
 //
-//  搜索编排：300ms 防抖、筛选拼查询串、分页加载、历史持久化。
+//  搜索编排（iOS 16 兼容：ObservableObject）。
 //
 
 import Foundation
-import Observation
+import Combine
 
-@Observable
 @MainActor
-final class SearchViewModel {
-    // 输入
-    var query = ""
-    var sort: SearchSort = .stars
-    var activeCategory: RepoCategory?
-    var activeLanguage: String?
-    var minStars: Int?
+final class SearchViewModel: ObservableObject {
+    @Published var query = ""
+    @Published var sort: SearchSort = .stars
+    @Published var activeCategory: RepoCategory?
+    @Published var activeLanguage: String?
+    @Published var minStars: Int?
 
-    // 输出
-    var results: [ShowcaseRepo] = []
-    var totalCount = 0
-    var isSearching = false
-    var isLoadingMore = false
-    var errorMessage: String?
-    var history: [String] = []
+    @Published var results: [ShowcaseRepo] = []
+    @Published var totalCount = 0
+    @Published var isSearching = false
+    @Published var isLoadingMore = false
+    @Published var errorMessage: String?
+    @Published var history: [String] = []
 
     private var page = 1
     private let api: any GitHubAPI
@@ -44,7 +41,7 @@ final class SearchViewModel {
 
     var canLoadMore: Bool { results.count < totalCount }
 
-    // MARK: 执行搜索
+    // MARK: 搜索
 
     func perform(debounced: Bool) async {
         let keyword = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -109,8 +106,6 @@ final class SearchViewModel {
         }
     }
 
-    // MARK: 查询串
-
     private func buildQuery(_ keyword: String) -> String {
         var parts: [String] = []
         if !keyword.isEmpty { parts.append(keyword) }
@@ -123,7 +118,7 @@ final class SearchViewModel {
         return parts.joined(separator: " ")
     }
 
-    // MARK: 历史（UserDefaults + JSON，轻量且够用）
+    // MARK: 历史
 
     func record(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)

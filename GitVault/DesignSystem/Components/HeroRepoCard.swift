@@ -135,7 +135,6 @@ struct HeroRepoCard: View {
                 .background(.ultraThinMaterial, in: Circle())
                 .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 1))
                 .overlay { HeartBurst(active: heartBurst) }
-                .contentTransition(.symbolEffect(.replace))
         }
         .buttonStyle(.springPressSilent)
         .accessibilityLabel(isSaved ? "取消收藏 \(repo.name)" : "收藏 \(repo.name)")

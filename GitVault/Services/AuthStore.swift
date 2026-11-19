@@ -2,17 +2,15 @@
 //  AuthStore.swift
 //  GitVault
 //
-//  GitHub 登录：OAuth Device Flow（客户端无需 secret，最适合 App）。
-//  流程：申请 device_code → 展示 user_code 并打开浏览器 → 轮询 access_token → 存 Keychain。
+//  GitHub 登录：OAuth Device Flow（客户端无需 secret）。
+//  iOS 16 兼容：ObservableObject + @Published。
 //
 
 import Foundation
-import Observation
 import SwiftUI
 
-@Observable
 @MainActor
-final class AuthStore {
+final class AuthStore: ObservableObject {
 
     enum Status: Equatable {
         case idle
@@ -22,30 +20,27 @@ final class AuthStore {
         case failed(String)
     }
 
-    private(set) var status: Status = .idle
-    private(set) var user: GitHubUserDTO?
-    private(set) var userCode: String?
-    private(set) var verificationURL: URL?
-    private(set) var expiresAt: Date?
-    private(set) var hasToken: Bool = Keychain.read(Keychain.tokenKey)?.isEmpty == false
+    @Published private(set) var status: Status = .idle
+    @Published private(set) var user: GitHubUserDTO?
+    @Published private(set) var userCode: String?
+    @Published private(set) var verificationURL: URL?
+    @Published private(set) var expiresAt: Date?
+    @Published private(set) var hasToken: Bool = Keychain.read(Keychain.tokenKey)?.isEmpty == false
 
     private var deviceCode: String?
     private var pollTask: Task<Void, Never>?
 
     var isSignedIn: Bool { hasToken }
-
     var displayName: String { user?.name ?? user?.login ?? "未登录" }
 
-    // MARK: - 生命周期
+    // MARK: 生命周期
 
-    /// App 启动时静默恢复会话
     func restore() async {
         guard hasToken else { return }
         do {
             user = try await GitHubService.shared.currentUser()
             status = .signedIn
         } catch {
-            // Token 失效就清掉，避免一直 401
             if case GitHubError.unauthorized = error {
                 signOut()
             } else {
@@ -54,7 +49,7 @@ final class AuthStore {
         }
     }
 
-    // MARK: - Device Flow
+    // MARK: Device Flow
 
     func start() async {
         let clientID = AppConfig.oauthClientID
@@ -96,7 +91,7 @@ final class AuthStore {
         status = .idle
     }
 
-    // MARK: - 私有实现
+    // MARK: 私有
 
     private func startPolling(clientID: String, interval: Int) {
         pollTask?.cancel()
@@ -108,8 +103,7 @@ final class AuthStore {
                 if Task.isCancelled { return }
 
                 do {
-                    let result = try await self.pollOnce(clientID: clientID)
-                    switch result {
+                    switch try await self.pollOnce(clientID: clientID) {
                     case .success(let token):
                         Keychain.save(token, for: Keychain.tokenKey)
                         self.hasToken = true
@@ -182,15 +176,13 @@ final class AuthStore {
         }
     }
 
-    private func postForm<T: Decodable>(url: String,
-                                        form: String,
-                                        as type: T.Type) async throws -> T {
+    private func postForm<T: Decodable>(url: String, form: String, as type: T.Type) async throws -> T {
         guard let url = URL(string: url) else { throw GitHubError.invalidURL }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("GitVault/1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("GitVault/1.2", forHTTPHeaderField: "User-Agent")
         request.httpBody = form.data(using: .utf8)
 
         let (data, response) = try await URLSession.shared.data(for: request)

@@ -2,11 +2,11 @@
 //  DetailViewModel.swift
 //  GitVault
 //
-//  详情页编排：仓库详情、语言占比、README 摘要、收藏状态。
+//  详情页编排（iOS 16 兼容：ObservableObject）。
 //
 
 import Foundation
-import Observation
+import Combine
 
 struct LanguageSlice: Identifiable, Equatable {
     let name: String
@@ -14,20 +14,18 @@ struct LanguageSlice: Identifiable, Equatable {
     var id: String { name }
 }
 
-@Observable
 @MainActor
-final class DetailViewModel {
-    var repo: ShowcaseRepo
-    var languages: [LanguageSlice] = []
-    var readmeSummary: String?
-    var readmeSource: String = "本地规则"
-    var isLoadingDetail = false
-    var isLoadingReadme = false
-    var errorMessage: String?
-    var isSaved = false
-    var mark: MyMark?
-    /// 相似项目：同 topic 的高星仓库
-    var similar: [ShowcaseRepo] = []
+final class DetailViewModel: ObservableObject {
+    @Published var repo: ShowcaseRepo
+    @Published var languages: [LanguageSlice] = []
+    @Published var readmeSummary: String?
+    @Published var readmeSource: String = "本地规则"
+    @Published var isLoadingDetail = false
+    @Published var isLoadingReadme = false
+    @Published var errorMessage: String?
+    @Published var isSaved = false
+    @Published var mark: MyMark?
+    @Published var similar: [ShowcaseRepo] = []
 
     private let api: any GitHubAPI
     private let llm: any LLMClassifierProtocol
@@ -42,7 +40,6 @@ final class DetailViewModel {
         self.llm = llm
     }
 
-    /// 用最新数据刷新头部与语言占比
     func loadDetailIfNeeded() async {
         guard !didLoadDetail else { return }
         didLoadDetail = true
@@ -65,7 +62,6 @@ final class DetailViewModel {
         await loadSimilar()
     }
 
-    /// 相似项目：拿首个 topic 去搜索，排除自己
     private func loadSimilar() async {
         guard let topic = repo.topics.first, !topic.isEmpty else { return }
         guard let page = try? await api.searchRepositories(
@@ -81,7 +77,6 @@ final class DetailViewModel {
             .map { $0 }
     }
 
-    /// README 中文摘要：优先大模型，未配置则本地规则
     func loadReadmeIfNeeded(force: Bool = false) async {
         guard force || !didLoadReadme else { return }
         didLoadReadme = true

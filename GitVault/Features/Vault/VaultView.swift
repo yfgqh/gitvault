@@ -2,42 +2,25 @@
 //  VaultView.swift
 //  GitVault
 //
-//  收藏库：环形统计 + 自定义文件夹 + 标记筛选 + 左滑操作 + 拖拽排序 + 导出。
-//  数据源：SwiftData（VaultEntry / VaultFolder），写操作统一走 VaultService。
+//  收藏库（iOS 16 兼容）：JSON 持久化 + 环形统计 + 文件夹 + 左滑 + 拖拽排序 + 导出。
 //
 
 import SwiftUI
-import SwiftData
 
 struct VaultView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Environment(AppEnvironment.self) private var env
-
-    @Query(sort: [SortDescriptor(\VaultEntry.sortIndex, order: .forward)])
-    private var entries: [VaultEntry]
-    @Query(sort: [SortDescriptor(\VaultFolder.sortIndex, order: .forward)])
-    private var folders: [VaultFolder]
+    @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var vault: VaultStore
 
     @State private var activeMark: MyMark?
     @State private var editMode: EditMode = .inactive
     @State private var showingNewFolder = false
     @State private var newFolderName = ""
     @State private var exportFile: ExportFile?
-    @State private var moveTarget: VaultEntry?
+    @State private var moveTarget: VaultItem?
 
-    private var service: VaultService { VaultService(context: modelContext) }
-
-    private var filtered: [VaultEntry] {
-        guard let activeMark else { return entries }
-        return entries.filter { $0.mark == activeMark }
-    }
-
-    private func count(_ mark: MyMark) -> Int {
-        entries.filter { $0.mark == mark }.count
-    }
-
-    private func folderEntries(_ folder: VaultFolder) -> [VaultEntry] {
-        entries.filter { $0.folderName == folder.name }
+    private var filtered: [VaultItem] {
+        guard let activeMark else { return vault.items }
+        return vault.items.filter { $0.mark == activeMark }
     }
 
     var body: some View {
@@ -54,12 +37,12 @@ struct VaultView: View {
                 list
             }
             .background(DS.bgPrimary)
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationBarHidden(true)
             .alert("新建文件夹", isPresented: $showingNewFolder) {
                 TextField("文件夹名称", text: $newFolderName)
                 Button("取消", role: .cancel) { newFolderName = "" }
                 Button("创建") {
-                    if let folder = service.createFolder(name: newFolderName) {
+                    if let folder = vault.createFolder(name: newFolderName) {
                         Haptics.success()
                         env.show("已创建文件夹：\(folder.name)", kind: .success)
                     }
@@ -73,7 +56,7 @@ struct VaultView: View {
                 set: { if !$0 { moveTarget = nil } }
             ), titleVisibility: .visible) {
                 Button("不分组") { move(moveTarget, to: nil) }
-                ForEach(folders) { folder in
+                ForEach(vault.folders) { folder in
                     Button(folder.emoji + " " + folder.name) { move(moveTarget, to: folder.name) }
                 }
                 Button("取消", role: .cancel) { moveTarget = nil }
@@ -162,12 +145,12 @@ struct VaultView: View {
         HStack(spacing: DS.Space.l) {
             StatRing(
                 segments: [
-                    .init(value: count(.starred), color: MyMark.starred.tint, label: "收藏"),
-                    .init(value: count(.inUse), color: MyMark.inUse.tint, label: "在用"),
-                    .init(value: count(.watching), color: MyMark.watching.tint, label: "观察"),
-                    .init(value: count(.archived), color: MyMark.archived.tint, label: "归档")
+                    .init(value: vault.count(.starred), color: MyMark.starred.tint, label: "收藏"),
+                    .init(value: vault.count(.inUse), color: MyMark.inUse.tint, label: "在用"),
+                    .init(value: vault.count(.watching), color: MyMark.watching.tint, label: "观察"),
+                    .init(value: vault.count(.archived), color: MyMark.archived.tint, label: "归档")
                 ],
-                total: entries.count
+                total: vault.items.count
             )
 
             VStack(alignment: .leading, spacing: DS.Space.s) {
@@ -178,10 +161,9 @@ struct VaultView: View {
                             .font(DS.Typo.caption)
                             .foregroundStyle(DS.textSecondary)
                         Spacer(minLength: 4)
-                        Text("\(count(mark))")
+                        Text("\(vault.count(mark))")
                             .font(DS.Typo.caption)
                             .foregroundStyle(DS.textPrimary)
-                            .contentTransition(.numericText())
                     }
                 }
             }
@@ -194,13 +176,13 @@ struct VaultView: View {
 
     private var list: some View {
         List {
-            if !folders.isEmpty {
+            if !vault.folders.isEmpty {
                 Section {
-                    ForEach(folders) { folder in
+                    ForEach(vault.folders) { folder in
                         folderRow(folder)
                     }
                 } header: {
-                    sectionHeader("我的文件夹", detail: "\(folders.count) 个")
+                    sectionHeader("我的文件夹", detail: "\(vault.folders.count) 个")
                 }
             }
 
@@ -223,38 +205,36 @@ struct VaultView: View {
     @ViewBuilder
     private var entryRows: some View {
         if activeMark == nil {
-            ForEach(filtered) { entry in
-                entryRow(entry)
+            ForEach(filtered) { item in
+                entryRow(item)
             }
             .onMove { from, to in
-                var ordered = filtered
-                ordered.move(fromOffsets: from, toOffset: to)
-                service.persistOrder(ordered)
+                vault.move(fromOffsets: from, toOffset: to, in: filtered)
                 Haptics.tap()
             }
         } else {
-            ForEach(filtered) { entry in
-                entryRow(entry)
+            ForEach(filtered) { item in
+                entryRow(item)
             }
         }
     }
 
-    private func entryRow(_ entry: VaultEntry) -> some View {
-        VaultRow(entry: entry)
+    private func entryRow(_ item: VaultItem) -> some View {
+        VaultRow(item: item)
             .listRowInsets(EdgeInsets(top: 4, leading: DS.Space.screen, bottom: 4, trailing: DS.Space.screen))
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                 Button(role: .destructive) {
-                    service.remove(entry)
+                    vault.remove(id: item.repoID)
                     Haptics.warning()
-                    env.show("已删除：\(entry.name)", kind: .info)
+                    env.show("已删除：\(item.name)", kind: .info)
                 } label: {
                     Label("删除", systemImage: "trash")
                 }
 
                 Button {
-                    service.setMark(entry, to: .archived)
+                    vault.setMark(id: item.repoID, to: .archived)
                     Haptics.tap()
                 } label: {
                     Label("归档", systemImage: "archivebox")
@@ -262,7 +242,7 @@ struct VaultView: View {
                 .tint(.orange)
 
                 Button {
-                    service.setMark(entry, to: .inUse)
+                    vault.setMark(id: item.repoID, to: .inUse)
                     Haptics.success()
                 } label: {
                     Label("在用", systemImage: "hammer")
@@ -271,7 +251,7 @@ struct VaultView: View {
             }
             .swipeActions(edge: .leading) {
                 Button {
-                    service.setMark(entry, to: .watching)
+                    vault.setMark(id: item.repoID, to: .watching)
                     Haptics.tap()
                 } label: {
                     Label("观察", systemImage: "eye")
@@ -279,7 +259,7 @@ struct VaultView: View {
                 .tint(Color(hex: 0x6EE7FF))
 
                 Button {
-                    moveTarget = entry
+                    moveTarget = item
                 } label: {
                     Label("分组", systemImage: "folder")
                 }
@@ -288,21 +268,21 @@ struct VaultView: View {
             .contextMenu {
                 ForEach(MyMark.allCases) { mark in
                     Button {
-                        service.setMark(entry, to: mark)
+                        vault.setMark(id: item.repoID, to: mark)
                         Haptics.tap()
                     } label: {
                         Label("标为\(mark.title)", systemImage: mark.symbol)
                     }
                 }
                 Button {
-                    moveTarget = entry
+                    moveTarget = item
                 } label: {
                     Label("移入文件夹", systemImage: "folder")
                 }
             }
     }
 
-    private func folderRow(_ folder: VaultFolder) -> some View {
+    private func folderRow(_ folder: VaultFolderItem) -> some View {
         HStack(spacing: DS.Space.m) {
             Text(folder.emoji)
                 .font(.system(size: 18))
@@ -318,7 +298,7 @@ struct VaultView: View {
 
             Spacer()
 
-            Text("\(folderEntries(folder).count)")
+            Text("\(vault.items(inFolder: folder.name).count)")
                 .font(DS.Typo.caption)
                 .foregroundStyle(DS.textTertiary)
         }
@@ -332,7 +312,7 @@ struct VaultView: View {
         .listRowBackground(Color.clear)
         .swipeActions {
             Button(role: .destructive) {
-                service.deleteFolder(folder)
+                vault.deleteFolder(folder)
                 Haptics.warning()
             } label: {
                 Label("删除文件夹", systemImage: "trash")
@@ -369,18 +349,18 @@ struct VaultView: View {
 
     // MARK: 动作
 
-    private func move(_ entry: VaultEntry?, to folder: String?) {
-        guard let entry else { return }
-        service.assign(entry, to: folder)
+    private func move(_ item: VaultItem?, to folder: String?) {
+        guard let item else { return }
+        vault.assign(id: item.repoID, to: folder)
         moveTarget = nil
         Haptics.success()
         env.show(folder.map { "已移入 \($0)" } ?? "已取消分组", kind: .success)
     }
 
-    private func export(_ format: VaultService.ExportFormat) {
+    private func export(_ format: VaultStore.ExportFormat) {
         do {
-            let url = try service.export(format)
-            exportFile = ExportFile(url: url, title: "导出 \(format.rawValue.uppercased())")
+            let url = try vault.export(format)
+            exportFile = ExportFile(url: url, title: "导出 \(format.displayName)")
             Haptics.success()
         } catch {
             env.show("导出失败：\(error.localizedDescription)", kind: .warning)
@@ -390,30 +370,30 @@ struct VaultView: View {
 
 /// 收藏行
 struct VaultRow: View {
-    let entry: VaultEntry
+    let item: VaultItem
 
     var body: some View {
         HStack(spacing: DS.Space.m) {
             AvatarView(
-                url: entry.avatarURL.flatMap { URL(string: $0) },
+                url: item.avatarURL.flatMap { URL(string: $0) },
                 size: 46,
-                initials: String(entry.owner.prefix(1)).uppercased()
-                    + String(entry.name.prefix(1)).uppercased(),
-                gradient: entry.category.gradient
+                initials: String(item.owner.prefix(1)).uppercased()
+                    + String(item.name.prefix(1)).uppercased(),
+                gradient: item.category.gradient
             )
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text(entry.name)
+                    Text(item.name)
                         .font(DS.Typo.headline)
                         .foregroundStyle(DS.textPrimary)
                         .lineLimit(1)
-                    TagChip(text: entry.mark.title, tint: entry.mark.tint, compact: true)
-                    if let folder = entry.folderName {
+                    TagChip(text: item.mark.title, tint: item.mark.tint, compact: true)
+                    if let folder = item.folderName {
                         TagChip(text: folder, systemImage: "folder", tint: DS.textTertiary, compact: true)
                     }
                 }
-                Text(entry.summary)
+                Text(item.summary)
                     .font(DS.Typo.captionRegular)
                     .foregroundStyle(DS.textSecondary)
                     .lineLimit(1)
@@ -422,10 +402,10 @@ struct VaultRow: View {
             Spacer(minLength: 0)
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text("★ \(ShowcaseRepo.compact(entry.stars))")
+                Text("★ \(ShowcaseRepo.compact(item.stars))")
                     .font(DS.Typo.micro)
                     .foregroundStyle(DS.textTertiary)
-                Text(entry.category.emoji)
+                Text(item.category.emoji)
                     .font(.system(size: 11))
             }
         }
@@ -443,6 +423,7 @@ struct VaultRow: View {
 
 #Preview("收藏库") {
     VaultView()
-        .environment(AppEnvironment.live())
-        .modelContainer(for: [VaultEntry.self, VaultFolder.self], inMemory: true)
+        .environmentObject(AppEnvironment.live())
+        .environmentObject(AuthStore())
+        .environmentObject(VaultStore(fileName: "preview-vault.json"))
 }

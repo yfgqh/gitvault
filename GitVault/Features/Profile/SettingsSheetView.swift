@@ -8,8 +8,9 @@
 import SwiftUI
 
 struct SettingsSheetView: View {
+    @EnvironmentObject private var auth: AuthStore
     @Environment(\.dismiss) private var dismiss
-    @Environment(AppEnvironment.self) private var env
+    @EnvironmentObject private var env: AppEnvironment
     @AppStorage(AppPrefs.appearance) private var appearanceRaw: String = AppearanceMode.dark.rawValue
 
     private var appearance: AppearanceMode {
@@ -61,7 +62,7 @@ struct SettingsSheetView: View {
                             SettingsRow(
                                 symbol: "network",
                                 title: "接口额度",
-                                detail: env.auth.isSignedIn ? "5000 次/小时" : "60 次/小时"
+                                detail: auth.isSignedIn ? "5000 次/小时" : "60 次/小时"
                             ) {}
                             Divider().padding(.leading, 52)
                             SettingsRow(
@@ -86,7 +87,7 @@ struct SettingsSheetView: View {
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("完成") { dismiss() }
                         .font(DS.Typo.caption)
                         .foregroundStyle(DS.accent)
@@ -98,5 +99,6 @@ struct SettingsSheetView: View {
 
 #Preview("设置面板") {
     SettingsSheetView()
-        .environment(AppEnvironment.live())
+        .environmentObject(AppEnvironment.live())
+        .environmentObject(AuthStore())
 }

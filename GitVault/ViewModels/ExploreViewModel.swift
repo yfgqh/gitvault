@@ -2,23 +2,21 @@
 //  ExploreViewModel.swift
 //  GitVault
 //
-//  首页数据编排：今日精选 / 飙升榜 / 为你推荐。
-//  接口失败时退回离线示例数据，保证首屏永远不是白屏。
+//  首页数据编排（iOS 16 兼容：ObservableObject）。
 //
 
 import Foundation
-import Observation
+import Combine
 
-@Observable
 @MainActor
-final class ExploreViewModel {
-    var featured: [ShowcaseRepo] = []
-    var trending: [ShowcaseRepo] = []
-    var forYou: [ShowcaseRepo] = []
-    var isLoading = false
-    var isUsingFallback = false
-    var errorMessage: String?
-    var lastUpdated: Date?
+final class ExploreViewModel: ObservableObject {
+    @Published var featured: [ShowcaseRepo] = []
+    @Published var trending: [ShowcaseRepo] = []
+    @Published var forYou: [ShowcaseRepo] = []
+    @Published var isLoading = false
+    @Published var isUsingFallback = false
+    @Published var errorMessage: String?
+    @Published var lastUpdated: Date?
 
     private let api: any GitHubAPI
     private var didLoad = false
@@ -54,7 +52,7 @@ final class ExploreViewModel {
                 copy.isFeatured = true
                 return copy
             }
-            // 推荐：AI + 工具链里星标最高、且不与精选重复的项目
+
             let featuredIDs = Set(self.featured.map(\.id))
             self.forYou = (ai.items.map(ShowcaseRepo.init(dto:)) + tools.items.map(ShowcaseRepo.init(dto:)))
                 .filter { !featuredIDs.contains($0.id) }
@@ -63,10 +61,11 @@ final class ExploreViewModel {
                 .map { $0 }
             self.isUsingFallback = false
             self.lastUpdated = .now
+            CrashReporter.log("explore: loaded \(mapped.count) trending / \(self.forYou.count) for-you")
         } catch {
             errorMessage = error.localizedDescription
+            CrashReporter.log("explore: load failed \(error.localizedDescription)")
             if trending.isEmpty {
-                // 离线兜底：用内置示例，标注来源，避免误以为是实时数据
                 trending = MockData.trending
                 featured = Array(MockData.featured)
                 forYou = Array(MockData.forYou)

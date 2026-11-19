@@ -3,21 +3,20 @@
 //  GitVault
 //
 //  首页：问候 → 今日精选轮播 → 飙升榜 → 按主题浏览 → 为你推荐。
-//  数据来自 GitHub 真实接口（ExploreViewModel），失败自动降级为离线示例并明示。
+//  iOS 16 兼容：精选轮播用 TabView(.page) 而非 iOS17 的 scrollTargetBehavior。
 //
 
 import SwiftUI
-import SwiftData
 
 struct ExploreView: View {
-    @Environment(AppEnvironment.self) private var env
-    @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var auth: AuthStore
+    @EnvironmentObject private var vault: VaultStore
     @Environment(\.horizontalSizeClass) private var sizeClass
 
-    @State private var vm = ExploreViewModel()
-    @State private var heroID: String?
+    @StateObject private var vm = ExploreViewModel()
+    @State private var heroIndex = 0
     @State private var showSettings = false
-    @State private var savedIDs: Set<String> = []
     @Namespace private var heroNS
 
     private var topicColumns: [GridItem] {
@@ -37,7 +36,7 @@ struct ExploreView: View {
 
                     if let message = vm.errorMessage {
                         ErrorBanner(message: vm.isUsingFallback ? "已切换到离线示例：\(message)" : message) {
-                            Task { await reload() }
+                            Task { await vm.reload() }
                         }
                         .screenPadding()
                     }
@@ -52,8 +51,8 @@ struct ExploreView: View {
             }
             .scrollIndicators(.hidden)
             .background(DS.bgPrimary)
-            .refreshable { await reload() }
-            .toolbar(.hidden, for: .navigationBar)
+            .refreshable { await vm.reload() }
+            .navigationBarHidden(true)
             .navigationDestination(for: ShowcaseRepo.self) { repo in
                 RepoDetailView(repo: repo, heroNamespace: heroNS)
             }
@@ -66,9 +65,7 @@ struct ExploreView: View {
                     .presentationDragIndicator(.visible)
             }
             .task {
-                refreshSaved()
                 await vm.loadIfNeeded()
-                if heroID == nil { heroID = vm.featured.first?.id }
             }
         }
     }
@@ -105,7 +102,7 @@ struct ExploreView: View {
             .accessibilityLabel("设置")
 
             AvatarView(
-                url: env.auth.user?.avatarURL.flatMap { URL(string: $0) },
+                url: auth.user?.avatarURL.flatMap { URL(string: $0) },
                 size: 38,
                 initials: "G"
             )
@@ -139,37 +136,33 @@ struct ExploreView: View {
                 SkeletonHero()
                     .screenPadding()
             } else {
-                ScrollView(.horizontal) {
-                    LazyHStack(spacing: DS.Space.m) {
-                        ForEach(vm.featured) { repo in
-                            NavigationLink(value: repo) {
-                                HeroRepoCard(
-                                    repo: repo,
-                                    isSaved: savedIDs.contains(repo.id),
-                                    heroNamespace: heroNS
-                                ) {
-                                    toggleSave(repo)
-                                }
-                                .containerRelativeFrame(.horizontal)
-                                .padding(.horizontal, DS.Space.screen)
+                TabView(selection: $heroIndex) {
+                    ForEach(Array(vm.featured.enumerated()), id: \.element.id) { pair in
+                        NavigationLink(value: pair.element) {
+                            HeroRepoCard(
+                                repo: pair.element,
+                                isSaved: vault.isSaved(pair.element.id),
+                                heroNamespace: heroNS
+                            ) {
+                                toggleSave(pair.element)
                             }
-                            .buttonStyle(.springPressCard)
+                            .padding(.horizontal, DS.Space.screen)
                         }
+                        .buttonStyle(.springPressCard)
+                        .tag(pair.index)
                     }
-                    .scrollTargetLayout()
                 }
-                .scrollTargetBehavior(.paging)
-                .scrollIndicators(.hidden)
-                .scrollPosition(id: $heroID)
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .frame(height: 248)
 
                 HStack(spacing: 6) {
-                    ForEach(vm.featured) { repo in
+                    ForEach(Array(vm.featured.enumerated()), id: \.element.id) { pair in
                         Capsule()
-                            .fill(heroID == repo.id
+                            .fill(heroIndex == pair.index
                                   ? AnyShapeStyle(DS.accentGradient)
                                   : AnyShapeStyle(DS.bgTertiary))
-                            .frame(width: heroID == repo.id ? 18 : 6, height: 6)
-                            .animation(DS.Motion.snappy, value: heroID)
+                            .frame(width: heroIndex == pair.index ? 18 : 6, height: 6)
+                            .animation(DS.Motion.snappy, value: heroIndex)
                     }
                 }
                 .screenPadding()
@@ -262,21 +255,8 @@ struct ExploreView: View {
 
     // MARK: 动作
 
-    private func reload() async {
-        await vm.reload()
-        refreshSaved()
-        if heroID == nil { heroID = vm.featured.first?.id }
-    }
-
-    private func refreshSaved() {
-        let service = VaultService(context: modelContext)
-        savedIDs = Set(service.allEntries().map(\.repoID))
-    }
-
     private func toggleSave(_ repo: ShowcaseRepo) {
-        let service = VaultService(context: modelContext)
-        let saved = service.toggle(repo)
-        refreshSaved()
+        let saved = vault.toggle(repo)
         env.show(saved ? "已加入收藏：\(repo.name)" : "已从收藏移除：\(repo.name)",
                  kind: saved ? .success : .info)
         if saved { Haptics.success() }
@@ -294,16 +274,14 @@ struct SkeletonHero: View {
         RoundedRectangle(cornerRadius: DS.Radius.cardLarge, style: .continuous)
             .fill(DS.bgSecondary)
             .frame(height: 240)
-            .overlay(
-                ProgressView()
-                    .tint(DS.accent)
-            )
+            .overlay(ProgressView().tint(DS.accent))
             .accessibilityLabel("正在加载今日精选")
     }
 }
 
 #Preview("首页") {
     ExploreView()
-        .environment(AppEnvironment.live())
-        .modelContainer(for: [VaultEntry.self, VaultFolder.self], inMemory: true)
+        .environmentObject(AppEnvironment.live())
+        .environmentObject(AuthStore())
+        .environmentObject(VaultStore(fileName: "preview-vault.json"))
 }

@@ -2,15 +2,14 @@
 //  CategoryFeedViewModel.swift
 //  GitVault
 //
-//  二级主题页：分页拉取 + 客户端筛选（状态 / 语言 / 排序）。
+//  二级主题页（iOS 16 兼容：ObservableObject）。
 //
 
 import Foundation
-import Observation
+import Combine
 
-@Observable
 @MainActor
-final class CategoryFeedViewModel {
+final class CategoryFeedViewModel: ObservableObject {
     enum SortMode: String, CaseIterable, Identifiable {
         case stars, active, language
         var id: String { rawValue }
@@ -24,15 +23,16 @@ final class CategoryFeedViewModel {
     }
 
     let category: RepoCategory
-    var items: [ShowcaseRepo] = []
-    var totalCount = 0
-    var isLoading = false
-    var isLoadingMore = false
-    var errorMessage: String?
 
-    var sortMode: SortMode = .stars
-    var activeActivity: ActivityTag?
-    var activeLanguage: String?
+    @Published var items: [ShowcaseRepo] = []
+    @Published var totalCount = 0
+    @Published var isLoading = false
+    @Published var isLoadingMore = false
+    @Published var errorMessage: String?
+
+    @Published var sortMode: SortMode = .stars
+    @Published var activeActivity: ActivityTag?
+    @Published var activeLanguage: String?
 
     private var page = 1
     private let api: any GitHubAPI
@@ -47,7 +47,6 @@ final class CategoryFeedViewModel {
         Array(Set(items.map(\.language))).sorted()
     }
 
-    /// 展示用列表：本地筛选 + 排序，避免每换一个 Chip 就打一次接口
     var displayed: [ShowcaseRepo] {
         var list = items
         if let activeActivity { list = list.filter { $0.activity == activeActivity } }
@@ -80,7 +79,6 @@ final class CategoryFeedViewModel {
         } catch {
             errorMessage = error.localizedDescription
             if items.isEmpty {
-                // 本地 Mock 兜底，保证页面结构可读
                 items = MockData.repos(in: category)
                 totalCount = items.count
             }

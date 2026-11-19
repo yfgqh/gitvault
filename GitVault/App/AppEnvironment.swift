@@ -2,33 +2,27 @@
 //  AppEnvironment.swift
 //  GitVault
 //
-//  依赖注入容器：视图通过 @Environment(AppEnvironment.self) 取服务，
-//  所有网络 / 鉴权 / 大模型能力都在这里可替换（测试替身、Mock、远端）。
+//  依赖注入容器（iOS 16 兼容：ObservableObject 而非 @Observable）。
 //
 
 import Foundation
-import Observation
 import SwiftUI
 
-@Observable
 @MainActor
-final class AppEnvironment {
+final class AppEnvironment: ObservableObject {
     let api: any GitHubAPI
     let auth: AuthStore
-    var llm: any LLMClassifierProtocol
 
-    /// 轻提示（保存成功、导出完成、错误）
-    var toast: ToastMessage?
+    @Published var llm: any LLMClassifierProtocol
+    @Published var toast: ToastMessage?
 
-    init(api: any GitHubAPI,
-         auth: AuthStore,
-         llm: any LLMClassifierProtocol) {
+    init(api: any GitHubAPI, auth: AuthStore, llm: any LLMClassifierProtocol) {
         self.api = api
         self.auth = auth
         self.llm = llm
     }
 
-    /// 生产环境默认装配（@MainActor 上下文中调用）
+    /// 生产环境默认装配（在 MainActor 上下文调用）
     static func live() -> AppEnvironment {
         AppEnvironment(api: GitHubService.shared, auth: AuthStore(), llm: RuleLLMClassifier())
     }
@@ -46,7 +40,6 @@ final class AppEnvironment {
         }
     }
 
-    /// 切换大模型实现：配置了就远端，否则回落规则
     func configureLLM(endpoint: String, apiKey: String, model: String) {
         if let remote = RemoteLLMClassifier(endpointString: endpoint, apiKey: apiKey, model: model) {
             llm = remote

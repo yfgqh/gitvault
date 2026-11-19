@@ -2,30 +2,28 @@
 //  ProfileView.swift
 //  GitVault
 //
-//  我的：GitHub 登录（Device Flow）、外观、AI 摘要配置、数据导出/清理、关于。
+//  我的（iOS 16 兼容）：GitHub Device Flow 登录、外观、AI 配置、导出、诊断日志。
 //
 
 import SwiftUI
-import SwiftData
 import UIKit
 
 struct ProfileView: View {
-    @Environment(AppEnvironment.self) private var env
-    @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var auth: AuthStore
+    @EnvironmentObject private var vault: VaultStore
     @Environment(\.openURL) private var openURL
 
     @AppStorage(AppPrefs.appearance) private var appearanceRaw: String = AppearanceMode.dark.rawValue
     @State private var showAuthSheet = false
     @State private var showAISheet = false
+    @State private var showDiagnostics = false
     @State private var exportFile: ExportFile?
     @State private var cacheSizeText = "—"
-    @State private var showDiagnostics = false
 
     private var appearance: AppearanceMode {
         AppearanceMode(rawValue: appearanceRaw) ?? .dark
     }
-
-    private var service: VaultService { VaultService(context: modelContext) }
 
     var body: some View {
         NavigationStack {
@@ -45,7 +43,7 @@ struct ProfileView: View {
             }
             .scrollIndicators(.hidden)
             .background(DS.bgPrimary)
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationBarHidden(true)
             .sheet(isPresented: $showAuthSheet) {
                 AuthSheetView()
                     .presentationDetents([.medium, .large])
@@ -56,16 +54,16 @@ struct ProfileView: View {
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
-            .sheet(item: $exportFile) { file in
-                ShareSheet(items: [file.url])
-                    .presentationDetents([.medium, .large])
-            }
             .sheet(isPresented: $showDiagnostics) {
                 DiagnosticsView()
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
             }
-            .task { updateCacheSize() }
+            .sheet(item: $exportFile) { file in
+                ShareSheet(items: [file.url])
+                    .presentationDetents([.medium, .large])
+            }
+            .onAppear { updateCacheSize() }
         }
     }
 
@@ -75,19 +73,19 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: DS.Space.m) {
             HStack(spacing: DS.Space.m) {
                 AvatarView(
-                    url: env.auth.user?.avatarURL.flatMap { URL(string: $0) },
+                    url: auth.user?.avatarURL.flatMap { URL(string: $0) },
                     size: 64,
                     initials: "G"
                 )
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(env.auth.isSignedIn ? env.auth.displayName : "未登录")
+                    Text(auth.isSignedIn ? auth.displayName : "未登录")
                         .font(DS.Typo.cardTitle)
                         .foregroundStyle(DS.textPrimary)
 
-                    Text(env.auth.isSignedIn
+                    Text(auth.isSignedIn
                          ? "已连接 GitHub · 每小时 5000 次额度"
-                         : "登录后额度提升到每小时 5000 次，并可同步收藏")
+                         : "登录后额度提升到每小时 5000 次")
                         .font(DS.Typo.captionRegular)
                         .foregroundStyle(DS.textTertiary)
                         .lineLimit(2)
@@ -96,19 +94,19 @@ struct ProfileView: View {
                 Spacer(minLength: 0)
             }
 
-            if env.auth.isSignedIn {
+            if auth.isSignedIn {
                 HStack(spacing: 0) {
-                    StatBlock(value: "\(env.auth.user?.publicRepos ?? 0)", label: "公开仓库")
+                    StatBlock(value: "\(auth.user?.publicRepos ?? 0)", label: "公开仓库")
                     Divider().frame(height: 26)
-                    StatBlock(value: "\(env.auth.user?.followers ?? 0)", label: "关注者")
+                    StatBlock(value: "\(auth.user?.followers ?? 0)", label: "关注者")
                     Divider().frame(height: 26)
-                    StatBlock(value: "\(vaultCount())", label: "我的收藏")
+                    StatBlock(value: "\(vault.items.count)", label: "我的收藏")
                 }
 
                 HStack(spacing: DS.Space.s) {
                     Button {
                         Haptics.tap()
-                        if let raw = env.auth.user?.htmlURL, let url = URL(string: raw) { openURL(url) }
+                        if let raw = auth.user?.htmlURL, let url = URL(string: raw) { openURL(url) }
                     } label: {
                         Text("打开主页")
                             .font(DS.Typo.caption)
@@ -124,7 +122,7 @@ struct ProfileView: View {
 
                     Button {
                         Haptics.warning()
-                        env.auth.signOut()
+                        auth.signOut()
                         env.show("已退出 GitHub 账号")
                     } label: {
                         Text("退出登录")
@@ -240,11 +238,11 @@ struct ProfileView: View {
 
             VStack(spacing: 0) {
                 SettingsRow(symbol: "square.and.arrow.up", title: "导出收藏", detail: "JSON") {
-                    exportJSON()
+                    export(.json)
                 }
                 Divider().padding(.leading, 52)
                 SettingsRow(symbol: "square.and.arrow.up", title: "导出收藏", detail: "Markdown") {
-                    exportMarkdown()
+                    export(.markdown)
                 }
                 Divider().padding(.leading, 52)
                 SettingsRow(symbol: "photo", title: "清理图片缓存", detail: cacheSizeText) {
@@ -255,7 +253,7 @@ struct ProfileView: View {
                 }
                 Divider().padding(.leading, 52)
                 SettingsRow(symbol: "trash", title: "清空收藏库", detail: "不可恢复", tint: DS.danger) {
-                    service.removeAll()
+                    vault.removeAll()
                     env.show("收藏库已清空", kind: .warning)
                 }
             }
@@ -280,27 +278,17 @@ struct ProfileView: View {
                     showDiagnostics = true
                 }
                 Divider().padding(.leading, 52)
-                SettingsRow(symbol: "square.and.arrow.up.on.square", title: "复制环境信息", detail: nil) {
+                SettingsRow(symbol: "doc.on.doc", title: "复制环境信息", detail: nil) {
                     UIPasteboard.general.string = CrashReporter.environmentSummary()
                     env.show("环境信息已复制", kind: .success)
                 }
-            }
-            .background(
-                RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
-                    .fill(DS.bgSecondary)
-            )
-
-            VStack(spacing: 0) {
+                Divider().padding(.leading, 52)
                 SettingsRow(symbol: "info.circle", title: "关于 GitVault", detail: versionText) {
                     if let url = URL(string: "https://github.com/yfgqh/gitvault") { openURL(url) }
                 }
                 Divider().padding(.leading, 52)
                 SettingsRow(symbol: "envelope", title: "反馈问题", detail: nil) {
                     if let url = URL(string: "https://github.com/yfgqh/gitvault/issues") { openURL(url) }
-                }
-                Divider().padding(.leading, 52)
-                SettingsRow(symbol: "hand.thumbsup", title: "去 GitHub 点个 Star", detail: nil) {
-                    if let url = URL(string: "https://github.com/yfgqh/gitvault") { openURL(url) }
                 }
             }
             .background(
@@ -318,33 +306,19 @@ struct ProfileView: View {
     // MARK: 工具
 
     private var versionText: String {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.2.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "3"
         return "v\(version) (\(build))"
-    }
-
-    private func vaultCount() -> Int {
-        service.allEntries().count
     }
 
     private func updateCacheSize() {
         let bytes = Int(URLCache.shared.currentDiskUsage + URLCache.shared.currentMemoryUsage)
-        let mb = Double(bytes) / 1_048_576
-        cacheSizeText = String(format: "%.1f MB", mb)
+        cacheSizeText = String(format: "%.1f MB", Double(bytes) / 1_048_576)
     }
 
-    private func exportJSON() {
+    private func export(_ format: VaultStore.ExportFormat) {
         do {
-            exportFile = ExportFile(url: try service.export(.json), title: "导出 JSON")
-            Haptics.success()
-        } catch {
-            env.show("导出失败：\(error.localizedDescription)", kind: .warning)
-        }
-    }
-
-    private func exportMarkdown() {
-        do {
-            exportFile = ExportFile(url: try service.export(.markdown), title: "导出 Markdown")
+            exportFile = ExportFile(url: try vault.export(format), title: "导出 \(format.displayName)")
             Haptics.success()
         } catch {
             env.show("导出失败：\(error.localizedDescription)", kind: .warning)
@@ -396,17 +370,16 @@ struct SettingsRow: View {
     }
 }
 
-// MARK: - GitHub 登录面板（Device Flow）
+// MARK: - GitHub 登录面板
 
 struct AuthSheetView: View {
-    @Environment(AppEnvironment.self) private var env
+    @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var auth: AuthStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
     @State private var clientID = AppConfig.oauthClientID
     @State private var copied = false
-
-    private var auth: AuthStore { env.auth }
 
     var body: some View {
         NavigationStack {
@@ -443,7 +416,7 @@ struct AuthSheetView: View {
                                 RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
                                     .strokeBorder(DS.separator, lineWidth: 1)
                             )
-                            .onChange(of: clientID) { _, newValue in
+                            .onChange(of: clientID) { newValue in
                                 AppConfig.oauthClientID = newValue
                             }
 
@@ -518,7 +491,7 @@ struct AuthSheetView: View {
             .navigationTitle("GitHub 登录")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("完成") { dismiss() }
                         .font(DS.Typo.caption)
                         .foregroundStyle(DS.accent)
@@ -594,7 +567,7 @@ struct AuthSheetView: View {
 // MARK: - 大模型配置
 
 struct AIConfigSheetView: View {
-    @Environment(AppEnvironment.self) private var env
+    @EnvironmentObject private var env: AppEnvironment
     @Environment(\.dismiss) private var dismiss
 
     @State private var endpoint = UserDefaults.standard.string(forKey: "gv.llm.endpoint")
@@ -666,7 +639,7 @@ struct AIConfigSheetView: View {
             .navigationTitle("AI 摘要设置")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("关闭") { dismiss() }
                         .font(DS.Typo.caption)
                         .foregroundStyle(DS.accent)
@@ -704,23 +677,16 @@ struct AIConfigSheetView: View {
     }
 }
 
-#Preview("我的") {
-    ProfileView()
-        .environment(AppEnvironment.live())
-        .modelContainer(for: [VaultEntry.self, VaultFolder.self], inMemory: true)
-}
-
-// MARK: - 诊断日志（真机闪退取证）
+// MARK: - 诊断日志
 
 struct DiagnosticsView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(AppEnvironment.self) private var env
     @State private var text = ""
 
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: DS.Space.s) {
-                Text("如果 App 在启动或某个页面闪退，把这份日志贴到 issue 里就能定位到具体步骤。日志只记录启动阶段与错误摘要，不包含 Token。")
+                Text("如果 App 闪退，把这份日志贴到 issue 里就能定位到具体步骤。日志只记录启动阶段与错误摘要，不包含 Token。")
                     .font(.system(size: 11))
                     .foregroundStyle(DS.textTertiary)
                     .padding(.horizontal, DS.Space.m)
@@ -731,9 +697,9 @@ struct DiagnosticsView: View {
                         .font(.system(size: 11, design: .monospaced))
                         .foregroundStyle(DS.textSecondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
                         .padding(DS.Space.m)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
                         .fill(DS.bgSecondary)
@@ -744,7 +710,7 @@ struct DiagnosticsView: View {
             .navigationTitle("诊断日志")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("清空") {
                         CrashReporter.clear()
                         text = CrashReporter.readLog()
@@ -753,15 +719,20 @@ struct DiagnosticsView: View {
                     .font(DS.Typo.caption)
                     .foregroundStyle(DS.danger)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("完成") { dismiss() }
                         .font(DS.Typo.caption)
                         .foregroundStyle(DS.accent)
                 }
             }
-            .task {
-                text = CrashReporter.readLog()
-            }
+            .onAppear { text = CrashReporter.readLog() }
         }
     }
+}
+
+#Preview("我的") {
+    ProfileView()
+        .environmentObject(AppEnvironment.live())
+        .environmentObject(AuthStore())
+        .environmentObject(VaultStore(fileName: "preview-vault.json"))
 }

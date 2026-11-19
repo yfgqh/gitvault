@@ -2,14 +2,14 @@
 //  RootView.swift
 //  GitVault
 //
-//  根容器：Splash 门禁 → 主框架。
-//  iPhone：内容区 + 悬浮玻璃 Tab Bar；iPad / 横向 regular：竖向轨道分栏。
+//  根容器（iOS 16 兼容）。
+//  iPhone：内容区 + 悬浮玻璃 Tab Bar；iPad / regular 宽度：竖向轨道分栏。
 //
 
 import SwiftUI
 
 struct RootView: View {
-    @Environment(AppEnvironment.self) private var env
+    @EnvironmentObject private var auth: AuthStore
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     @State private var showSplash = true
@@ -20,7 +20,6 @@ struct RootView: View {
             DS.bgPrimary.ignoresSafeArea()
 
             if sizeClass == .regular {
-                // iPad 分栏：左侧固定导航轨道 + 右侧内容
                 HStack(spacing: 0) {
                     SideRail(selection: $tab)
                     content
@@ -42,8 +41,7 @@ struct RootView: View {
         }
         .toastHost()
         .task {
-            // 静默恢复 GitHub 会话 + 首屏预热
-            await env.auth.restore()
+            await auth.restore()
             try? await Task.sleep(nanoseconds: 1_600_000_000)
             withAnimation(.easeInOut(duration: 0.55)) {
                 showSplash = false
@@ -69,6 +67,7 @@ struct RootView: View {
 
 #Preview("根容器") {
     RootView()
-        .environment(AppEnvironment.live())
-        .modelContainer(for: [VaultEntry.self, VaultFolder.self], inMemory: true)
+        .environmentObject(AppEnvironment.live())
+        .environmentObject(AuthStore())
+        .environmentObject(VaultStore(fileName: "preview-vault.json"))
 }

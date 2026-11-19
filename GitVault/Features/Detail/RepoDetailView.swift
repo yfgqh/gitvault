@@ -2,33 +2,28 @@
 //  RepoDetailView.swift
 //  GitVault
 //
-//  项目详情：Hero 头部（与首页共享 matchedGeometryEffect）+ 数据卡 + 语言占比
-//  + README 中文摘要（可折叠 / 可切换大模型）+ 标签区 + 悬浮底部操作栏 + 相似项目。
+//  项目详情（iOS 16 兼容）：Hero + 数据卡 + 语言占比 + README 摘要 + 标签 + 底部操作栏 + 相似项目。
 //
 
 import SwiftUI
-import SwiftData
 
 struct RepoDetailView: View {
     let repo: ShowcaseRepo
-    /// 首页卡片传入的 Hero 命名空间；从别处进入时为 nil
     var heroNamespace: Namespace.ID? = nil
 
+    @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var vault: VaultStore
     @Environment(\.openURL) private var openURL
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-    @Environment(AppEnvironment.self) private var env
 
-    @State private var vm: DetailViewModel
+    @StateObject private var vm: DetailViewModel
     @State private var readmeExpanded = false
 
     init(repo: ShowcaseRepo, heroNamespace: Namespace.ID? = nil) {
         self.repo = repo
         self.heroNamespace = heroNamespace
-        _vm = State(initialValue: DetailViewModel(repo: repo))
+        _vm = StateObject(wrappedValue: DetailViewModel(repo: repo))
     }
-
-    private var service: VaultService { VaultService(context: modelContext) }
 
     var body: some View {
         ScrollView {
@@ -45,14 +40,15 @@ struct RepoDetailView: View {
         }
         .scrollIndicators(.hidden)
         .background(DS.bgPrimary)
-        .ignoresSafeArea(edges: .top)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarHidden(true)
         .safeAreaInset(edge: .bottom) { bottomBar }
         .overlay(alignment: .topLeading) { backButton }
         .task {
-            vm.mark = service.entry(repoID: repo.id)?.mark
-            vm.isSaved = vm.mark != nil
+            if let item = vault.item(id: repo.id) {
+                vm.mark = item.mark
+                vm.isSaved = true
+            }
             await vm.loadDetailIfNeeded()
             await vm.loadReadmeIfNeeded()
         }
@@ -102,14 +98,11 @@ struct RepoDetailView: View {
             }
             .padding(DS.Space.screen)
         }
-        .frame(height: 260)
-        .clipShape(
-            UnevenRoundedRectangle(
-                bottomLeadingRadius: DS.Radius.sheet,
-                bottomTrailingRadius: DS.Radius.sheet,
-                style: .continuous
-            )
-        )
+        .frame(height: 252)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.cardLarge, style: .continuous))
+        .padding(.horizontal, DS.Space.s)
+        .padding(.top, DS.Space.s)
+        .dsShadow(.light)
     }
 
     // MARK: 标题 + 摘要 + 状态标签
@@ -190,7 +183,7 @@ struct RepoDetailView: View {
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: README 中文摘要
+    // MARK: README 摘要
 
     private var readmeCard: some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
@@ -231,7 +224,6 @@ struct RepoDetailView: View {
                     .foregroundStyle(DS.textSecondary)
                     .lineLimit(readmeExpanded ? nil : 3)
                     .fixedSize(horizontal: false, vertical: true)
-                    .animation(DS.Motion.snappy, value: readmeExpanded)
             }
 
             HStack(spacing: DS.Space.s) {
@@ -276,7 +268,9 @@ struct RepoDetailView: View {
                         .foregroundStyle(DS.textPrimary)
 
                     FlowChips(items: Array(vm.repo.topics.prefix(10))) { topic in
-                        openURL(URL(string: "https://github.com/topics/\(topic)") ?? AppConfig.apiBase)
+                        if let url = URL(string: "https://github.com/topics/\(topic)") {
+                            openURL(url)
+                        }
                     }
                 }
             }
@@ -426,21 +420,21 @@ struct RepoDetailView: View {
         }
         .buttonStyle(.springPressSilent)
         .padding(.leading, DS.Space.m)
-        .padding(.top, DS.Space.xxl)
+        .padding(.top, DS.Space.xl)
         .accessibilityLabel("返回")
     }
 
     // MARK: 动作
 
     private func toggleSave() {
-        if let entry = service.entry(repoID: repo.id) {
-            service.remove(entry)
+        if vault.isSaved(repo.id) {
+            vault.remove(id: repo.id)
             vm.isSaved = false
             vm.mark = nil
             env.show("已取消收藏：\(repo.name)")
             Haptics.tap()
         } else {
-            service.toggle(vm.repo, mark: .starred)
+            vault.toggle(vm.repo, mark: .starred)
             vm.isSaved = true
             vm.mark = .starred
             Haptics.success()
@@ -449,10 +443,10 @@ struct RepoDetailView: View {
     }
 
     private func apply(mark: MyMark) {
-        if let entry = service.entry(repoID: repo.id) {
-            service.setMark(entry, to: mark)
+        if vault.isSaved(repo.id) {
+            vault.setMark(id: repo.id, to: mark)
         } else {
-            service.toggle(vm.repo, mark: mark)
+            vault.toggle(vm.repo, mark: mark)
             vm.isSaved = true
         }
         vm.mark = mark
@@ -465,6 +459,7 @@ struct RepoDetailView: View {
     NavigationStack {
         RepoDetailView(repo: MockData.repos[0])
     }
-    .environment(AppEnvironment.live())
-    .modelContainer(for: [VaultEntry.self, VaultFolder.self], inMemory: true)
+    .environmentObject(AppEnvironment.live())
+    .environmentObject(AuthStore())
+    .environmentObject(VaultStore(fileName: "preview-vault.json"))
 }

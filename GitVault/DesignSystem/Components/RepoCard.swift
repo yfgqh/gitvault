@@ -38,7 +38,6 @@ struct RepoCard: View {
                             .background(
                                 Capsule().fill(ActivityTag.rising.tint.opacity(0.14))
                             )
-                            .contentTransition(.numericText())
                     }
                     Spacer(minLength: 0)
                 }

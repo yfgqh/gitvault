@@ -2,7 +2,7 @@
 //  SideRail.swift
 //  GitVault
 //
-//  iPad / 横屏分栏用的竖向导航轨道（与 iPhone 的悬浮 Tab Bar 共用同一套状态）。
+//  iPad / 横屏分栏用的竖向导航轨道（与 iPhone 的悬浮 Tab Bar 共用同一状态）。
 //
 
 import SwiftUI
@@ -10,7 +10,7 @@ import SwiftUI
 struct SideRail: View {
     @Binding var selection: AppTab
     @Namespace private var pill
-    @Environment(AppEnvironment.self) private var env
+    @EnvironmentObject private var auth: AuthStore
 
     var body: some View {
         VStack(spacing: DS.Space.s) {
@@ -26,7 +26,7 @@ struct SideRail: View {
                     VStack(spacing: 5) {
                         Image(systemName: tab.symbol)
                             .font(.system(size: 18, weight: .semibold))
-                            .symbolEffect(.bounce, value: selection == tab)
+                            .scaleEffect(selection == tab ? 1.1 : 1)
                         Text(tab.title)
                             .font(.system(size: 10, weight: .semibold))
                     }
@@ -47,9 +47,8 @@ struct SideRail: View {
 
             Spacer()
 
-            // 登录态小指示
             AvatarView(
-                url: env.auth.user?.avatarURL.flatMap { URL(string: $0) },
+                url: auth.user?.avatarURL.flatMap { URL(string: $0) },
                 size: 36,
                 initials: "G"
             )

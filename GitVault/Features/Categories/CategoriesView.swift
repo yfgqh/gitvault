@@ -2,7 +2,7 @@
 //  CategoriesView.swift
 //  GitVault
 //
-//  分类页：6 大主题网格 → 二级主题列表（真实接口 + 本地筛选 Chip 栏）。
+//  分类页（iOS 16 兼容）：6 大主题网格 → 二级主题列表。
 //
 
 import SwiftUI
@@ -48,7 +48,7 @@ struct CategoriesView: View {
             }
             .scrollIndicators(.hidden)
             .background(DS.bgPrimary)
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationBarHidden(true)
             .navigationDestination(for: CategoryRoute.self) { route in
                 CategoryFeedView(category: route.category)
             }
@@ -59,17 +59,17 @@ struct CategoriesView: View {
     }
 }
 
-// MARK: - 二级页面（真实接口 + 分页）
+// MARK: - 二级主题页
 
 struct CategoryFeedView: View {
     let category: RepoCategory
 
-    @State private var vm: CategoryFeedViewModel
+    @StateObject private var vm: CategoryFeedViewModel
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     init(category: RepoCategory) {
         self.category = category
-        _vm = State(initialValue: CategoryFeedViewModel(category: category))
+        _vm = StateObject(wrappedValue: CategoryFeedViewModel(category: category))
     }
 
     private var columns: [GridItem] {
@@ -97,8 +97,6 @@ struct CategoryFeedView: View {
         .task { await vm.loadIfNeeded() }
     }
 
-    // MARK: 头图
-
     private var banner: some View {
         ZStack(alignment: .bottomLeading) {
             LinearGradient(colors: category.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -124,8 +122,6 @@ struct CategoryFeedView: View {
         .clipShape(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous))
         .screenPadding()
     }
-
-    // MARK: 筛选栏
 
     private var filterBar: some View {
         ScrollView(.horizontal) {
@@ -159,8 +155,6 @@ struct CategoryFeedView: View {
         .scrollIndicators(.hidden)
     }
 
-    // MARK: 内容
-
     @ViewBuilder
     private var content: some View {
         if vm.isLoading && vm.items.isEmpty {
@@ -186,9 +180,9 @@ struct CategoryFeedView: View {
                     }
                     .buttonStyle(.springPressCard)
                     .staggerAppear(min(entry.index, 10))
-                    .task {
+                    .onAppear {
                         if entry.index == vm.displayed.count - 1 {
-                            await vm.loadMore()
+                            Task { await vm.loadMore() }
                         }
                     }
                 }

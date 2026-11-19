@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct SearchView: View {
-    @State private var vm = SearchViewModel()
+    @StateObject private var vm = SearchViewModel()
     @FocusState private var fieldFocused: Bool
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -44,7 +44,7 @@ struct SearchView: View {
             }
             .scrollIndicators(.hidden)
             .background(DS.bgPrimary)
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationBarHidden(true)
             .navigationDestination(for: ShowcaseRepo.self) { repo in
                 RepoDetailView(repo: repo)
             }

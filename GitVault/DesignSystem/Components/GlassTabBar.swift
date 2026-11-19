@@ -3,6 +3,7 @@
 //  GitVault
 //
 //  自定义悬浮玻璃 Tab Bar：胶囊高亮块使用 matchedGeometryEffect 做弹性迁移。
+//  iOS 16 兼容：不依赖 symbolEffect，用 scale + spring 表达「弹性」。
 //
 
 import SwiftUI
@@ -50,8 +51,7 @@ struct GlassTabBar: View {
         .padding(.horizontal, DS.Space.s)
         .padding(.vertical, DS.Space.s)
         .background {
-            Capsule(style: .continuous)
-                .fill(DS.cardGlass)
+            Capsule(style: .continuous).fill(DS.cardGlass)
         }
         .overlay {
             Capsule(style: .continuous)
@@ -78,8 +78,9 @@ struct GlassTabBar: View {
             VStack(spacing: 4) {
                 Image(systemName: tab.symbol)
                     .font(.system(size: 17, weight: .semibold))
-                    .symbolEffect(.bounce, value: isSelected)
                     .frame(height: 20)
+                    .scaleEffect(isSelected ? 1.12 : 1)
+                    .animation(DS.Motion.tab, value: isSelected)
 
                 Text(tab.title)
                     .font(.system(size: 10, weight: .semibold))

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ToastHost: ViewModifier {
-    @Environment(AppEnvironment.self) private var env
+    @EnvironmentObject private var env: AppEnvironment
 
     func body(content: Content) -> some View {
         content.overlay(alignment: .top) {
