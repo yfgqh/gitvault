@@ -2,16 +2,20 @@
 //  CategoriesView.swift
 //  GitVault
 //
-//  分类页：6 大主题网格 → 二级主题列表（筛选 Chip 栏）。
+//  分类页：6 大主题网格 → 二级主题列表（真实接口 + 本地筛选 Chip 栏）。
 //
 
 import SwiftUI
 
 struct CategoriesView: View {
-    private let columns = [
-        GridItem(.flexible(), spacing: DS.Space.m),
-        GridItem(.flexible(), spacing: DS.Space.m)
-    ]
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    private var columns: [GridItem] {
+        sizeClass == .regular
+            ? Array(repeating: GridItem(.flexible(), spacing: DS.Space.m), count: 3)
+            : [GridItem(.flexible(), spacing: DS.Space.m),
+               GridItem(.flexible(), spacing: DS.Space.m)]
+    }
 
     var body: some View {
         NavigationStack {
@@ -30,11 +34,8 @@ struct CategoriesView: View {
 
                     LazyVGrid(columns: columns, spacing: DS.Space.m) {
                         ForEach(RepoCategory.allCases.indexed) { entry in
-                            NavigationLink(value: entry.item) {
-                                CategoryLargeCard(
-                                    category: entry.item,
-                                    count: MockData.count(in: entry.item)
-                                )
+                            NavigationLink(value: CategoryRoute(category: entry.item)) {
+                                CategoryLargeCard(category: entry.item, count: 0)
                             }
                             .buttonStyle(.springPressCard)
                             .staggerAppear(entry.index)
@@ -48,8 +49,8 @@ struct CategoriesView: View {
             .scrollIndicators(.hidden)
             .background(DS.bgPrimary)
             .toolbar(.hidden, for: .navigationBar)
-            .navigationDestination(for: RepoCategory.self) { category in
-                CategoryFeedView(category: category)
+            .navigationDestination(for: CategoryRoute.self) { route in
+                CategoryFeedView(category: route.category)
             }
             .navigationDestination(for: ShowcaseRepo.self) { repo in
                 RepoDetailView(repo: repo)
@@ -58,134 +59,32 @@ struct CategoriesView: View {
     }
 }
 
-// MARK: - 二级页面
+// MARK: - 二级页面（真实接口 + 分页）
 
 struct CategoryFeedView: View {
     let category: RepoCategory
 
-    @State private var sortMode: SortMode = .stars
-    @State private var activeActivity: ActivityTag?
-    @State private var activeLanguage: String?
+    @State private var vm: CategoryFeedViewModel
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
-    enum SortMode: String, CaseIterable, Identifiable {
-        case stars, updated, language
-        var id: String { rawValue }
-        var title: String {
-            switch self {
-            case .stars: return "Star 最多"
-            case .updated: return "最近更新"
-            case .language: return "按语言"
-            }
-        }
+    init(category: RepoCategory) {
+        self.category = category
+        _vm = State(initialValue: CategoryFeedViewModel(category: category))
     }
 
-    private var base: [ShowcaseRepo] { MockData.repos(in: category) }
-
-    private var languages: [String] {
-        Array(Set(base.map(\.language))).sorted()
-    }
-
-    private var filtered: [ShowcaseRepo] {
-        var list = base
-        if let activeActivity {
-            list = list.filter { $0.activity == activeActivity }
-        }
-        if let activeLanguage {
-            list = list.filter { $0.language == activeLanguage }
-        }
-        switch sortMode {
-        case .stars: list.sort { $0.stars > $1.stars }
-        case .updated: list.sort { $0.starDeltaToday > $1.starDeltaToday }
-        case .language: list.sort { $0.language < $1.language }
-        }
-        return list
+    private var columns: [GridItem] {
+        sizeClass == .regular
+            ? Array(repeating: GridItem(.flexible(), spacing: DS.Space.m), count: 2)
+            : [GridItem(.flexible())]
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DS.Space.m) {
-                // 主题头图
-                ZStack(alignment: .bottomLeading) {
-                    LinearGradient(colors: category.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
-                    Circle()
-                        .fill(.white.opacity(0.2))
-                        .frame(width: 140, height: 140)
-                        .blur(radius: 44)
-                        .offset(x: 120, y: -60)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(category.emoji + " " + category.title)
-                            .font(DS.Typo.title)
-                            .foregroundStyle(.white)
-                        Text(category.subtitle)
-                            .font(DS.Typo.caption)
-                            .foregroundStyle(.white.opacity(0.8))
-                    }
-                    .padding(DS.Space.m)
-                }
-                .frame(height: 120)
-                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous))
-                .screenPadding()
-
-                // 横向筛选 Chip 栏
-                ScrollView(.horizontal) {
-                    HStack(spacing: DS.Space.s) {
-                        ForEach(SortMode.allCases) { mode in
-                            FilterChip(title: mode.title, isActive: sortMode == mode) {
-                                withAnimation(DS.Motion.snappy) { sortMode = mode }
-                            }
-                        }
-
-                        Divider().frame(height: 20)
-
-                        ForEach(ActivityTag.allCases) { tag in
-                            FilterChip(
-                                title: tag.title,
-                                emoji: tag.emoji,
-                                isActive: activeActivity == tag
-                            ) {
-                                withAnimation(DS.Motion.snappy) {
-                                    activeActivity = (activeActivity == tag) ? nil : tag
-                                }
-                            }
-                        }
-
-                        ForEach(languages, id: \.self) { language in
-                            FilterChip(
-                                title: language,
-                                isActive: activeLanguage == language
-                            ) {
-                                withAnimation(DS.Motion.snappy) {
-                                    activeLanguage = (activeLanguage == language) ? nil : language
-                                }
-                            }
-                        }
-                    }
-                    .padding(.horizontal, DS.Space.screen)
-                }
-                .scrollIndicators(.hidden)
-
-                // 结果列表
-                if filtered.isEmpty {
-                    EmptyStateView(
-                        symbol: "tray",
-                        title: "这个组合下还没有项目",
-                        message: "试试切换筛选条件，或稍后再来看看"
-                    )
-                    .padding(.top, DS.Space.xl)
-                } else {
-                    VStack(spacing: DS.Space.s) {
-                        ForEach(filtered.indexed) { entry in
-                            NavigationLink(value: entry.item) {
-                                RepoCard(repo: entry.item)
-                            }
-                            .buttonStyle(.springPressCard)
-                            .staggerAppear(entry.index)
-                        }
-                    }
-                    .screenPadding()
-                }
-
+                banner
+                filterBar
+                content
+                footer
                 Color.clear.frame(height: DS.Space.tabBarInset)
             }
             .padding(.top, DS.Space.s)
@@ -194,6 +93,137 @@ struct CategoryFeedView: View {
         .background(DS.bgPrimary)
         .navigationTitle(category.title)
         .navigationBarTitleDisplayMode(.inline)
+        .refreshable { await vm.reload() }
+        .task { await vm.loadIfNeeded() }
+    }
+
+    // MARK: 头图
+
+    private var banner: some View {
+        ZStack(alignment: .bottomLeading) {
+            LinearGradient(colors: category.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+            Circle()
+                .fill(.white.opacity(0.2))
+                .frame(width: 140, height: 140)
+                .blur(radius: 44)
+                .offset(x: 120, y: -60)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(category.emoji + " " + category.title)
+                    .font(DS.Typo.title)
+                    .foregroundStyle(.white)
+                Text(vm.totalCount > 0
+                     ? "\(category.subtitle) · 共 \(ShowcaseRepo.compact(vm.totalCount)) 个"
+                     : category.subtitle)
+                    .font(DS.Typo.caption)
+                    .foregroundStyle(.white.opacity(0.8))
+            }
+            .padding(DS.Space.m)
+        }
+        .frame(height: 120)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous))
+        .screenPadding()
+    }
+
+    // MARK: 筛选栏
+
+    private var filterBar: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: DS.Space.s) {
+                ForEach(CategoryFeedViewModel.SortMode.allCases) { mode in
+                    FilterChip(title: mode.title, isActive: vm.sortMode == mode) {
+                        withAnimation(DS.Motion.snappy) { vm.sortMode = mode }
+                    }
+                }
+
+                Divider().frame(height: 20)
+
+                ForEach(ActivityTag.allCases) { tag in
+                    FilterChip(title: tag.title, emoji: tag.emoji, isActive: vm.activeActivity == tag) {
+                        withAnimation(DS.Motion.snappy) {
+                            vm.activeActivity = (vm.activeActivity == tag) ? nil : tag
+                        }
+                    }
+                }
+
+                ForEach(vm.languages, id: \.self) { language in
+                    FilterChip(title: language, isActive: vm.activeLanguage == language) {
+                        withAnimation(DS.Motion.snappy) {
+                            vm.activeLanguage = (vm.activeLanguage == language) ? nil : language
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, DS.Space.screen)
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    // MARK: 内容
+
+    @ViewBuilder
+    private var content: some View {
+        if vm.isLoading && vm.items.isEmpty {
+            SkeletonList(count: 4).screenPadding()
+        } else if let message = vm.errorMessage, vm.items.isEmpty {
+            EmptyStateView(symbol: "exclamationmark.icloud",
+                           title: "没能拿到这个主题的数据",
+                           message: message,
+                           actionTitle: "重试") {
+                Task { await vm.reload() }
+            }
+            .padding(.top, DS.Space.l)
+        } else if vm.displayed.isEmpty {
+            EmptyStateView(symbol: "tray",
+                           title: "这个组合下还没有项目",
+                           message: "试试切换筛选条件，或稍后再来看看")
+            .padding(.top, DS.Space.l)
+        } else {
+            LazyVGrid(columns: columns, spacing: DS.Space.s) {
+                ForEach(vm.displayed.indexed) { entry in
+                    NavigationLink(value: entry.item) {
+                        RepoCard(repo: entry.item)
+                    }
+                    .buttonStyle(.springPressCard)
+                    .staggerAppear(min(entry.index, 10))
+                    .task {
+                        if entry.index == vm.displayed.count - 1 {
+                            await vm.loadMore()
+                        }
+                    }
+                }
+            }
+            .screenPadding()
+        }
+    }
+
+    @ViewBuilder
+    private var footer: some View {
+        if vm.isLoadingMore {
+            HStack {
+                Spacer()
+                ProgressView().tint(DS.accent)
+                Spacer()
+            }
+            .padding(.vertical, DS.Space.m)
+        } else if vm.canLoadMore && !vm.items.isEmpty {
+            Button {
+                Haptics.tap()
+                Task { await vm.loadMore() }
+            } label: {
+                Text("加载更多")
+                    .font(DS.Typo.caption)
+                    .foregroundStyle(DS.accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
+                            .fill(DS.bgSecondary)
+                    )
+            }
+            .buttonStyle(.springPress)
+            .screenPadding()
+        }
     }
 }
 

@@ -2,30 +2,29 @@
 //  SearchView.swift
 //  GitVault
 //
-//  搜索页：300ms 防抖联想 + 分类/语言/star 区间筛选 + 空状态引导。
+//  搜索页：300ms 防抖 + 真实 GitHub 搜索 + 主题/语言/star 筛选 + 分页 + 历史持久化。
 //
 
 import SwiftUI
 
 struct SearchView: View {
-    @State private var query = ""
-    @State private var results: [ShowcaseRepo] = []
-    @State private var isSearching = false
-    @State private var history: [String] = MockData.defaultSearchHistory
-    @State private var activeCategory: RepoCategory?
-    @State private var activeLanguage: String?
-    @State private var minStars: Int?
+    @State private var vm = SearchViewModel()
     @FocusState private var fieldFocused: Bool
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     private let starOptions: [StarOption] = [
         StarOption(title: "不限", value: nil),
         StarOption(title: "1k+", value: 1_000),
-        StarOption(title: "50k+", value: 50_000),
-        StarOption(title: "100k+", value: 100_000)
+        StarOption(title: "10k+", value: 10_000),
+        StarOption(title: "50k+", value: 50_000)
     ]
 
-    private var languages: [String] {
-        Array(Set(MockData.repos.map(\.language))).sorted()
+    /// 常用语言（GitHub 语言名，用于 language: 限定）
+    private let languages = ["Swift", "Python", "TypeScript", "Rust", "Go",
+                             "C++", "Java", "Kotlin", "Dart", "JavaScript"]
+
+    private var searchKey: String {
+        "\(vm.query)|\(vm.activeCategory?.rawValue ?? "-")|\(vm.activeLanguage ?? "-")|\(vm.minStars ?? 0)|\(vm.sort.rawValue)"
     }
 
     var body: some View {
@@ -49,9 +48,8 @@ struct SearchView: View {
             .navigationDestination(for: ShowcaseRepo.self) { repo in
                 RepoDetailView(repo: repo)
             }
-            // 300ms 防抖：query 变化后重新排一次任务，旧任务自动取消
-            .task(id: query) {
-                await performSearch(debounced: true)
+            .task(id: searchKey) {
+                await vm.perform(debounced: true)
             }
         }
     }
@@ -64,7 +62,7 @@ struct SearchView: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(DS.textTertiary)
 
-            TextField("搜索开源项目、语言或主题", text: $query)
+            TextField("搜索开源项目、语言或主题", text: $vm.query)
                 .font(DS.Typo.body)
                 .foregroundStyle(DS.textPrimary)
                 .focused($fieldFocused)
@@ -72,15 +70,14 @@ struct SearchView: View {
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
                 .onSubmit {
-                    commitToHistory(query)
-                    Task { await performSearch(debounced: false) }
+                    vm.record(vm.query)
+                    Task { await vm.perform(debounced: false) }
                 }
 
-            if !query.isEmpty {
+            if !vm.query.isEmpty {
                 Button {
                     Haptics.tap()
-                    query = ""
-                    results = []
+                    vm.query = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 15))
@@ -108,17 +105,14 @@ struct SearchView: View {
     private var filterBar: some View {
         ScrollView(.horizontal) {
             HStack(spacing: DS.Space.s) {
-                FilterChip(title: "全部主题", isActive: activeCategory == nil) {
-                    withAnimation(DS.Motion.snappy) { activeCategory = nil }
+                FilterChip(title: "全部主题", isActive: vm.activeCategory == nil) {
+                    withAnimation(DS.Motion.snappy) { vm.activeCategory = nil }
                 }
                 ForEach(RepoCategory.allCases) { category in
-                    FilterChip(
-                        title: category.title,
-                        emoji: category.emoji,
-                        isActive: activeCategory == category
-                    ) {
+                    FilterChip(title: category.title, emoji: category.emoji,
+                               isActive: vm.activeCategory == category) {
                         withAnimation(DS.Motion.snappy) {
-                            activeCategory = (activeCategory == category) ? nil : category
+                            vm.activeCategory = (vm.activeCategory == category) ? nil : category
                         }
                     }
                 }
@@ -126,17 +120,17 @@ struct SearchView: View {
                 Divider().frame(height: 20)
 
                 ForEach(starOptions) { option in
-                    FilterChip(title: "★ " + option.title, isActive: minStars == option.value) {
-                        withAnimation(DS.Motion.snappy) { minStars = option.value }
+                    FilterChip(title: "★ " + option.title, isActive: vm.minStars == option.value) {
+                        withAnimation(DS.Motion.snappy) { vm.minStars = option.value }
                     }
                 }
 
                 Divider().frame(height: 20)
 
                 ForEach(languages, id: \.self) { language in
-                    FilterChip(title: language, isActive: activeLanguage == language) {
+                    FilterChip(title: language, isActive: vm.activeLanguage == language) {
                         withAnimation(DS.Motion.snappy) {
-                            activeLanguage = (activeLanguage == language) ? nil : language
+                            vm.activeLanguage = (vm.activeLanguage == language) ? nil : language
                         }
                     }
                 }
@@ -146,49 +140,94 @@ struct SearchView: View {
         .scrollIndicators(.hidden)
     }
 
-    // MARK: 内容区
+    // MARK: 内容
 
     @ViewBuilder
     private var content: some View {
-        if query.isEmpty {
+        if vm.isBlank {
             discoverySection
-        } else if isSearching {
-            HStack {
-                Spacer()
-                ProgressView()
-                    .tint(DS.accent)
-                Spacer()
+        } else if vm.isSearching && vm.results.isEmpty {
+            VStack(spacing: DS.Space.s) {
+                SkeletonList(count: 3)
+                SkeletonList(count: 2)
             }
-            .padding(.top, DS.Space.xxl)
-        } else if results.isEmpty {
-            EmptyStateView(
-                symbol: "magnifyingglass",
-                title: "没有找到「\(query)」",
-                message: "换个关键词，或去掉筛选条件再试试"
-            )
+            .screenPadding()
+        } else if let message = vm.errorMessage {
+            EmptyStateView(symbol: "exclamationmark.icloud",
+                           title: "搜索失败",
+                           message: message,
+                           actionTitle: "重试") {
+                Task { await vm.perform(debounced: false) }
+            }
+            .padding(.top, DS.Space.l)
+        } else if vm.results.isEmpty {
+            EmptyStateView(symbol: "magnifyingglass",
+                           title: "没有找到「\(vm.query)」",
+                           message: "换个关键词，或去掉筛选条件再试试")
             .padding(.top, DS.Space.l)
         } else {
-            VStack(alignment: .leading, spacing: DS.Space.s) {
-                Text("找到 \(results.count) 个结果")
+            resultList
+        }
+    }
+
+    private var resultList: some View {
+        VStack(alignment: .leading, spacing: DS.Space.s) {
+            HStack {
+                Text("找到 \(ShowcaseRepo.compact(vm.totalCount)) 个结果")
                     .font(DS.Typo.caption)
                     .foregroundStyle(DS.textTertiary)
-                    .screenPadding()
-
-                ForEach(results.indexed) { entry in
-                    NavigationLink(value: entry.item) {
-                        RepoCard(repo: entry.item)
+                Spacer()
+                Menu {
+                    ForEach([SearchSort.stars, .forks, .updated], id: \.rawValue) { sort in
+                        Button {
+                            Haptics.selection()
+                            vm.sort = sort
+                            Task { await vm.perform(debounced: false) }
+                        } label: {
+                            HStack {
+                                Text(sortTitle(sort))
+                                if vm.sort == sort {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
                     }
-                    .buttonStyle(.springPressCard)
-                    .staggerAppear(entry.index)
-                    .screenPadding()
+                } label: {
+                    HStack(spacing: 3) {
+                        Text(sortTitle(vm.sort))
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(.system(size: 9, weight: .bold))
+                    }
+                    .font(DS.Typo.caption)
+                    .foregroundStyle(DS.accent)
                 }
+            }
+            .screenPadding()
+
+            ForEach(vm.results.indexed) { entry in
+                NavigationLink(value: entry.item) {
+                    RepoCard(repo: entry.item)
+                }
+                .buttonStyle(.springPressCard)
+                .staggerAppear(min(entry.index, 8))
+                .screenPadding()
+                .task { await vm.loadMoreIfNeeded(current: entry.item) }
+            }
+
+            if vm.isLoadingMore {
+                HStack {
+                    Spacer()
+                    ProgressView().tint(DS.accent)
+                    Spacer()
+                }
+                .padding(.vertical, DS.Space.m)
             }
         }
     }
 
     private var discoverySection: some View {
         VStack(alignment: .leading, spacing: DS.Space.l) {
-            if !history.isEmpty {
+            if !vm.history.isEmpty {
                 VStack(alignment: .leading, spacing: DS.Space.s) {
                     HStack {
                         Text("搜索历史")
@@ -197,7 +236,7 @@ struct SearchView: View {
                         Spacer()
                         Button {
                             Haptics.tap()
-                            withAnimation(DS.Motion.fade) { history.removeAll() }
+                            withAnimation(DS.Motion.fade) { vm.clearHistory() }
                         } label: {
                             Image(systemName: "trash")
                                 .font(.system(size: 13, weight: .medium))
@@ -207,9 +246,9 @@ struct SearchView: View {
                         .accessibilityLabel("清空搜索历史")
                     }
 
-                    FlowChips(items: history) { item in
-                        query = item
-                        commitToHistory(item)
+                    FlowChips(items: vm.history) { item in
+                        vm.query = item
+                        Task { await vm.perform(debounced: false) }
                     }
                 }
                 .screenPadding()
@@ -221,61 +260,25 @@ struct SearchView: View {
                     .foregroundStyle(DS.textPrimary)
 
                 FlowChips(items: MockData.hotKeywords, showsFlame: true) { item in
-                    query = item
-                    commitToHistory(item)
+                    vm.query = item
+                    vm.record(item)
+                    Task { await vm.perform(debounced: false) }
                 }
             }
             .screenPadding()
         }
     }
 
-    // MARK: 搜索执行
-
-    /// - Parameter debounced: 键入触发时走 300ms 防抖；回车触发立即执行
-    @MainActor
-    private func performSearch(debounced: Bool) async {
-        let keyword = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !keyword.isEmpty else {
-            results = []
-            isSearching = false
-            return
+    private func sortTitle(_ sort: SearchSort) -> String {
+        switch sort {
+        case .stars: return "按 Star"
+        case .forks: return "按 Fork"
+        case .updated: return "按更新"
         }
-
-        isSearching = true
-
-        if debounced {
-            try? await Task.sleep(nanoseconds: 300_000_000)
-            if Task.isCancelled { return }
-        }
-
-        // 阶段 2：此处替换为 GitHubService.search(keyword:)
-        let matched = MockData.repos.filter { repo in
-            let hit = repo.fullName.lowercased().contains(keyword.lowercased())
-                || repo.summary.contains(keyword)
-                || repo.language.lowercased().contains(keyword.lowercased())
-                || repo.category.title.contains(keyword)
-            guard hit else { return false }
-            if let activeCategory, repo.category != activeCategory { return false }
-            if let activeLanguage, repo.language != activeLanguage { return false }
-            if let minStars, repo.stars < minStars { return false }
-            return true
-        }
-        .sorted { $0.stars > $1.stars }
-
-        results = matched
-        isSearching = false
-    }
-
-    private func commitToHistory(_ text: String) {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        history.removeAll { $0 == trimmed }
-        history.insert(trimmed, at: 0)
-        if history.count > 8 { history = Array(history.prefix(8)) }
     }
 }
 
-// MARK: - 排序 / star 区间选项
+// MARK: - 选项模型
 
 struct StarOption: Identifiable, Hashable {
     var id: String { title }
@@ -291,7 +294,6 @@ struct FlowChips: View {
     var onTap: (String) -> Void
 
     var body: some View {
-        // 用 Layout 协议手写换行，避免依赖第三方流式布局
         FlowLayout(spacing: DS.Space.s) {
             ForEach(items, id: \.self) { item in
                 Button {
@@ -354,11 +356,9 @@ struct FlowLayout: Layout {
                 y += rowHeight + spacing
                 rowHeight = 0
             }
-            subview.place(
-                at: CGPoint(x: x, y: y),
-                anchor: .topLeading,
-                proposal: ProposedViewSize(size)
-            )
+            subview.place(at: CGPoint(x: x, y: y),
+                          anchor: .topLeading,
+                          proposal: ProposedViewSize(size))
             x += size.width + spacing
             rowHeight = max(rowHeight, size.height)
         }

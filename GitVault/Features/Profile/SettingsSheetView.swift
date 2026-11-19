@@ -2,13 +2,14 @@
 //  SettingsSheetView.swift
 //  GitVault
 //
-//  首页齿轮弹出的快捷设置面板（外观 + 默认偏好）。
+//  首页齿轮弹出的快捷设置面板（外观 + 索引说明）。
 //
 
 import SwiftUI
 
 struct SettingsSheetView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppEnvironment.self) private var env
     @AppStorage(AppPrefs.appearance) private var appearanceRaw: String = AppearanceMode.dark.rawValue
 
     private var appearance: AppearanceMode {
@@ -52,20 +53,32 @@ struct SettingsSheetView: View {
                     }
 
                     VStack(alignment: .leading, spacing: DS.Space.s) {
-                        Text("默认偏好")
+                        Text("数据来源")
                             .font(DS.Typo.headline)
                             .foregroundStyle(DS.textPrimary)
 
                         VStack(spacing: 0) {
-                            SettingsRow(symbol: "bell.badge", title: "飙升提醒", detail: "关闭") {}
+                            SettingsRow(
+                                symbol: "network",
+                                title: "接口额度",
+                                detail: env.auth.isSignedIn ? "5000 次/小时" : "60 次/小时"
+                            ) {}
                             Divider().padding(.leading, 52)
-                            SettingsRow(symbol: "textformat.size", title: "字号跟随系统", detail: "已开启") {}
+                            SettingsRow(
+                                symbol: "sparkles",
+                                title: "分类方式",
+                                detail: env.llm.isConfigured ? "大模型 + 规则" : "本地规则"
+                            ) {}
                         }
                         .background(
                             RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
                                 .fill(DS.bgSecondary)
                         )
                     }
+
+                    Text("提示：登录 GitHub 后接口额度提升到 5000 次/小时，收藏与标记也能跨设备同步（阶段 5 完成后）。")
+                        .font(.system(size: 11))
+                        .foregroundStyle(DS.textTertiary)
                 }
                 .padding(DS.Space.l)
             }
@@ -85,4 +98,5 @@ struct SettingsSheetView: View {
 
 #Preview("设置面板") {
     SettingsSheetView()
+        .environment(AppEnvironment())
 }

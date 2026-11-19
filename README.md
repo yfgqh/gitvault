@@ -5,77 +5,90 @@
 
 ---
 
-## 当前进度：阶段 1（项目骨架）✅
+## 进度：阶段 1 – 5 全部完成 ✅
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
-| 阶段 1 | 工程骨架 / DesignSystem / 悬浮 Tab Bar / Splash / 5 个页面可跑通 / Mock 数据 / 详情页外壳 | ✅ 完成 |
-| 阶段 2 | Models 全量 + GitHubService + 本地缓存 + 规则分类器 | ⏳ 待开始 |
-| 阶段 3 | 首页打磨 + 分类 + RepoCard + 详情页（Hero 转场 / README 摘要） | ⏳ 待开始 |
-| 阶段 4 | 搜索联想 + SwiftData 收藏 + 左滑操作 + 环形统计 | ⏳ 待开始 |
-| 阶段 5 | GitHub OAuth + LLM 分类抽象层 + 动效 / iPad / 本地化收尾 | ⏳ 待开始 |
+| 阶段 1 | 工程骨架 / DesignSystem / 悬浮 Tab Bar / Splash / 五个页面 / Mock 数据 | ✅ |
+| 阶段 2 | DTO + GitHubService + Keychain + 规则分类器 + 中文摘要 + LLM 抽象层 + SwiftData 本地库 | ✅ |
+| 阶段 3 | 首页 Explore + 分类页 + RepoCard + 详情页（Hero 转场 / 语言占比 / README 摘要） | ✅ |
+| 阶段 4 | 搜索防抖 + 分页 + SwiftData 收藏 + 左滑操作 + 文件夹 + 环形统计 + 导出 | ✅ |
+| 阶段 5 | Device Flow 登录 + 大模型配置 + iPad 分栏 + 动效 / 深色适配 / 无障碍 | ✅ |
 
----
+## 功能清单
+
+- **数据层**：`GitHubService`（REST v3，async/await，统一中文错误 + 自动重试 + 限流提示）
+- **鉴权**：OAuth **Device Flow**（客户端不需要 secret），Token 存 **Keychain**
+- **分类**：`RuleClassifier` 本地规则（topics / 语言 / 活跃度 / 许可）→ 6 大主题 + 四组标签
+- **AI**：`LLMClassifierProtocol` 抽象，内置 OpenAI 兼容实现；未配置时规则兜底，离线可用
+- **中文摘要**：优先中文 description，否则模板化中文句 + topic 中英映射；README 结构摘要
+- **本地库**：SwiftData `VaultEntry` / `VaultFolder`，左滑标记、拖拽排序、JSON/Markdown 导出
+- **交互**：spring 按压反馈、交错入场、爱心粒子、hero 转场、`.symbolEffect`、触觉反馈
+- **适配**：深/浅色（深色默认）、Dynamic Type、VoiceOver 标签、iPhone + iPad 竖向轨道分栏
 
 ## 环境要求
 
-- macOS 14+，Xcode 15.4 及以上（已用 iOS 17 SDK 验证）
-- 部署目标 **iOS 17.0**（原因：`@Observable`、`.contentTransition`、`.symbolEffect`、
-  `.scrollTargetBehavior(.paging)` 等本设计指定能力均为 iOS 17 API）
-- 工程文件由 [XcodeGen](https://github.com/yonaskolb/XcodeGen) 从 `project.yml` 生成，
-  `.xcodeproj` 不入库，避免多人协作时的工程文件冲突
-
-> 若必须支持 iOS 16：把 `@Observable` 换成 `ObservableObject + @Published`，
-> 并把 `.scrollTargetBehavior` / `.symbolEffect` 降级为等价实现即可，架构不变。
+- macOS 14+，Xcode 15.4 及以上（CI 实测 Xcode 26.x / iOS SDK 26.5 通过）
+- 部署目标 **iOS 17.0**（`@Observable`、`.contentTransition`、`.symbolEffect`、
+  `.scrollTargetBehavior(.paging)` 均为 iOS 17 API）
+- 工程由 [XcodeGen](https://github.com/yonaskolb/XcodeGen) 从 `project.yml` 生成，`.xcodeproj` 不入库
 
 ## 本地运行
 
 ```bash
-# 1) 安装依赖工具（仅首次）
 brew install xcodegen
-
-# 2) 生成工程
 cd gitvault
 xcodegen generate
-
-# 3) 打开并运行
 open GitVault.xcodeproj
+```
 
-# 或直接用命令行编译（无签名，供 CI / 校验用）
+命令行编译（无签名）：
+
+```bash
 xcodebuild -project GitVault.xcodeproj -scheme GitVault \
-  -sdk iphoneos -configuration Debug \
+  -sdk iphoneos -configuration Release \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
 ```
 
 ## 产出 IPA（无需 macOS 本机）
 
-推送到 `main` 或手动触发 `Actions → iOS Build`，流水线会：
+推送到 `main` 或手动触发 `Actions → iOS Build`：
 
-1. 在 `macos-14` runner 上选最新 Xcode；
+1. `macos-latest` runner 选最新 Xcode；
 2. `xcodegen generate` 生成工程；
-3. `xcodebuild` 以 `CODE_SIGNING_ALLOWED=NO` 编译；
-4. 打包 `Payload/GitVault.app` → `GitVault-unsigned.ipa` 作为 artifact 上传；
-5. 同时上传生成好的 `GitVault.xcodeproj` 压缩包，本地无需安装 XcodeGen。
+3. `xcodebuild -configuration Release CODE_SIGNING_ALLOWED=NO` 编译；
+4. 打包 `Payload/GitVault.app` → `GitVault-unsigned.ipa`（artifact）；
+5. 同时上传 `GitVault.xcodeproj` 压缩包，本地无需装 XcodeGen。
 
-> 产出的 IPA 为**未签名**包。安装到真机需要自行签名（Sideloadly / AltStore / Xcode
-> 个人证书重签）；未签名包也可解压后把 `.app` 拖入 iOS Simulator 直接运行。
+> IPA 为**未签名**包。装真机需自行签名（Sideloadly / AltStore / 个人证书重签）；
+> 也可解包后把 `.app` 拖进 iOS Simulator 直接运行。
 
 ## 目录结构
 
 ```
 gitvault/
-├── project.yml                     # XcodeGen 工程描述（唯一工程源）
+├── project.yml                      # XcodeGen 工程描述（唯一工程源）
 ├── GitVault/
-│   ├── App/                        # 入口、根容器、启动页
-│   ├── DesignSystem/               # 设计规范 + 复用组件
-│   ├── Models/                     # 分类、标签、展示模型、SwiftData 实体
-│   ├── Mock/                       # 阶段 1 Mock 数据
-│   ├── Features/                   # Explore / Categories / Search / Vault / Profile / Detail
-│   ├── Utils/                      # 颜色、触觉、外观偏好
-│   └── Resources/Assets.xcassets   # AppIcon（脚本生成）+ AccentColor
-├── Scripts/make_icon.js            # 1024px 图标生成器（纯 Node，无三方依赖）
-└── .github/workflows/ios-build.yml # macOS 编译 + 未签名 IPA
+│   ├── App/                         # 入口 / 根容器 / Splash / 依赖容器
+│   ├── DesignSystem/                # 设计规范 + 复用组件（13 个）
+│   ├── Models/                      # DTO / 分类 / 标签 / 展示模型 / SwiftData 实体
+│   ├── Services/                    # GitHubService / AuthStore / VaultService / 分类器 / 摘要
+│   ├── ViewModels/                  # Explore / CategoryFeed / Search / Detail
+│   ├── Features/                    # Explore / Categories / Search / Vault / Profile / Detail
+│   ├── Mock/                        # 离线示例数据
+│   ├── Utils/                       # Keychain / 配置 / 错误 / 颜色 / 触觉 / 索引包装
+│   └── Resources/Assets.xcassets    # AppIcon（脚本生成）+ AccentColor
+├── Scripts/make_icon.js             # 1024px 图标生成器（纯 Node，零依赖）
+└── .github/workflows/ios-build.yml  # macOS 编译 + 未签名 IPA
 ```
+
+## 登录与 AI 配置
+
+- **GitHub 登录**：在 GitHub → Settings → Developer settings → OAuth Apps 新建应用，
+  勾选 **Enable Device Flow**，把 Client ID 填进「我的 → GitHub 登录」。
+  App 走 Device Flow：展示验证码 → 浏览器授权 → 轮询换取 Token → 存 Keychain。
+- **大模型**：「我的 → AI 摘要」填任意 OpenAI 兼容的 `chat/completions` 地址、模型名与 Key；
+  Key 存 Keychain，请求直接发往你填写的地址。留空即使用本地规则。
 
 ## 设计规范速查
 
@@ -91,7 +104,6 @@ gitvault/
 
 ## 数据来源
 
-GitHub REST API v3（`search/repositories`、`repos/{owner}/{repo}`）。
-未登录 60 次/小时，OAuth 登录后 5000 次/小时。Token 仅存 Keychain，绝不硬编码。
-
+GitHub REST API v3（`search/repositories`、`repos/{owner}/{repo}`、`/languages`、`/readme`）。
+未登录 60 次/小时，登录后 5000 次/小时。Token 仅存 Keychain，绝不硬编码。
 本应用与 GitHub 官方无隶属关系。

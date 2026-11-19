@@ -14,12 +14,12 @@ struct RepoCard: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: DS.Space.m) {
-            RepoCover(
+            AvatarView(
+                url: repo.avatarURL,
+                size: compact ? 44 : 56,
                 initials: repo.initials,
-                gradient: repo.gradient,
-                cornerRadius: compact ? 12 : 16
+                gradient: repo.gradient
             )
-            .frame(width: compact ? 44 : 56, height: compact ? 44 : 56)
 
             VStack(alignment: .leading, spacing: 6) {
                 // 标题行

@@ -2,25 +2,33 @@
 //  RepoDetailView.swift
 //  GitVault
 //
-//  项目详情（阶段 1 的可运行外壳，阶段 3 打磨 README 摘要 / 语言占比 / Hero 转场）。
+//  项目详情：Hero 头部（与首页共享 matchedGeometryEffect）+ 数据卡 + 语言占比
+//  + README 中文摘要（可折叠 / 可切换大模型）+ 标签区 + 悬浮底部操作栏 + 相似项目。
 //
 
 import SwiftUI
+import SwiftData
 
 struct RepoDetailView: View {
     let repo: ShowcaseRepo
+    /// 首页卡片传入的 Hero 命名空间；从别处进入时为 nil
+    var heroNamespace: Namespace.ID? = nil
 
     @Environment(\.openURL) private var openURL
-    @State private var isSaved = false
-    @State private var mark: MyMark?
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @Environment(AppEnvironment.self) private var env
+
+    @State private var vm: DetailViewModel
     @State private var readmeExpanded = false
 
-    private var similar: [ShowcaseRepo] {
-        MockData.repos
-            .filter { $0.category == repo.category && $0.id != repo.id }
-            .prefix(5)
-            .map { $0 }
+    init(repo: ShowcaseRepo, heroNamespace: Namespace.ID? = nil) {
+        self.repo = repo
+        self.heroNamespace = heroNamespace
+        _vm = State(initialValue: DetailViewModel(repo: repo))
     }
+
+    private var service: VaultService { VaultService(context: modelContext) }
 
     var body: some View {
         ScrollView {
@@ -42,13 +50,34 @@ struct RepoDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .safeAreaInset(edge: .bottom) { bottomBar }
         .overlay(alignment: .topLeading) { backButton }
+        .task {
+            vm.mark = service.entry(repoID: repo.id)?.mark
+            vm.isSaved = vm.mark != nil
+            await vm.loadDetailIfNeeded()
+            await vm.loadReadmeIfNeeded()
+        }
     }
 
     // MARK: Hero
 
+    @ViewBuilder
+    private var heroAvatar: some View {
+        let avatar = AvatarView(
+            url: vm.repo.avatarURL,
+            size: 64,
+            initials: vm.repo.initials,
+            gradient: vm.repo.gradient
+        )
+        if let heroNamespace {
+            avatar.matchedGeometryEffect(id: "hero-\(repo.id)", in: heroNamespace)
+        } else {
+            avatar
+        }
+    }
+
     private var hero: some View {
         ZStack(alignment: .bottomLeading) {
-            LinearGradient(colors: repo.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: vm.repo.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
 
             Circle()
                 .fill(.white.opacity(0.20))
@@ -57,18 +86,13 @@ struct RepoDetailView: View {
                 .offset(x: 130, y: -80)
 
             HStack(alignment: .bottom, spacing: DS.Space.m) {
-                RepoCover(initials: repo.initials, gradient: repo.gradient, cornerRadius: 16, showsGlyph: true)
-                    .frame(width: 64, height: 64)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .strokeBorder(.white.opacity(0.35), lineWidth: 1)
-                    )
+                heroAvatar
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(repo.owner)
+                    Text(vm.repo.owner)
                         .font(DS.Typo.caption)
                         .foregroundStyle(.white.opacity(0.75))
-                    Text(repo.name)
+                    Text(vm.repo.name)
                         .font(.system(.title2, design: .default).weight(.bold))
                         .foregroundStyle(.white)
                         .lineLimit(1)
@@ -88,20 +112,33 @@ struct RepoDetailView: View {
         )
     }
 
-    // MARK: 标题区
+    // MARK: 标题 + 摘要 + 状态标签
 
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
-            HStack(spacing: 6) {
-                TagChip(text: repo.category.emoji + " " + repo.category.title, tint: repo.category.tint)
-                TagChip(text: repo.activity.emoji + " " + repo.activity.title, tint: repo.activity.tint, filled: true)
-                TagChip(text: repo.usage.emoji + " " + repo.usage.title, tint: repo.usage.tint)
+            ScrollView(.horizontal) {
+                HStack(spacing: 6) {
+                    TagChip(text: vm.repo.category.emoji + " " + vm.repo.category.title,
+                            tint: vm.repo.category.tint)
+                    TagChip(text: vm.repo.activity.emoji + " " + vm.repo.activity.title,
+                            tint: vm.repo.activity.tint, filled: true)
+                    TagChip(text: vm.repo.usage.emoji + " " + vm.repo.usage.title,
+                            tint: vm.repo.usage.tint)
+                    TagChip(text: vm.repo.license.title, tint: vm.repo.license.tint)
+                }
             }
+            .scrollIndicators(.hidden)
 
-            Text(repo.summary)
+            Text(vm.repo.summary)
                 .font(DS.Typo.body)
                 .foregroundStyle(DS.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            if let updated = vm.repo.updatedAt {
+                Text("最近推送：" + updated.formatted(date: .abbreviated, time: .shortened))
+                    .font(.system(size: 11))
+                    .foregroundStyle(DS.textTertiary)
+            }
         }
     }
 
@@ -110,40 +147,26 @@ struct RepoDetailView: View {
     private var statsCard: some View {
         VStack(spacing: DS.Space.m) {
             HStack(spacing: 0) {
-                statCell("Star", value: repo.starText, symbol: "star.fill", tint: MyMark.starred.tint)
+                statCell("Star", value: vm.repo.starText, symbol: "star.fill", tint: MyMark.starred.tint)
                 Divider().frame(height: 32)
-                statCell("Fork", value: repo.forkText, symbol: "arrow.triangle.branch", tint: DS.accent)
+                statCell("Fork", value: vm.repo.forkText, symbol: "arrow.triangle.branch", tint: DS.accent)
                 Divider().frame(height: 32)
-                statCell("Issue", value: "\(repo.openIssues)", symbol: "exclamationmark.circle", tint: DS.warning)
+                statCell("Issue", value: "\(vm.repo.openIssues)", symbol: "exclamationmark.circle", tint: DS.warning)
             }
 
-            // 语言占比条（阶段 2 换成 /languages 接口的真实比例）
-            VStack(alignment: .leading, spacing: 6) {
-                GeometryReader { geo in
-                    HStack(spacing: 2) {
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(LanguagePalette.color(for: repo.language))
-                            .frame(width: geo.size.width * 0.64)
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(DS.bgTertiary)
+            if vm.languages.isEmpty {
+                HStack(spacing: 6) {
+                    LanguageDot(color: LanguagePalette.color(for: vm.repo.language))
+                    Text("主语言 \(vm.repo.language)")
+                        .font(DS.Typo.caption)
+                        .foregroundStyle(DS.textSecondary)
+                    Spacer()
+                    if vm.isLoadingDetail {
+                        ProgressView().scaleEffect(0.6).tint(DS.accent)
                     }
                 }
-                .frame(height: 8)
-
-                HStack(spacing: DS.Space.m) {
-                    HStack(spacing: 5) {
-                        LanguageDot(color: LanguagePalette.color(for: repo.language))
-                        Text("\(repo.language) 64%")
-                            .font(DS.Typo.caption)
-                            .foregroundStyle(DS.textSecondary)
-                    }
-                    HStack(spacing: 5) {
-                        LanguageDot(color: DS.textTertiary)
-                        Text("其他 36%")
-                            .font(DS.Typo.caption)
-                            .foregroundStyle(DS.textTertiary)
-                    }
-                }
+            } else {
+                LanguageBar(slices: vm.languages)
             }
         }
         .padding(DS.Space.m)
@@ -179,7 +202,7 @@ struct RepoDetailView: View {
                     Text("README 中文摘要")
                         .font(DS.Typo.headline)
                         .foregroundStyle(DS.textPrimary)
-                    TagChip(text: "AI", tint: DS.accentAlt, compact: true)
+                    TagChip(text: vm.readmeSource, tint: DS.accentAlt, compact: true)
                 }
                 Spacer()
                 Button {
@@ -191,21 +214,49 @@ struct RepoDetailView: View {
                         .foregroundStyle(DS.textTertiary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(readmeExpanded ? "收起摘要" : "展开摘要")
             }
 
-            Text(readmeSummaryText)
-                .font(DS.Typo.bodySmall)
-                .foregroundStyle(DS.textSecondary)
-                .lineLimit(readmeExpanded ? nil : 2)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 8) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 10))
-                Text("由本地规则摘要在阶段 2 生成，阶段 5 可切换大模型")
-                    .font(.system(size: 10))
+            if vm.isLoadingReadme && vm.readmeSummary == nil {
+                HStack(spacing: 8) {
+                    ProgressView().scaleEffect(0.7).tint(DS.accent)
+                    Text("正在读 README…")
+                        .font(DS.Typo.caption)
+                        .foregroundStyle(DS.textTertiary)
+                }
+                .frame(height: 44)
+            } else {
+                Text(vm.readmeSummary ?? "暂无摘要")
+                    .font(DS.Typo.bodySmall)
+                    .foregroundStyle(DS.textSecondary)
+                    .lineLimit(readmeExpanded ? nil : 3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .animation(DS.Motion.snappy, value: readmeExpanded)
             }
-            .foregroundStyle(DS.textTertiary)
+
+            HStack(spacing: DS.Space.s) {
+                Button {
+                    Haptics.tap()
+                    Task { await vm.loadReadmeIfNeeded(force: true) }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 9, weight: .bold))
+                        Text("重新生成")
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .foregroundStyle(DS.accent)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(DS.accent.opacity(0.12)))
+                }
+                .buttonStyle(.springPressSilent)
+
+                Text(env.llm.isConfigured ? "已接入大模型" : "规则摘要 · 可在「我的」里接入大模型")
+                    .font(.system(size: 10))
+                    .foregroundStyle(DS.textTertiary)
+                Spacer()
+            }
         }
         .padding(DS.Space.m)
         .background(
@@ -214,30 +265,19 @@ struct RepoDetailView: View {
         )
     }
 
-    private var readmeSummaryText: String {
-        """
-        \(repo.summary)
-
-        它所属的方向是「\(repo.category.title)」：\(repo.category.subtitle)。
-        项目采用 \(repo.license.title) 许可，主要用 \(repo.language) 编写，
-        \(repo.usage.title == "可直接用" ? "上手成本低，可以直接接入现有工程" : "需要一定的学习成本，建议先跑通官方示例")。
-        当前有 \(repo.starText) star、\(repo.forkText) fork，最近 24 小时新增 \(repo.starDeltaToday) star。
-        """
-    }
-
     // MARK: 标签区
 
     private var tagsSection: some View {
         VStack(alignment: .leading, spacing: DS.Space.m) {
-            VStack(alignment: .leading, spacing: DS.Space.s) {
-                Text("分类与许可")
-                    .font(DS.Typo.headline)
-                    .foregroundStyle(DS.textPrimary)
+            if !vm.repo.topics.isEmpty {
+                VStack(alignment: .leading, spacing: DS.Space.s) {
+                    Text("主题标签")
+                        .font(DS.Typo.headline)
+                        .foregroundStyle(DS.textPrimary)
 
-                HStack(spacing: 8) {
-                    TagChip(text: repo.category.title, systemImage: "square.grid.2x2", tint: repo.category.tint)
-                    TagChip(text: repo.license.title, systemImage: "doc.text", tint: repo.license.tint)
-                    TagChip(text: repo.language, systemImage: "chevron.left.forwardslash.chevron.right", tint: LanguagePalette.color(for: repo.language))
+                    FlowChips(items: Array(vm.repo.topics.prefix(10))) { topic in
+                        openURL(URL(string: "https://github.com/topics/\(topic)") ?? AppConfig.apiBase)
+                    }
                 }
             }
 
@@ -249,16 +289,13 @@ struct RepoDetailView: View {
                 HStack(spacing: 8) {
                     ForEach(MyMark.allCases) { item in
                         Button {
-                            Haptics.selection()
-                            withAnimation(DS.Motion.snappy) {
-                                mark = (mark == item) ? nil : item
-                            }
+                            apply(mark: item)
                         } label: {
                             TagChip(
                                 text: item.title,
                                 systemImage: item.symbol,
                                 tint: item.tint,
-                                filled: mark == item
+                                filled: vm.mark == item
                             )
                         }
                         .buttonStyle(.springPressSilent)
@@ -271,40 +308,44 @@ struct RepoDetailView: View {
     // MARK: 相似项目
 
     private var similarSection: some View {
-        VStack(alignment: .leading, spacing: DS.Space.m) {
-            SectionHeader(title: "相似项目", subtitle: nil, actionTitle: nil, onAction: nil)
-                .screenPadding()
+        Group {
+            if !vm.similar.isEmpty {
+                VStack(alignment: .leading, spacing: DS.Space.m) {
+                    SectionHeader(title: "相似项目", subtitle: "同 topic 的高星仓库",
+                                  actionTitle: nil, onAction: nil)
+                        .screenPadding()
 
-            ScrollView(.horizontal) {
-                HStack(spacing: DS.Space.m) {
-                    ForEach(similar) { item in
-                        NavigationLink(value: item) {
-                            RepoMiniCard(repo: item)
+                    ScrollView(.horizontal) {
+                        HStack(spacing: DS.Space.m) {
+                            ForEach(vm.similar) { item in
+                                NavigationLink(value: item) {
+                                    RepoMiniCard(repo: item)
+                                }
+                                .buttonStyle(.springPressCard)
+                            }
                         }
-                        .buttonStyle(.springPressCard)
+                        .padding(.horizontal, DS.Space.screen)
                     }
+                    .scrollIndicators(.hidden)
                 }
-                .padding(.horizontal, DS.Space.screen)
+                .navigationDestination(for: ShowcaseRepo.self) { next in
+                    RepoDetailView(repo: next)
+                }
             }
-            .scrollIndicators(.hidden)
-        }
-        .navigationDestination(for: ShowcaseRepo.self) { next in
-            RepoDetailView(repo: next)
         }
     }
 
-    // MARK: 底部悬浮操作栏
+    // MARK: 底部操作栏
 
     private var bottomBar: some View {
         HStack(spacing: DS.Space.s) {
             Button {
-                Haptics.medium()
-                withAnimation(DS.Motion.snappy) { isSaved.toggle() }
+                toggleSave()
             } label: {
                 HStack(spacing: 6) {
-                    Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
+                    Image(systemName: vm.isSaved ? "bookmark.fill" : "bookmark")
                         .font(.system(size: 14, weight: .semibold))
-                    Text(isSaved ? "已收藏" : "收藏")
+                    Text(vm.isSaved ? "已收藏" : "收藏")
                         .font(DS.Typo.caption)
                 }
                 .foregroundStyle(.white)
@@ -317,18 +358,25 @@ struct RepoDetailView: View {
             }
             .buttonStyle(.springPressSilent)
 
-            iconButton("square.and.arrow.up", label: "分享") {
-                if let url = repo.githubURL {
-                    openURL(url)
+            if let url = vm.repo.githubURL {
+                ShareLink(item: url) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(DS.textPrimary)
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(DS.bgSecondary))
+                        .overlay(Circle().strokeBorder(DS.separator, lineWidth: 1))
                 }
+                .buttonStyle(.springPressSilent)
+                .accessibilityLabel("分享")
             }
 
             iconButton("safari", label: "在浏览器打开") {
-                if let url = repo.githubURL { openURL(url) }
+                if let url = vm.repo.githubURL { openURL(url) }
             }
 
-            iconButton("hammer.fill", label: "加入在用") {
-                mark = .inUse
+            iconButton(vm.mark == .inUse ? "hammer.fill" : "hammer", label: "加入在用") {
+                apply(mark: .inUse)
             }
         }
         .padding(.horizontal, DS.Space.m)
@@ -362,7 +410,7 @@ struct RepoDetailView: View {
         .accessibilityLabel(label)
     }
 
-    // MARK: 返回按钮
+    // MARK: 返回
 
     private var backButton: some View {
         Button {
@@ -382,11 +430,41 @@ struct RepoDetailView: View {
         .accessibilityLabel("返回")
     }
 
-    @Environment(\.dismiss) private var dismiss
+    // MARK: 动作
+
+    private func toggleSave() {
+        if let entry = service.entry(repoID: repo.id) {
+            service.remove(entry)
+            vm.isSaved = false
+            vm.mark = nil
+            env.show("已取消收藏：\(repo.name)")
+            Haptics.tap()
+        } else {
+            service.toggle(vm.repo, mark: .starred)
+            vm.isSaved = true
+            vm.mark = .starred
+            Haptics.success()
+            env.show("已收藏：\(repo.name)", kind: .success)
+        }
+    }
+
+    private func apply(mark: MyMark) {
+        if let entry = service.entry(repoID: repo.id) {
+            service.setMark(entry, to: mark)
+        } else {
+            service.toggle(vm.repo, mark: mark)
+            vm.isSaved = true
+        }
+        vm.mark = mark
+        Haptics.medium()
+        env.show("已标记为「\(mark.title)」", kind: .success)
+    }
 }
 
 #Preview("项目详情") {
     NavigationStack {
         RepoDetailView(repo: MockData.repos[0])
     }
+    .environment(AppEnvironment())
+    .modelContainer(for: [VaultEntry.self, VaultFolder.self], inMemory: true)
 }

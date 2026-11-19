@@ -21,7 +21,7 @@ struct CategoryShortcut: View {
                     .font(DS.Typo.caption)
                     .foregroundStyle(DS.textPrimary)
                     .lineLimit(1)
-                Text("\(count) 个项目")
+                Text(count > 0 ? "\(count) 个项目" : "浏览 →")
                     .font(.system(size: 10, weight: .regular))
                     .foregroundStyle(DS.textTertiary)
             }
