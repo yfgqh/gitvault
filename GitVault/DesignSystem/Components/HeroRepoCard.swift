@@ -10,25 +10,17 @@ import SwiftUI
 struct HeroRepoCard: View {
     let repo: ShowcaseRepo
     var isSaved: Bool = false
-    /// 与详情页共享的 Hero 转场命名空间（nil 时退化为普通卡片）
-    var heroNamespace: Namespace.ID? = nil
     var onToggleSave: () -> Void = {}
 
     @State private var heartBurst = false
 
-    @ViewBuilder
     private var ownerAvatar: some View {
-        let avatar = AvatarView(
+        AvatarView(
             url: repo.avatarURL,
             size: 20,
             initials: repo.initials,
             gradient: repo.gradient
         )
-        if let heroNamespace {
-            avatar.matchedGeometryEffect(id: "hero-\(repo.id)", in: heroNamespace)
-        } else {
-            avatar
-        }
     }
 
     var body: some View {

@@ -39,8 +39,8 @@ struct GitHubService: GitHubAPI {
             self.session = session
         } else {
             let config = URLSessionConfiguration.default
-            config.timeoutIntervalForRequest = 20
-            config.timeoutIntervalForResource = 40
+            config.timeoutIntervalForRequest = 12
+            config.timeoutIntervalForResource = 25
             config.urlCache = URLCache.shared
             config.requestCachePolicy = .useProtocolCachePolicy
             config.httpAdditionalHeaders = ["Accept-Language": "zh-CN"]
@@ -134,6 +134,7 @@ struct GitHubService: GitHubAPI {
         }
 
         var attempt = 0
+        // 最多两次尝试（首次 + 1 次重试），避免网络异常时长时间转圈
         while true {
             do {
                 let (data, response) = try await session.data(for: request)
@@ -158,7 +159,7 @@ struct GitHubService: GitHubAPI {
             } catch let error as GitHubError {
                 if error.isRetryable && attempt < retries {
                     attempt += 1
-                    try? await Task.sleep(nanoseconds: UInt64(600_000_000 * attempt))
+                    try? await Task.sleep(nanoseconds: UInt64(400_000_000 * attempt))
                     continue
                 }
                 throw error
@@ -172,7 +173,7 @@ struct GitHubService: GitHubAPI {
                 }
                 if mapped.isRetryable && attempt < retries {
                     attempt += 1
-                    try? await Task.sleep(nanoseconds: UInt64(600_000_000 * attempt))
+                    try? await Task.sleep(nanoseconds: UInt64(400_000_000 * attempt))
                     continue
                 }
                 throw mapped

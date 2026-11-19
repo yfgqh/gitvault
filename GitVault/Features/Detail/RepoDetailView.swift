@@ -9,7 +9,6 @@ import SwiftUI
 
 struct RepoDetailView: View {
     let repo: ShowcaseRepo
-    var heroNamespace: Namespace.ID? = nil
 
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var vault: VaultStore
@@ -19,9 +18,8 @@ struct RepoDetailView: View {
     @StateObject private var vm: DetailViewModel
     @State private var readmeExpanded = false
 
-    init(repo: ShowcaseRepo, heroNamespace: Namespace.ID? = nil) {
+    init(repo: ShowcaseRepo) {
         self.repo = repo
-        self.heroNamespace = heroNamespace
         _vm = StateObject(wrappedValue: DetailViewModel(repo: repo))
     }
 
@@ -45,6 +43,7 @@ struct RepoDetailView: View {
         .safeAreaInset(edge: .bottom) { bottomBar }
         .overlay(alignment: .topLeading) { backButton }
         .task {
+            vm.llm = env.llm
             if let item = vault.item(id: repo.id) {
                 vm.mark = item.mark
                 vm.isSaved = true
@@ -56,19 +55,15 @@ struct RepoDetailView: View {
 
     // MARK: Hero
 
-    @ViewBuilder
+    /// 直接把头像画出来：不做 matchedGeometryEffect 跨 NavigationStack 转场，
+    /// 那套组合在 iOS 16 上有卡转场 / 黑屏的已知问题。
     private var heroAvatar: some View {
-        let avatar = AvatarView(
+        AvatarView(
             url: vm.repo.avatarURL,
             size: 64,
             initials: vm.repo.initials,
             gradient: vm.repo.gradient
         )
-        if let heroNamespace {
-            avatar.matchedGeometryEffect(id: "hero-\(repo.id)", in: heroNamespace)
-        } else {
-            avatar
-        }
     }
 
     private var hero: some View {
@@ -244,7 +239,7 @@ struct RepoDetailView: View {
                 }
                 .buttonStyle(.springPressSilent)
 
-                Text(env.llm.isConfigured ? "已接入大模型" : "规则摘要 · 可在「我的」里接入大模型")
+                Text("AI 摘要来源：\(env.llmModeTitle) · 可在「我的」里切换")
                     .font(.system(size: 10))
                     .foregroundStyle(DS.textTertiary)
                 Spacer()

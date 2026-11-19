@@ -20,18 +20,25 @@ final class ExploreViewModel: ObservableObject {
 
     private let api: any GitHubAPI
     private var didLoad = false
+    private var lastLoadedAt: Date?
+    /// 冷却时间：避免切换 Tab / 反复上下拉时堆叠请求（未登录只有 60 次/小时）
+    private let cooldown: TimeInterval = 90
 
     init(api: any GitHubAPI = GitHubService.shared) {
         self.api = api
     }
 
     func loadIfNeeded() async {
-        guard !didLoad else { return }
+        if didLoad, let last = lastLoadedAt, Date().timeIntervalSince(last) < cooldown {
+            return
+        }
         didLoad = true
         await reload()
     }
 
     func reload() async {
+        // 防重入：正在加载时直接返回，避免同一时刻并发抓三次接口
+        guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
@@ -61,6 +68,7 @@ final class ExploreViewModel: ObservableObject {
                 .map { $0 }
             self.isUsingFallback = false
             self.lastUpdated = .now
+            self.lastLoadedAt = .now
             CrashReporter.log("explore: loaded \(mapped.count) trending / \(self.forYou.count) for-you")
         } catch {
             errorMessage = error.localizedDescription

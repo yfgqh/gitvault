@@ -68,7 +68,7 @@ struct SettingsSheetView: View {
                             SettingsRow(
                                 symbol: "sparkles",
                                 title: "分类方式",
-                                detail: env.llm.isConfigured ? "大模型 + 规则" : "本地规则"
+                                detail: env.llmModeTitle
                             ) {}
                         }
                         .background(

@@ -3,7 +3,8 @@
 //  GitVault
 //
 //  根容器（iOS 16 兼容）。
-//  iPhone：内容区 + 悬浮玻璃 Tab Bar；iPad / regular 宽度：竖向轨道分栏。
+//  页面用 ZStack + opacity 保活：切换 Tab 不重建页面、不重复请求，避免「切两次就卡住」。
+//  iPhone：悬浮玻璃 Tab Bar；iPad / regular：竖向轨道分栏。
 //
 
 import SwiftUI
@@ -14,6 +15,8 @@ struct RootView: View {
 
     @State private var showSplash = true
     @State private var tab: AppTab = .explore
+    /// 已经挂载过的页面（首次进入才构建，之后保活）
+    @State private var mounted: Set<AppTab> = [.explore]
 
     var body: some View {
         ZStack {
@@ -40,6 +43,9 @@ struct RootView: View {
             }
         }
         .toastHost()
+        .onChange(of: tab) { newValue in
+            mounted.insert(newValue)
+        }
         .task {
             await auth.restore()
             try? await Task.sleep(nanoseconds: 1_600_000_000)
@@ -51,17 +57,28 @@ struct RootView: View {
 
     @ViewBuilder
     private var content: some View {
-        Group {
-            switch tab {
-            case .explore: ExploreView()
-            case .categories: CategoriesView()
-            case .search: SearchView()
-            case .vault: VaultView()
-            case .profile: ProfileView()
+        ZStack {
+            ForEach(AppTab.allCases) { item in
+                if mounted.contains(item) {
+                    page(for: item)
+                        .opacity(tab == item ? 1 : 0)
+                        .allowsHitTesting(tab == item)
+                        .zIndex(tab == item ? 1 : 0)
+                }
             }
         }
-        .transition(.opacity.combined(with: .scale(scale: 0.985, anchor: .center)))
         .animation(DS.Motion.fade, value: tab)
+    }
+
+    @ViewBuilder
+    private func page(for item: AppTab) -> some View {
+        switch item {
+        case .explore: ExploreView()
+        case .categories: CategoriesView()
+        case .search: SearchView()
+        case .vault: VaultView()
+        case .profile: ProfileView()
+        }
     }
 }
 

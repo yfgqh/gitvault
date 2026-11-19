@@ -2,12 +2,89 @@
 //  Logos.swift
 //  GitVault
 //
-//  品牌图形：渐变 Logo 标记 + 项目封面渐变底。
+//  品牌图形。GBLogoMark 与 App 图标（Scripts/make_icon.js）造型完全对应：
+//  猫耳圆环（Octocat 致敬 + 保险库转盘）+ 中心 fork 三节点（Git 分支语义）。
 //
 
 import SwiftUI
 
-/// App 品牌标记：墨黑圆角方块 + 渐变环形「保险库」封印
+/// 猫耳圆环：极坐标采样，耳朵处半径按余弦外扩
+struct CatEarRing: Shape {
+    var earLift: CGFloat = 0.070
+    var earHalf: CGFloat = 0.30
+    /// 两只耳朵的角度（弧度，0 指向右侧，顺时针为正）
+    var earAngles: [CGFloat] = [-2.55, -0.59]
+
+    func path(in rect: CGRect) -> Path {
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let base = min(rect.width, rect.height) / 2
+        var path = Path()
+        let steps = 240
+
+        for step in 0...steps {
+            let theta = CGFloat(step) / CGFloat(steps) * 2 * .pi
+            var radius = base * 0.86
+
+            for ear in earAngles {
+                var delta = theta - ear
+                // 归一化到 -π...π
+                delta = atan2(sin(delta), cos(delta))
+                if abs(delta) < earHalf {
+                    radius += base * earLift * cos(delta / earHalf * .pi / 2)
+                }
+            }
+
+            let point = CGPoint(
+                x: center.x + cos(theta) * radius,
+                y: center.y + sin(theta) * radius
+            )
+            if step == 0 {
+                path.move(to: point)
+            } else {
+                path.addLine(to: point)
+            }
+        }
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// fork 三节点：顶点 + 分叉点 + 左右两个子节点
+struct ForkGlyph: View {
+    var size: CGFloat
+
+    var body: some View {
+        ZStack {
+            Path { path in
+                let top = CGPoint(x: size * 0.5, y: size * 0.20)
+                let fork = CGPoint(x: size * 0.5, y: size * 0.52)
+                let left = CGPoint(x: size * 0.24, y: size * 0.78)
+                let right = CGPoint(x: size * 0.76, y: size * 0.78)
+                path.move(to: top)
+                path.addLine(to: fork)
+                path.move(to: fork)
+                path.addLine(to: left)
+                path.move(to: fork)
+                path.addLine(to: right)
+            }
+            .stroke(Color.white, style: StrokeStyle(lineWidth: size * 0.075, lineCap: .round, lineJoin: .round))
+
+            node(size: size, x: 0.5, y: 0.20)
+            node(size: size, x: 0.24, y: 0.78)
+            node(size: size, x: 0.76, y: 0.78)
+        }
+        .frame(width: size, height: size)
+    }
+
+    private func node(size: CGFloat, x: CGFloat, y: CGFloat) -> some View {
+        Circle()
+            .fill(Color.white)
+            .frame(width: size * 0.20, height: size * 0.20)
+            .offset(x: (x - 0.5) * size, y: (y - 0.5) * size)
+    }
+}
+
+/// App 品牌标记（启动页 / 侧栏 / 登录页共用，与桌面图标同构）
 struct GBLogoMark: View {
     var size: CGFloat = 72
     var glow: Bool = true
@@ -17,20 +94,14 @@ struct GBLogoMark: View {
             RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
                 .fill(DS.logoBase)
 
-            Circle()
-                .strokeBorder(
-                    AngularGradient(
-                        colors: [DS.accent, DS.accentAlt, DS.accent, DS.accentAlt],
-                        center: .center
-                    ),
-                    lineWidth: size * 0.10
+            CatEarRing()
+                .stroke(
+                    DS.accentGradient,
+                    style: StrokeStyle(lineWidth: size * 0.052, lineCap: .round)
                 )
-                .padding(size * 0.20)
-                .overlay(
-                    Circle()
-                        .fill(DS.accentGradient)
-                        .frame(width: size * 0.13, height: size * 0.13)
-                )
+                .frame(width: size * 0.78, height: size * 0.78)
+
+            ForkGlyph(size: size * 0.40)
         }
         .frame(width: size, height: size)
         .shadow(
@@ -39,6 +110,7 @@ struct GBLogoMark: View {
             x: 0,
             y: size * 0.10
         )
+        .accessibilityLabel("GitVault")
     }
 }
 
@@ -53,7 +125,6 @@ struct RepoCover: View {
         ZStack {
             LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
 
-            // 右下角柔光，让纯渐变不至于死板
             Circle()
                 .fill(Color.white.opacity(0.22))
                 .frame(width: 90, height: 90)
@@ -75,12 +146,10 @@ struct RepoCover: View {
     ZStack {
         DS.bgPrimary.ignoresSafeArea()
         VStack(spacing: 32) {
-            GBLogoMark(size: 96)
-            HStack(spacing: 16) {
-                RepoCover(initials: "LL", gradient: RepoCategory.ai.gradient, cornerRadius: 18)
-                    .frame(width: 64, height: 64)
-                RepoCover(initials: "Ru", gradient: RepoCategory.tooling.gradient, cornerRadius: 18)
-                    .frame(width: 64, height: 64)
+            GBLogoMark(size: 108)
+            HStack(spacing: 20) {
+                GBLogoMark(size: 52, glow: false)
+                GBLogoMark(size: 40, glow: false)
             }
         }
     }

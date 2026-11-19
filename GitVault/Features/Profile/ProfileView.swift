@@ -212,7 +212,7 @@ struct ProfileView: View {
                 SettingsRow(
                     symbol: "sparkles",
                     title: "大模型分类 / 中文摘要",
-                    detail: env.llm.isConfigured ? "已启用" : "规则模式"
+                    detail: env.llmModeTitle
                 ) {
                     showAISheet = true
                 }
@@ -222,7 +222,7 @@ struct ProfileView: View {
                     .fill(DS.bgSecondary)
             )
 
-            Text("未配置时使用本地规则分类与中文摘要，全程离线可用。")
+            Text("默认使用内置免费模型（无需 API Key）；也可填入自己的 OpenAI 兼容网关，失败时自动回落到本地规则。")
                 .font(.system(size: 11))
                 .foregroundStyle(DS.textTertiary)
         }
@@ -570,31 +570,87 @@ struct AIConfigSheetView: View {
     @EnvironmentObject private var env: AppEnvironment
     @Environment(\.dismiss) private var dismiss
 
-    @State private var endpoint = UserDefaults.standard.string(forKey: "gv.llm.endpoint")
-        ?? "https://api.openai.com/v1/chat/completions"
-    @State private var model = UserDefaults.standard.string(forKey: "gv.llm.model") ?? "gpt-4o-mini"
-    @State private var apiKey = Keychain.read("gv.llm.key") ?? ""
+    @State private var endpoint = ""
+    @State private var model = ""
+    @State private var apiKey = ""
+    @State private var didLoad = false
+
+    private var isFreeDefault: Bool {
+        endpoint.trimmingCharacters(in: .whitespaces) == LLMConfig.freeDefault.endpoint
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: DS.Space.l) {
-                    Text("接入任意 OpenAI 兼容接口，用于生成更自然的中文摘要与主题分类。不填则保持本地规则。")
-                        .font(DS.Typo.caption)
-                        .foregroundStyle(DS.textTertiary)
-
-                    field("接口地址", text: $endpoint, placeholder: "https://…/v1/chat/completions")
-                    field("模型名称", text: $model, placeholder: "gpt-4o-mini")
-                    field("API Key", text: $apiKey, placeholder: "sk-…", secure: true)
+                    statusCard
 
                     VStack(alignment: .leading, spacing: DS.Space.s) {
+                        Text("接口地址")
+                            .font(DS.Typo.caption)
+                            .foregroundStyle(DS.textSecondary)
+                        TextField("https://…/v1/chat/completions", text: $endpoint)
+                            .font(DS.Typo.bodySmall)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .keyboardType(.URL)
+                            .padding(DS.Space.m)
+                            .background(
+                                RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
+                                    .fill(DS.bgSecondary)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
+                                    .strokeBorder(DS.separator, lineWidth: 1)
+                            )
+
+                        Text("模型名称")
+                            .font(DS.Typo.caption)
+                            .foregroundStyle(DS.textSecondary)
+                            .padding(.top, 4)
+                        TextField("例如 openai / gpt-4o-mini", text: $model)
+                            .font(DS.Typo.bodySmall)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .padding(DS.Space.m)
+                            .background(
+                                RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
+                                    .fill(DS.bgSecondary)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
+                                    .strokeBorder(DS.separator, lineWidth: 1)
+                            )
+
+                        Text("API Key（内置免费模型留空即可）")
+                            .font(DS.Typo.caption)
+                            .foregroundStyle(DS.textSecondary)
+                            .padding(.top, 4)
+                        SecureField("sk-…（可留空）", text: $apiKey)
+                            .font(DS.Typo.bodySmall)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .padding(DS.Space.m)
+                            .background(
+                                RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
+                                    .fill(DS.bgSecondary)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
+                                    .strokeBorder(DS.separator, lineWidth: 1)
+                            )
+                    }
+
+                    VStack(spacing: DS.Space.s) {
                         Button {
-                            UserDefaults.standard.set(endpoint, forKey: "gv.llm.endpoint")
-                            UserDefaults.standard.set(model, forKey: "gv.llm.model")
-                            Keychain.save(apiKey, for: "gv.llm.key")
-                            env.configureLLM(endpoint: endpoint, apiKey: apiKey, model: model)
+                            let config = LLMConfig(
+                                endpoint: endpoint.trimmingCharacters(in: .whitespacesAndNewlines),
+                                model: model.trimmingCharacters(in: .whitespacesAndNewlines),
+                                apiKey: apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+                            )
+                            env.applyLLM(config)
                             Haptics.success()
-                            env.show("已保存大模型配置", kind: .success)
+                            env.show("已切换到：\(config.displayName)", kind: .success)
                             dismiss()
                         } label: {
                             Text("保存并启用")
@@ -610,15 +666,14 @@ struct AIConfigSheetView: View {
                         .buttonStyle(.springPress)
 
                         Button {
-                            Keychain.delete("gv.llm.key")
-                            apiKey = ""
-                            env.llm = RuleLLMClassifier()
+                            env.resetLLMToFreeDefault()
+                            applyState()
                             Haptics.tap()
-                            env.show("已切回本地规则模式")
+                            env.show("已恢复内置免费模型", kind: .success)
                         } label: {
-                            Text("清除配置并回到规则模式")
+                            Text(isFreeDefault ? "当前已是内置免费模型" : "恢复内置免费模型")
                                 .font(DS.Typo.caption)
-                                .foregroundStyle(DS.textSecondary)
+                                .foregroundStyle(isFreeDefault ? DS.textTertiary : DS.accent)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
                                 .background(
@@ -627,9 +682,10 @@ struct AIConfigSheetView: View {
                                 )
                         }
                         .buttonStyle(.springPressSilent)
+                        .disabled(isFreeDefault)
                     }
 
-                    Text("API Key 存于 Keychain，不写入代码与日志。请求直接发往你填写的地址。")
+                    Text("说明：内置免费模型来自 Pollinations 的 OpenAI 兼容接口，无需注册；它可能限流或偶发不可用，此时详情页会显示本地规则摘要，不影响使用。API Key 存于 Keychain，不写入代码与日志。")
                         .font(.system(size: 11))
                         .foregroundStyle(DS.textTertiary)
                 }
@@ -645,38 +701,44 @@ struct AIConfigSheetView: View {
                         .foregroundStyle(DS.accent)
                 }
             }
+            .onAppear {
+                guard !didLoad else { return }
+                didLoad = true
+                applyState()
+            }
         }
     }
 
-    private func field(_ title: String, text: Binding<String>, placeholder: String, secure: Bool = false) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(DS.Typo.caption)
-                .foregroundStyle(DS.textSecondary)
-
-            Group {
-                if secure {
-                    SecureField(placeholder, text: text)
-                } else {
-                    TextField(placeholder, text: text)
-                }
+    private var statusCard: some View {
+        HStack(spacing: DS.Space.m) {
+            ZStack {
+                Circle().fill(DS.accent.opacity(0.14)).frame(width: 42, height: 42)
+                Image(systemName: isFreeDefault ? "bolt.horizontal.circle.fill" : "slider.horizontal.3")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(DS.accent)
             }
-            .font(DS.Typo.bodySmall)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .padding(DS.Space.m)
-            .background(
-                RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                    .fill(DS.bgSecondary)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                    .strokeBorder(DS.separator, lineWidth: 1)
-            )
+            VStack(alignment: .leading, spacing: 2) {
+                Text(isFreeDefault ? "内置免费模型" : "自定义模型")
+                    .font(DS.Typo.headline)
+                    .foregroundStyle(DS.textPrimary)
+                Text(isFreeDefault
+                     ? "无需 API Key · 开箱可用 · 失败自动回落规则"
+                     : "请求将直接发往你填写的地址")
+                    .font(DS.Typo.caption)
+                    .foregroundStyle(DS.textTertiary)
+            }
+            Spacer(minLength: 0)
         }
+        .padding(DS.Space.m)
+        .glassSurface()
+    }
+
+    private func applyState() {
+        endpoint = env.config.endpoint
+        model = env.config.model
+        apiKey = env.config.apiKey
     }
 }
-
 // MARK: - 诊断日志
 
 struct DiagnosticsView: View {

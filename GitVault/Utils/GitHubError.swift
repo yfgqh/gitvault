@@ -49,12 +49,13 @@ enum GitHubError: LocalizedError, Equatable {
         }
     }
 
-    /// 是否值得自动重试
+    /// 是否值得自动重试。
+    /// 注意：.transport 也包含「请求取消」，重试会让取消操作变慢甚至看起来卡死，故不重试。
     var isRetryable: Bool {
         switch self {
-        case .timeout, .transport, .server:
+        case .timeout, .server:
             return true
-        case .offline, .rateLimited, .unauthorized, .forbidden, .notFound, .decoding, .invalidURL:
+        case .offline, .transport, .rateLimited, .unauthorized, .forbidden, .notFound, .decoding, .invalidURL:
             return false
         }
     }

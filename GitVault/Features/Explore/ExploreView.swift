@@ -3,7 +3,7 @@
 //  GitVault
 //
 //  首页：问候 → 今日精选轮播 → 飙升榜 → 按主题浏览 → 为你推荐。
-//  iOS 16 兼容：精选轮播用 TabView(.page) 而非 iOS17 的 scrollTargetBehavior。
+//  iOS 16 兼容：精选轮播用固定宽横向滚动，既不用 iOS17 API，也避免 TabView 嵌 ScrollView 的卡死。
 //
 
 import SwiftUI
@@ -15,9 +15,7 @@ struct ExploreView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     @StateObject private var vm = ExploreViewModel()
-    @State private var heroIndex = 0
     @State private var showSettings = false
-    @Namespace private var heroNS
 
     private var topicColumns: [GridItem] {
         sizeClass == .regular
@@ -54,7 +52,7 @@ struct ExploreView: View {
             .refreshable { await vm.reload() }
             .navigationBarHidden(true)
             .navigationDestination(for: ShowcaseRepo.self) { repo in
-                RepoDetailView(repo: repo, heroNamespace: heroNS)
+                RepoDetailView(repo: repo)
             }
             .navigationDestination(for: CategoryRoute.self) { route in
                 CategoryFeedView(category: route.category)
@@ -136,35 +134,37 @@ struct ExploreView: View {
                 SkeletonHero()
                     .screenPadding()
             } else {
-                TabView(selection: $heroIndex) {
-                    ForEach(vm.featured.indexed) { entry in
-                        NavigationLink(value: entry.item) {
-                            HeroRepoCard(
-                                repo: entry.item,
-                                isSaved: vault.isSaved(entry.item.id),
-                                heroNamespace: heroNS
-                            ) {
-                                toggleSave(entry.item)
+                // 固定宽度横向轮播。
+                // 不要用 TabView(.page) 嵌在纵向 ScrollView 里：iOS 16 会出现
+                // 无限测量循环，表现为整页无响应（本次卡死的主因之一）。
+                GeometryReader { geo in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: DS.Space.m) {
+                            ForEach(vm.featured.indexed) { entry in
+                                NavigationLink(value: entry.item) {
+                                    HeroRepoCard(
+                                        repo: entry.item,
+                                        isSaved: vault.isSaved(entry.item.id)
+                                    ) {
+                                        toggleSave(entry.item)
+                                    }
+                                    .frame(width: max(geo.size.width - DS.Space.screen * 2, 260))
+                                }
+                                .buttonStyle(.springPressCard)
                             }
-                            .padding(.horizontal, DS.Space.screen)
                         }
-                        .buttonStyle(.springPressCard)
-                        .tag(entry.index)
+                        .padding(.horizontal, DS.Space.screen)
                     }
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
                 .frame(height: 248)
 
-                HStack(spacing: 6) {
-                    ForEach(vm.featured.indexed) { entry in
-                        Capsule()
-                            .fill(heroIndex == entry.index
-                                  ? AnyShapeStyle(DS.accentGradient)
-                                  : AnyShapeStyle(DS.bgTertiary))
-                            .frame(width: heroIndex == entry.index ? 18 : 6, height: 6)
-                            .animation(DS.Motion.snappy, value: heroIndex)
-                    }
+                HStack(spacing: 5) {
+                    Image(systemName: "hand.draw")
+                        .font(.system(size: 10, weight: .semibold))
+                    Text("左右滑动查看全部 \(vm.featured.count) 个精选")
+                        .font(.system(size: 11))
                 }
+                .foregroundStyle(DS.textTertiary)
                 .screenPadding()
             }
         }

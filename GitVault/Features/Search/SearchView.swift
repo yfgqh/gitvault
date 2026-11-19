@@ -326,44 +326,55 @@ struct FlowLayout: Layout {
     var spacing: CGFloat = 8
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        // 防御：ScrollView 里 proposal.width 可能是 nil / 0 / inf，直接参与布局会得到非法尺寸
+        // proposal.width 可能是 nil / 0 / inf：一律钳到有限值，
+        // 否则子视图会拿到非法尺寸、父视图反复重测量（表现为界面卡住）。
         let raw = proposal.width ?? 0
-        let maxWidth: CGFloat = (raw.isFinite && raw > 1) ? raw : 320
-        var x: CGFloat = 0
-        var y: CGFloat = 0
+        let maxWidth = (raw.isFinite && raw > 1) ? raw : 320
+        var cursorX: CGFloat = 0
+        var cursorY: CGFloat = 0
         var rowHeight: CGFloat = 0
 
         for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x + size.width > maxWidth, x > 0 {
-                x = 0
-                y += rowHeight + spacing
+            let measured = subview.sizeThatFits(.unspecified)
+            let w = measured.width.isFinite ? max(measured.width, 0) : 0
+            let h = measured.height.isFinite ? max(measured.height, 0) : 0
+            if cursorX > 0, cursorX + w > maxWidth {
+                cursorX = 0
+                cursorY += rowHeight + spacing
                 rowHeight = 0
             }
-            x += size.width + spacing
-            rowHeight = max(rowHeight, size.height)
+            cursorX += w + spacing
+            rowHeight = max(rowHeight, h)
         }
-        return CGSize(width: max(maxWidth.isFinite ? maxWidth : 320, x), height: max(y + rowHeight, 0))
+
+        let width = max(min(maxWidth, max(cursorX - spacing, 0)), 1)
+        let height = max(cursorY + rowHeight, 0)
+        return CGSize(width: width, height: height)
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        guard bounds.width.isFinite, bounds.height.isFinite else { return }
-        var x = bounds.minX
-        var y = bounds.minY
+        guard bounds.width.isFinite, bounds.height.isFinite, bounds.width > 1 else { return }
+        var cursorX = bounds.minX
+        var cursorY = bounds.minY
         var rowHeight: CGFloat = 0
 
         for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x + size.width > bounds.maxX, x > bounds.minX {
-                x = bounds.minX
-                y += rowHeight + spacing
+            let measured = subview.sizeThatFits(.unspecified)
+            let w = measured.width.isFinite ? max(measured.width, 0) : 0
+            let h = measured.height.isFinite ? max(measured.height, 0) : 0
+
+            if cursorX > bounds.minX, cursorX + w > bounds.maxX {
+                cursorX = bounds.minX
+                cursorY += rowHeight + spacing
                 rowHeight = 0
             }
-            subview.place(at: CGPoint(x: x, y: y),
-                          anchor: .topLeading,
-                          proposal: ProposedViewSize(size))
-            x += size.width + spacing
-            rowHeight = max(rowHeight, size.height)
+            subview.place(
+                at: CGPoint(x: cursorX, y: cursorY),
+                anchor: .topLeading,
+                proposal: ProposedViewSize(width: w, height: h)
+            )
+            cursorX += w + spacing
+            rowHeight = max(rowHeight, h)
         }
     }
 }

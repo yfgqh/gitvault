@@ -28,7 +28,7 @@ final class DetailViewModel: ObservableObject {
     @Published var similar: [ShowcaseRepo] = []
 
     private let api: any GitHubAPI
-    private let llm: any LLMClassifierProtocol
+    var llm: any LLMClassifierProtocol
     private var didLoadDetail = false
     private var didLoadReadme = false
 
