@@ -20,12 +20,17 @@ final class AppEnvironment {
     /// 轻提示（保存成功、导出完成、错误）
     var toast: ToastMessage?
 
-    init(api: any GitHubAPI = GitHubService.shared,
-         auth: AuthStore = AuthStore(),
-         llm: any LLMClassifierProtocol = RuleLLMClassifier()) {
+    init(api: any GitHubAPI,
+         auth: AuthStore,
+         llm: any LLMClassifierProtocol) {
         self.api = api
         self.auth = auth
         self.llm = llm
+    }
+
+    /// 生产环境默认装配（@MainActor 上下文中调用）
+    static func live() -> AppEnvironment {
+        AppEnvironment(api: GitHubService.shared, auth: AuthStore(), llm: RuleLLMClassifier())
     }
 
     func show(_ text: String, kind: ToastMessage.Kind = .info) {

@@ -142,7 +142,7 @@ struct ShowcaseRepo: Identifiable, Hashable {
         self.gradient = category.gradient
         self.isFeatured = false
         self.topics = topics
-        self.avatarURL = dto.owner.avatarURL.flatMap(URL.init(string:))
+        self.avatarURL = dto.owner.avatarURL.flatMap { URL(string: $0) }
         self.htmlURL = URL(string: dto.htmlURL)
         self.updatedAt = dto.pushedAt ?? dto.updatedAt
         self.rawDescription = dto.description
@@ -170,7 +170,7 @@ extension ShowcaseRepo {
             gradient: entry.category.gradient,
             isFeatured: false,
             topics: entry.topics,
-            avatarURL: entry.avatarURL.flatMap(URL.init(string:)),
+            avatarURL: entry.avatarURL.flatMap { URL(string: $0) },
             htmlURL: URL(string: entry.htmlURL),
             updatedAt: entry.updatedAt
         )

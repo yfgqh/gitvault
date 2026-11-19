@@ -14,7 +14,7 @@ struct GitVaultApp: App {
     @AppStorage(AppPrefs.appearance) private var appearanceRaw: String = AppearanceMode.dark.rawValue
 
     /// 依赖注入容器（网络 / 鉴权 / 大模型）
-    @State private var environment = AppEnvironment()
+    @State private var environment = AppEnvironment.live()
 
     /// SwiftData 容器：收藏条目 + 用户文件夹
     private let container: ModelContainer = {

@@ -69,6 +69,6 @@ struct RootView: View {
 
 #Preview("根容器") {
     RootView()
-        .environment(AppEnvironment())
+        .environment(AppEnvironment.live())
         .modelContainer(for: [VaultEntry.self, VaultFolder.self], inMemory: true)
 }

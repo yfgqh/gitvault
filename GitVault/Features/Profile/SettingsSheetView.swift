@@ -98,5 +98,5 @@ struct SettingsSheetView: View {
 
 #Preview("设置面板") {
     SettingsSheetView()
-        .environment(AppEnvironment())
+        .environment(AppEnvironment.live())
 }

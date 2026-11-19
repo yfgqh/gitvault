@@ -395,7 +395,7 @@ struct VaultRow: View {
     var body: some View {
         HStack(spacing: DS.Space.m) {
             AvatarView(
-                url: entry.avatarURL.flatMap(URL.init(string:)),
+                url: entry.avatarURL.flatMap { URL(string: $0) },
                 size: 46,
                 initials: String(entry.owner.prefix(1)).uppercased()
                     + String(entry.name.prefix(1)).uppercased(),
@@ -443,6 +443,6 @@ struct VaultRow: View {
 
 #Preview("收藏库") {
     VaultView()
-        .environment(AppEnvironment())
+        .environment(AppEnvironment.live())
         .modelContainer(for: [VaultEntry.self, VaultFolder.self], inMemory: true)
 }

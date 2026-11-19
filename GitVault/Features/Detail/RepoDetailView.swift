@@ -465,6 +465,6 @@ struct RepoDetailView: View {
     NavigationStack {
         RepoDetailView(repo: MockData.repos[0])
     }
-    .environment(AppEnvironment())
+    .environment(AppEnvironment.live())
     .modelContainer(for: [VaultEntry.self, VaultFolder.self], inMemory: true)
 }

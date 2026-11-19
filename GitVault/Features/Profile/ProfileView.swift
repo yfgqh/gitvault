@@ -69,7 +69,7 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: DS.Space.m) {
             HStack(spacing: DS.Space.m) {
                 AvatarView(
-                    url: env.auth.user?.avatarURL.flatMap(URL.init(string:)),
+                    url: env.auth.user?.avatarURL.flatMap { URL(string: $0) },
                     size: 64,
                     initials: "G"
                 )
@@ -102,7 +102,7 @@ struct ProfileView: View {
                 HStack(spacing: DS.Space.s) {
                     Button {
                         Haptics.tap()
-                        if let url = env.auth.user?.htmlURL.flatMap(URL.init(string:)) { openURL(url) }
+                        if let url = env.auth.user?.htmlURL.flatMap { URL(string: $0) } { openURL(url) }
                     } label: {
                         Text("打开主页")
                             .font(DS.Typo.caption)
@@ -684,6 +684,6 @@ struct AIConfigSheetView: View {
 
 #Preview("我的") {
     ProfileView()
-        .environment(AppEnvironment())
+        .environment(AppEnvironment.live())
         .modelContainer(for: [VaultEntry.self, VaultFolder.self], inMemory: true)
 }

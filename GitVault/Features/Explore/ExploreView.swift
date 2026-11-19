@@ -105,7 +105,7 @@ struct ExploreView: View {
             .accessibilityLabel("设置")
 
             AvatarView(
-                url: env.auth.user?.avatarURL.flatMap(URL.init(string:)),
+                url: env.auth.user?.avatarURL.flatMap { URL(string: $0) },
                 size: 38,
                 initials: "G"
             )
@@ -304,6 +304,6 @@ struct SkeletonHero: View {
 
 #Preview("首页") {
     ExploreView()
-        .environment(AppEnvironment())
+        .environment(AppEnvironment.live())
         .modelContainer(for: [VaultEntry.self, VaultFolder.self], inMemory: true)
 }

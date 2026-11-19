@@ -39,9 +39,9 @@ final class ExploreViewModel {
         defer { isLoading = false }
 
         do {
-            async let trendingDTOs = api.trending()
-            async let aiPage = api.searchByCategory(.ai)
-            async let toolPage = api.searchByCategory(.tooling)
+            async let trendingDTOs = api.trending(days: 14)
+            async let aiPage = api.searchByCategory(.ai, page: 1)
+            async let toolPage = api.searchByCategory(.tooling, page: 1)
 
             let trending = try await trendingDTOs
             let ai = try await aiPage

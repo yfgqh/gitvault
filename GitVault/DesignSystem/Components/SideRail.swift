@@ -49,7 +49,7 @@ struct SideRail: View {
 
             // 登录态小指示
             AvatarView(
-                url: env.auth.user?.avatarURL.flatMap(URL.init(string:)),
+                url: env.auth.user?.avatarURL.flatMap { URL(string: $0) },
                 size: 36,
                 initials: "G"
             )
