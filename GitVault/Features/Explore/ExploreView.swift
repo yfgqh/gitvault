@@ -137,31 +137,31 @@ struct ExploreView: View {
                     .screenPadding()
             } else {
                 TabView(selection: $heroIndex) {
-                    ForEach(Array(vm.featured.enumerated()), id: \.element.id) { pair in
-                        NavigationLink(value: pair.element) {
+                    ForEach(vm.featured.indexed) { entry in
+                        NavigationLink(value: entry.item) {
                             HeroRepoCard(
-                                repo: pair.element,
-                                isSaved: vault.isSaved(pair.element.id),
+                                repo: entry.item,
+                                isSaved: vault.isSaved(entry.item.id),
                                 heroNamespace: heroNS
                             ) {
-                                toggleSave(pair.element)
+                                toggleSave(entry.item)
                             }
                             .padding(.horizontal, DS.Space.screen)
                         }
                         .buttonStyle(.springPressCard)
-                        .tag(pair.index)
+                        .tag(entry.index)
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .frame(height: 248)
 
                 HStack(spacing: 6) {
-                    ForEach(Array(vm.featured.enumerated()), id: \.element.id) { pair in
+                    ForEach(vm.featured.indexed) { entry in
                         Capsule()
-                            .fill(heroIndex == pair.index
+                            .fill(heroIndex == entry.index
                                   ? AnyShapeStyle(DS.accentGradient)
                                   : AnyShapeStyle(DS.bgTertiary))
-                            .frame(width: heroIndex == pair.index ? 18 : 6, height: 6)
+                            .frame(width: heroIndex == entry.index ? 18 : 6, height: 6)
                             .animation(DS.Motion.snappy, value: heroIndex)
                     }
                 }
