@@ -21,7 +21,7 @@ struct CategoryShortcut: View {
                     .font(DS.Typo.caption)
                     .foregroundStyle(DS.textPrimary)
                     .lineLimit(1)
-                Text(count > 0 ? "\(count) 个项目" : "浏览 →")
+                Text(count > 0 ? "\(count) 个项目" : "点击浏览")
                     .font(.system(size: 10, weight: .regular))
                     .foregroundStyle(DS.textTertiary)
             }
@@ -89,7 +89,7 @@ struct CategoryLargeCard: View {
 
                 Spacer(minLength: 0)
 
-                Text("\(count) 个项目")
+                Text(count > 0 ? "\(count) 个项目" : "加载中…")
                     .font(DS.Typo.micro)
                     .foregroundStyle(.white.opacity(0.92))
                     .padding(.horizontal, 8)

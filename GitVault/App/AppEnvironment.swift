@@ -54,11 +54,19 @@ final class AppEnvironment: ObservableObject {
 
         var result: [RepoCategory: Int] = [:]
         for category in RepoCategory.allCases {
-            if let count = try? await api.categoryTotal(category) {
+            if let count = try? await api.categoryTotal(category), count > 0 {
                 result[category] = count
             }
         }
-        guard !result.isEmpty else { return }
+        guard !result.isEmpty else {
+            // 全部失败（限流/断网）：保留已有缓存值，绝不覆盖成 0
+            CrashReporter.log("counts: refresh failed, keep cached values")
+            return
+        }
+        // 未取到的分类沿用旧值或基线
+        for category in RepoCategory.allCases where result[category] == nil {
+            result[category] = categoryCounts[category] ?? category.baselineCount
+        }
         categoryCounts = result
         countsLoadedAt = .now
         persistCounts(result)
@@ -78,6 +86,16 @@ final class AppEnvironment: ObservableObject {
         if stamp > 0 {
             countsLoadedAt = Date(timeIntervalSince1970: stamp)
         }
+        fillMissingWithBaseline(parsed)
+    }
+
+    /// 缺值用基线补齐：首启 / 限流时也不会显示 0
+    private func fillMissingWithBaseline(_ current: [RepoCategory: Int]) {
+        var merged = current
+        for category in RepoCategory.allCases where (merged[category] ?? 0) <= 0 {
+            merged[category] = category.baselineCount
+        }
+        categoryCounts = merged
     }
 
     private func persistCounts(_ counts: [RepoCategory: Int]) {

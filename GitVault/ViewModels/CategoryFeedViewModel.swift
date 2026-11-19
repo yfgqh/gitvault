@@ -39,9 +39,21 @@ final class CategoryFeedViewModel: ObservableObject {
     private var didLoad = false
     private let fetchLimit = 100
 
+    /// 是否有可展示的缓存内容（用于文案）
+    private(set) var loadedFromCache = false
+    private(set) var cacheDate: Date?
+
     init(category: RepoCategory, api: any GitHubAPI = GitHubService.shared) {
         self.category = category
         self.api = api
+
+        // 先用上次的磁盘快照铺满界面，避免「每次进来都是空的」
+        if let cached = CategoryCache.shared.load(category), !cached.items.isEmpty {
+            items = cached.items.map(ShowcaseRepo.init(cached:))
+            totalCount = max(cached.total, items.count)
+            loadedFromCache = true
+            cacheDate = cached.savedAt
+        }
     }
 
     // MARK: 展示
@@ -68,6 +80,11 @@ final class CategoryFeedViewModel: ObservableObject {
         case .language: list.sort { ($0.language, -$0.stars) < ($1.language, -$1.stars) }
         }
         return list
+    }
+
+    var cacheHint: String? {
+        guard loadedFromCache, let date = cacheDate else { return nil }
+        return "显示上次缓存（" + date.formatted(date: .abbreviated, time: .shortened) + "），下拉可刷新"
     }
 
     var truncatedHint: String? {
@@ -101,12 +118,17 @@ final class CategoryFeedViewModel: ObservableObject {
 
             items = fetched.map(ShowcaseRepo.init(dto:))
             totalCount = max(total, items.count)
+            loadedFromCache = false
+            cacheDate = nil
+            if !items.isEmpty {
+                CategoryCache.shared.save(category, total: totalCount, repos: items)
+            }
             CrashReporter.log("category \(category.rawValue): \(items.count) items / total \(totalCount)")
         } catch {
             errorMessage = error.localizedDescription
             if items.isEmpty {
                 items = MockData.repos(in: category)
-                totalCount = items.count
+                totalCount = max(category.baselineCount, items.count)
             }
         }
     }

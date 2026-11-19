@@ -17,8 +17,9 @@ struct ProfileView: View {
     @AppStorage(AppPrefs.appearance) private var appearanceRaw: String = AppearanceMode.dark.rawValue
     @State private var showAuthSheet = false
     @State private var showAISheet = false
-    @State private var showDiagnostics = false
+
     @State private var exportFile: ExportFile?
+    @State private var showAbout = false
     @State private var cacheSizeText = "—"
 
     private var appearance: AppearanceMode {
@@ -54,14 +55,15 @@ struct ProfileView: View {
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
-            .sheet(isPresented: $showDiagnostics) {
-                DiagnosticsView()
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-            }
+
             .sheet(item: $exportFile) { file in
                 ShareSheet(items: [file.url])
                     .presentationDetents([.medium, .large])
+            }
+            .sheet(isPresented: $showAbout) {
+                AboutSheetView()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
             .onAppear { updateCacheSize() }
         }
@@ -281,18 +283,8 @@ struct ProfileView: View {
                 .foregroundStyle(DS.textPrimary)
 
             VStack(spacing: 0) {
-                SettingsRow(symbol: "stethoscope", title: "诊断日志",
-                            detail: "\(CrashReporter.lineCount()) 行") {
-                    showDiagnostics = true
-                }
-                Divider().padding(.leading, 52)
-                SettingsRow(symbol: "doc.on.doc", title: "复制环境信息", detail: nil) {
-                    UIPasteboard.general.string = CrashReporter.environmentSummary()
-                    env.show("环境信息已复制", kind: .success)
-                }
-                Divider().padding(.leading, 52)
-                SettingsRow(symbol: "paperplane.fill", title: "关于 GitVault", detail: versionText) {
-                    if let url = URL(string: "https://t.me/GitVaultipa") { openURL(url) }
+                SettingsRow(symbol: "info.circle", title: "关于 GitVault", detail: versionText) {
+                    showAbout = true
                 }
                 Divider().padding(.leading, 52)
                 SettingsRow(symbol: "bubble.left.and.bubble.right", title: "加入 Telegram 群", detail: "反馈 / 交流") {
@@ -895,62 +887,154 @@ struct AIConfigSheetView: View {
         apiKey = env.config.apiKey
     }
 }
-// MARK: - 诊断日志
 
-struct DiagnosticsView: View {
+// MARK: - 应用简介
+
+struct AboutSheetView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var text = ""
+    @Environment(\.openURL) private var openURL
+
+    private var version: String {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.6.0"
+        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "7"
+        return "版本 \(v) (\(b))"
+    }
+
+    private struct AboutHighlight: Identifiable {
+        let icon: String
+        let title: String
+        let detail: String
+        var id: String { title }
+    }
+
+    private let highlights: [AboutHighlight] = [
+        ("square.grid.2x2.fill", "双层分类体系",
+         "六大主题场景 + 二级子分类，配合状态、语言、许可、用途四组智能标签，把「收藏」变成可检索的结构化资料。"),
+        ("text.alignleft", "中文优先的阅读体验",
+         "项目简介与 README 先呈现原文，非中文内容自动交由 AI 译为简洁中文；未联网或模型不可用时回落本地规则，始终有内容可读。"),
+        ("bookmark.fill", "本地优先的收藏库",
+         "收藏、观察、在用、归档四态标记，自定义文件夹与拖拽排序，数据全部保存在设备本地，随时可导出 JSON / Markdown。"),
+        ("magnifyingglass", "为找项目而设计的搜索",
+         "输入即联想，可按主题、语言、星标区间组合筛选，并记住你的搜索历史。"),
+        ("iphone.gen3", "原生体验",
+         "SwiftUI 构建，深色为默认外观，支持浅色与跟随系统；iPhone 与 iPad 自适应布局，完整支持动态字体与旁白。"),
+        ("lock.shield.fill", "隐私优先",
+         "GitHub 令牌仅存于系统钥匙串，不采集任何个人数据，不上传收藏内容。")
+    ]
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: DS.Space.s) {
-                Text("如果 App 闪退，把这份日志贴到 issue 里就能定位到具体步骤。日志只记录启动阶段与错误摘要，不包含 Token。")
-                    .font(.system(size: 11))
-                    .foregroundStyle(DS.textTertiary)
-                    .padding(.horizontal, DS.Space.m)
-                    .padding(.top, DS.Space.s)
+            ScrollView {
+                VStack(alignment: .leading, spacing: DS.Space.l) {
+                    // 头部
+                    HStack(spacing: DS.Space.m) {
+                        GBLogoMark(size: 64, glow: false)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("GitVault · GitHub 精选")
+                                .font(DS.Typo.cardTitle)
+                                .foregroundStyle(DS.textPrimary)
+                            Text("为中文开发者打造的开源项目收藏与整理工具")
+                                .font(DS.Typo.caption)
+                                .foregroundStyle(DS.textTertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
+                    }
 
-                ScrollView {
-                    Text(text.isEmpty ? "暂无日志" : text)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(DS.textSecondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(DS.Space.m)
+                    Text("""
+                    GitVault 把「逛 GitHub 找好项目」这件碎片化的事，收敛成一条清晰路径：发现、分类、收藏、追踪。
+
+                    它不做资讯聚合，也不做代码托管，只专注解决一个具体问题——让你在 GitHub 上看到的好项目，能被记住、被归类、被再次找到。
+                    """)
+                    .font(DS.Typo.bodySmall)
+                    .foregroundStyle(DS.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                    // 功能
+                    VStack(alignment: .leading, spacing: DS.Space.m) {
+                        Text("核心能力")
+                            .font(DS.Typo.headline)
+                            .foregroundStyle(DS.textPrimary)
+
+                        ForEach(highlights) { item in
+                            HStack(alignment: .top, spacing: DS.Space.m) {
+                                Image(systemName: item.icon)
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(DS.accent)
+                                    .frame(width: 26, height: 26)
+                                    .background(Circle().fill(DS.accent.opacity(0.12)))
+
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(item.title)
+                                        .font(DS.Typo.body)
+                                        .foregroundStyle(DS.textPrimary)
+                                    Text(item.detail)
+                                        .font(DS.Typo.captionRegular)
+                                        .foregroundStyle(DS.textTertiary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                        }
+                    }
+
+                    // 优势
+                    VStack(alignment: .leading, spacing: DS.Space.s) {
+                        Text("为什么用它")
+                            .font(DS.Typo.headline)
+                            .foregroundStyle(DS.textPrimary)
+
+                        Text("""
+                        浏览器书签只记得住链接，笔记软件记不住结构。GitVault 用主题分类代替杂乱文件夹，用标签代替自由文本，并给每个项目配一句中文说明——半年后再打开，你依然知道它是什么、当初为什么收藏。
+                        """)
+                        .font(DS.Typo.captionRegular)
+                        .foregroundStyle(DS.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    // 页脚
+                    VStack(alignment: .leading, spacing: DS.Space.s) {
+                        Text(version)
+                            .font(DS.Typo.caption)
+                            .foregroundStyle(DS.textTertiary)
+
+                        Text("数据来源 GitHub REST API v3。本应用与 GitHub 官方无隶属关系，所有项目内容版权归原作者所有。")
+                            .font(.system(size: 11))
+                            .foregroundStyle(DS.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Button {
+                            Haptics.tap()
+                            if let url = URL(string: "https://t.me/GitVaultipa") { openURL(url) }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "paperplane.fill")
+                                Text("加入 Telegram 群")
+                            }
+                            .font(DS.Typo.caption)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
+                                    .fill(DS.accentGradient)
+                            )
+                        }
+                        .buttonStyle(.springPress)
+                        .padding(.top, DS.Space.s)
+                    }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
-                        .fill(DS.bgSecondary)
-                )
-                .padding(.horizontal, DS.Space.m)
+                .padding(DS.Space.l)
             }
             .background(DS.bgPrimary)
-            .navigationTitle("诊断日志")
+            .navigationTitle("关于")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("清空") {
-                        CrashReporter.clear()
-                        text = CrashReporter.readLog()
-                        Haptics.tap()
-                    }
-                    .font(DS.Typo.caption)
-                    .foregroundStyle(DS.danger)
-                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("完成") { dismiss() }
                         .font(DS.Typo.caption)
                         .foregroundStyle(DS.accent)
                 }
             }
-            .onAppear { text = CrashReporter.readLog() }
         }
     }
-}
-
-#Preview("我的") {
-    ProfileView()
-        .environmentObject(AppEnvironment.live())
-        .environmentObject(AuthStore())
-        .environmentObject(VaultStore(fileName: "preview-vault.json"))
 }

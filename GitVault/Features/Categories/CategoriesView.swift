@@ -84,6 +84,16 @@ struct CategoryFeedView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: DS.Space.m) {
                 banner
+                if let hint = vm.cacheHint {
+                    HStack(spacing: 5) {
+                        Image(systemName: "internaldrive")
+                            .font(.system(size: 9, weight: .semibold))
+                        Text(hint)
+                            .font(.system(size: 11))
+                    }
+                    .foregroundStyle(DS.textTertiary)
+                    .screenPadding()
+                }
                 subcategoryBar
                 filterBar
                 content
