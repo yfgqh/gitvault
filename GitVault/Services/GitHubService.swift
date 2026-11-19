@@ -25,7 +25,8 @@ protocol GitHubAPI {
     func languages(owner: String, name: String) async throws -> RepositoryLanguages
     func readme(owner: String, name: String) async throws -> String
     func currentUser() async throws -> GitHubUserDTO
-    func searchByCategory(_ category: RepoCategory, page: Int) async throws -> RepositorySearchPage
+    func searchByCategory(_ category: RepoCategory, page: Int, perPage: Int) async throws -> RepositorySearchPage
+    func totalCount(for category: RepoCategory) async throws -> Int
 }
 
 struct GitHubService: GitHubAPI {
@@ -67,14 +68,20 @@ struct GitHubService: GitHubAPI {
         return try await request(path: "/search/repositories", query: items, as: RepositorySearchPage.self)
     }
 
-    /// 按主题抓取（分类页 / 推荐用）
-    func searchByCategory(_ category: RepoCategory, page: Int = 1) async throws -> RepositorySearchPage {
-        // 用该主题最相关的 4 个关键词做 OR，再按 star 排序
+    /// 按主题抓取（分类页 / 推荐用）。perPage 最大 100（GitHub 硬上限）。
+    func searchByCategory(_ category: RepoCategory,
+                          page: Int = 1,
+                          perPage: Int = 100) async throws -> RepositorySearchPage {
         let keys = Array(category.keywords.prefix(4))
         let topicQuery = keys.map { "topic:\($0.replacingOccurrences(of: " ", with: "-"))" }
             .joined(separator: " ")
-        let query = "\(topicQuery) stars:>200"
-        return try await searchRepositories(query: query, sort: .stars, page: page)
+        let query = "\(topicQuery) stars:>100"
+        return try await searchRepositories(query: query, sort: .stars, page: page, perPage: min(perPage, 100))
+    }
+
+    /// 只取总数：per_page=1，代价极小，用于分类页的「N 个项目」
+    func totalCount(for category: RepoCategory) async throws -> Int {
+        try await searchByCategory(category, page: 1, perPage: 1).totalCount
     }
 
     /// 「飙升榜」：GitHub 没有官方 trending 接口，

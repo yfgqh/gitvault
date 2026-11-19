@@ -18,6 +18,10 @@ final class AppEnvironment: ObservableObject {
     @Published var llm: any LLMClassifierProtocol
     @Published var toast: ToastMessage?
 
+    /// 各分类的真实项目总数（GitHub total_count），带本地缓存
+    @Published private(set) var categoryCounts: [RepoCategory: Int] = [:]
+    private var countsLoadedAt: Date?
+
     init(api: any GitHubAPI,
          auth: AuthStore,
          config: LLMConfig,
@@ -26,6 +30,62 @@ final class AppEnvironment: ObservableObject {
         self.auth = auth
         self.config = config
         self.llm = llm
+        loadCachedCounts()
+    }
+
+    // MARK: 分类统计
+
+    private static let countsKey = "gv.category.counts.v1"
+    private static let countsTimeKey = "gv.category.counts.at.v1"
+    private let countsTTL: TimeInterval = 6 * 3600
+
+    func categoryCount(_ category: RepoCategory) -> Int {
+        categoryCounts[category] ?? 0
+    }
+
+    /// 拉取 6 个分类的真实总数；6 小时内复用缓存，避免浪费额度
+    func refreshCategoryCounts(force: Bool = false) async {
+        if !force,
+           let at = countsLoadedAt,
+           Date().timeIntervalSince(at) < countsTTL,
+           !categoryCounts.isEmpty {
+            return
+        }
+
+        var result: [RepoCategory: Int] = [:]
+        for category in RepoCategory.allCases {
+            if let count = try? await api.totalCount(for: category) {
+                result[category] = count
+            }
+        }
+        guard !result.isEmpty else { return }
+        categoryCounts = result
+        countsLoadedAt = .now
+        persistCounts(result)
+    }
+
+    private func loadCachedCounts() {
+        let defaults = UserDefaults.standard
+        guard let raw = defaults.dictionary(forKey: AppEnvironment.countsKey) as? [String: Int] else { return }
+        var parsed: [RepoCategory: Int] = [:]
+        for (key, value) in raw {
+            if let category = RepoCategory(rawValue: key) {
+                parsed[category] = value
+            }
+        }
+        categoryCounts = parsed
+        let stamp = defaults.double(forKey: AppEnvironment.countsTimeKey)
+        if stamp > 0 {
+            countsLoadedAt = Date(timeIntervalSince1970: stamp)
+        }
+    }
+
+    private func persistCounts(_ counts: [RepoCategory: Int]) {
+        var raw: [String: Int] = [:]
+        for (category, value) in counts { raw[category.rawValue] = value }
+        let defaults = UserDefaults.standard
+        defaults.set(raw, forKey: AppEnvironment.countsKey)
+        defaults.set(Date().timeIntervalSince1970, forKey: AppEnvironment.countsTimeKey)
     }
 
     /// 生产环境默认装配：模型配置读本地，缺省即内置免费模型

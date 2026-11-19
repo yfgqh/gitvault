@@ -18,6 +18,12 @@ struct GitVaultApp: App {
 
     init() {
         CrashReporter.install()
+        // 图片与接口响应的内存/磁盘缓存：没有它，列表滚动会反复请求头像
+        URLCache.shared = URLCache(
+            memoryCapacity: 32 * 1024 * 1024,
+            diskCapacity: 256 * 1024 * 1024,
+            diskPath: "gv-http-cache"
+        )
         CrashReporter.logSync("app init: building object graph")
         let env = AppEnvironment.live()
         _environment = StateObject(wrappedValue: env)

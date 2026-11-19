@@ -237,6 +237,14 @@ struct ProfileView: View {
                 .foregroundStyle(DS.textPrimary)
 
             VStack(spacing: 0) {
+                SettingsRow(symbol: "arrow.clockwise", title: "刷新账号资料",
+                            detail: auth.isSignedIn ? auth.displayName : "未登录") {
+                    Task {
+                        await auth.refreshProfile()
+                        env.show(auth.isSignedIn ? "资料已刷新" : "请先登录", kind: auth.isSignedIn ? .success : .warning)
+                    }
+                }
+                Divider().padding(.leading, 52)
                 SettingsRow(symbol: "square.and.arrow.up", title: "导出收藏", detail: "JSON") {
                     export(.json)
                 }
@@ -283,12 +291,12 @@ struct ProfileView: View {
                     env.show("环境信息已复制", kind: .success)
                 }
                 Divider().padding(.leading, 52)
-                SettingsRow(symbol: "info.circle", title: "关于 GitVault", detail: versionText) {
-                    if let url = URL(string: "https://github.com/yfgqh/gitvault") { openURL(url) }
+                SettingsRow(symbol: "paperplane.fill", title: "关于 GitVault", detail: versionText) {
+                    if let url = URL(string: "https://t.me/+pPpbGnYycFphZWVl") { openURL(url) }
                 }
                 Divider().padding(.leading, 52)
-                SettingsRow(symbol: "envelope", title: "反馈问题", detail: nil) {
-                    if let url = URL(string: "https://github.com/yfgqh/gitvault/issues") { openURL(url) }
+                SettingsRow(symbol: "bubble.left.and.bubble.right", title: "加入 Telegram 群", detail: "反馈 / 交流") {
+                    if let url = URL(string: "https://t.me/+pPpbGnYycFphZWVl") { openURL(url) }
                 }
             }
             .background(
@@ -373,117 +381,41 @@ struct SettingsRow: View {
 // MARK: - GitHub 登录面板
 
 struct AuthSheetView: View {
+    enum Mode: String, CaseIterable, Identifiable {
+        case token, oauth
+        var id: String { rawValue }
+        var title: String { self == .token ? "访问令牌" : "OAuth 授权" }
+    }
+
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var auth: AuthStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
+    @State private var mode: Mode = .token
     @State private var clientID = AppConfig.oauthClientID
+    @State private var tokenInput = ""
     @State private var copied = false
+    @State private var isSubmitting = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: DS.Space.l) {
-                    HStack(spacing: DS.Space.m) {
-                        GBLogoMark(size: 52, glow: false)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("连接 GitHub")
-                                .font(DS.Typo.cardTitle)
-                                .foregroundStyle(DS.textPrimary)
-                            Text("使用 Device Flow，无需回调地址，Token 存在 Keychain")
-                                .font(DS.Typo.caption)
-                                .foregroundStyle(DS.textTertiary)
-                        }
-                        Spacer()
+                    header
+                    picker
+
+                    if mode == .token {
+                        tokenSection
+                    } else {
+                        oauthSection
                     }
 
-                    VStack(alignment: .leading, spacing: DS.Space.s) {
-                        Text("OAuth App Client ID")
-                            .font(DS.Typo.caption)
-                            .foregroundStyle(DS.textSecondary)
-
-                        TextField("例如 Ov23li…", text: $clientID)
-                            .font(DS.Typo.bodySmall)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .padding(DS.Space.m)
-                            .background(
-                                RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                                    .fill(DS.bgSecondary)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                                    .strokeBorder(DS.separator, lineWidth: 1)
-                            )
-                            .onChange(of: clientID) { newValue in
-                                AppConfig.oauthClientID = newValue
-                            }
-
-                        Text("在 GitHub → Settings → Developer settings → OAuth Apps 新建应用，勾选 Enable Device Flow 后填入 Client ID。")
-                            .font(.system(size: 11))
-                            .foregroundStyle(DS.textTertiary)
-                    }
-
-                    switch auth.status {
-                    case .waiting:
-                        waitingCard
-                    case .requesting:
-                        HStack(spacing: 8) {
-                            ProgressView().tint(DS.accent)
-                            Text("正在申请验证码…")
-                                .font(DS.Typo.caption)
-                                .foregroundStyle(DS.textSecondary)
-                        }
-                    case .signedIn:
-                        Label("已登录：\(auth.displayName)", systemImage: "checkmark.seal.fill")
-                            .font(DS.Typo.bodySmall)
-                            .foregroundStyle(DS.success)
-                    case .failed(let message):
-                        Text(message)
-                            .font(DS.Typo.caption)
-                            .foregroundStyle(DS.danger)
-                    case .idle:
-                        EmptyView()
-                    }
+                    statusView
 
                     Spacer(minLength: 0)
 
-                    if auth.status == .waiting {
-                        Button {
-                            auth.cancel()
-                            Haptics.tap()
-                        } label: {
-                            Text("取消授权")
-                                .font(DS.Typo.body)
-                                .foregroundStyle(DS.textSecondary)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .background(
-                                    RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                                        .fill(DS.bgSecondary)
-                                )
-                        }
-                        .buttonStyle(.springPressSilent)
-                    } else {
-                        Button {
-                            Haptics.medium()
-                            Task { await auth.start() }
-                        } label: {
-                            Text(auth.isSignedIn ? "重新授权" : "开始授权")
-                                .font(DS.Typo.body)
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .background(
-                                    RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                                        .fill(DS.accentGradient)
-                                )
-                        }
-                        .buttonStyle(.springPress)
-                        .disabled(clientID.trimmingCharacters(in: .whitespaces).isEmpty)
-                        .opacity(clientID.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
-                    }
+                    primaryButton
                 }
                 .padding(DS.Space.l)
             }
@@ -497,6 +429,139 @@ struct AuthSheetView: View {
                         .foregroundStyle(DS.accent)
                 }
             }
+            .onAppear {
+                if auth.isSignedIn { mode = .token }
+            }
+        }
+    }
+
+    // MARK: 头部
+
+    private var header: some View {
+        HStack(spacing: DS.Space.m) {
+            GBLogoMark(size: 52, glow: false)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("连接 GitHub")
+                    .font(DS.Typo.cardTitle)
+                    .foregroundStyle(DS.textPrimary)
+                Text(auth.isSignedIn ? "已登录：\(auth.displayName)" : "登录后接口额度提升到 5000 次/小时")
+                    .font(DS.Typo.caption)
+                    .foregroundStyle(DS.textTertiary)
+            }
+            Spacer()
+        }
+    }
+
+    private var picker: some View {
+        Picker("登录方式", selection: $mode) {
+            ForEach(Mode.allCases) { item in
+                Text(item.title).tag(item)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    // MARK: 令牌
+
+    private var tokenSection: some View {
+        VStack(alignment: .leading, spacing: DS.Space.s) {
+            Text("个人访问令牌（推荐，最快）")
+                .font(DS.Typo.headline)
+                .foregroundStyle(DS.textPrimary)
+
+            SecureField("ghp_… 或 github_pat_…", text: $tokenInput)
+                .font(DS.Typo.bodySmall)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .padding(DS.Space.m)
+                .background(
+                    RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
+                        .fill(DS.bgSecondary)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
+                        .strokeBorder(DS.separator, lineWidth: 1)
+                )
+
+            Button {
+                Haptics.tap()
+                if let url = URL(string: "https://github.com/settings/tokens/new?scopes=read:user&description=GitVault") {
+                    openURL(url)
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "safari")
+                    Text("打开 GitHub 生成令牌（勾选 read:user 即可）")
+                }
+                .font(DS.Typo.caption)
+                .foregroundStyle(DS.accent)
+            }
+            .buttonStyle(.springPressSilent)
+
+            Text("令牌只保存在本机 Keychain，用于提升 API 额度与同步你的资料；随时可在 GitHub 撤销。")
+                .font(.system(size: 11))
+                .foregroundStyle(DS.textTertiary)
+        }
+    }
+
+    // MARK: OAuth
+
+    private var oauthSection: some View {
+        VStack(alignment: .leading, spacing: DS.Space.s) {
+            Text("OAuth App Client ID")
+                .font(DS.Typo.caption)
+                .foregroundStyle(DS.textSecondary)
+
+            TextField("例如 Ov23li…", text: $clientID)
+                .font(DS.Typo.bodySmall)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .padding(DS.Space.m)
+                .background(
+                    RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
+                        .fill(DS.bgSecondary)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
+                        .strokeBorder(DS.separator, lineWidth: 1)
+                )
+                .onChange(of: clientID) { newValue in
+                    AppConfig.oauthClientID = newValue
+                }
+
+            Text("在 GitHub → Settings → Developer settings → OAuth Apps 新建应用，勾选 Enable Device Flow 后填入 Client ID。")
+                .font(.system(size: 11))
+                .foregroundStyle(DS.textTertiary)
+
+            if auth.status == .waiting {
+                waitingCard
+            }
+        }
+    }
+
+    // MARK: 状态
+
+    @ViewBuilder
+    private var statusView: some View {
+        switch auth.status {
+        case .requesting:
+            HStack(spacing: 8) {
+                ProgressView().tint(DS.accent)
+                Text("正在申请验证码…")
+                    .font(DS.Typo.caption)
+                    .foregroundStyle(DS.textSecondary)
+            }
+        case .signedIn:
+            Label("已登录：\(auth.displayName)", systemImage: "checkmark.seal.fill")
+                .font(DS.Typo.bodySmall)
+                .foregroundStyle(DS.success)
+        case .failed(let message):
+            Text(message)
+                .font(DS.Typo.caption)
+                .foregroundStyle(DS.danger)
+                .fixedSize(horizontal: false, vertical: true)
+        case .waiting, .idle:
+            EmptyView()
         }
     }
 
@@ -562,8 +627,99 @@ struct AuthSheetView: View {
         .padding(DS.Space.m)
         .glassSurface()
     }
-}
 
+    // MARK: 主按钮
+
+    private var primaryButton: some View {
+        Group {
+            if auth.isSignedIn {
+                HStack(spacing: DS.Space.s) {
+                    Button {
+                        Haptics.warning()
+                        auth.signOut()
+                        env.show("已退出登录")
+                    } label: {
+                        Text("退出登录")
+                            .font(DS.Typo.body)
+                            .foregroundStyle(DS.danger)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
+                                    .fill(DS.danger.opacity(0.10))
+                            )
+                    }
+                    .buttonStyle(.springPressSilent)
+
+                    Button {
+                        Task {
+                            await auth.refreshProfile()
+                            env.show("资料已刷新", kind: .success)
+                        }
+                    } label: {
+                        Text("刷新资料")
+                            .font(DS.Typo.body)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
+                                    .fill(DS.accentGradient)
+                            )
+                    }
+                    .buttonStyle(.springPress)
+                }
+            } else if mode == .token {
+                Button {
+                    Haptics.medium()
+                    isSubmitting = true
+                    Task {
+                        let ok = await auth.signIn(withToken: tokenInput)
+                        isSubmitting = false
+                        if ok {
+                            env.show("登录成功：\(auth.displayName)", kind: .success)
+                            dismiss()
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        if isSubmitting { ProgressView().scaleEffect(0.7).tint(.white) }
+                        Text(isSubmitting ? "正在验证…" : "用令牌登录")
+                            .font(DS.Typo.body)
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
+                            .fill(DS.accentGradient)
+                    )
+                }
+                .buttonStyle(.springPress)
+                .disabled(tokenInput.trimmingCharacters(in: .whitespaces).isEmpty || isSubmitting)
+                .opacity(tokenInput.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
+            } else {
+                Button {
+                    Haptics.medium()
+                    Task { await auth.start() }
+                } label: {
+                    Text(auth.status == .waiting ? "重新申请验证码" : "开始授权")
+                        .font(DS.Typo.body)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
+                                .fill(DS.accentGradient)
+                        )
+                }
+                .buttonStyle(.springPress)
+                .disabled(clientID.trimmingCharacters(in: .whitespaces).isEmpty)
+                .opacity(clientID.trimmingCharacters(in: .whitespaces).isEmpty ? 0.5 : 1)
+            }
+        }
+    }
+}
 // MARK: - 大模型配置
 
 struct AIConfigSheetView: View {

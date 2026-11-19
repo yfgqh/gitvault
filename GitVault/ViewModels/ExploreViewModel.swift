@@ -45,8 +45,8 @@ final class ExploreViewModel: ObservableObject {
 
         do {
             async let trendingDTOs = api.trending(days: 14)
-            async let aiPage = api.searchByCategory(.ai, page: 1)
-            async let toolPage = api.searchByCategory(.tooling, page: 1)
+            async let aiPage = api.searchByCategory(.ai, page: 1, perPage: 12)
+            async let toolPage = api.searchByCategory(.tooling, page: 1, perPage: 12)
 
             let trending = try await trendingDTOs
             let ai = try await aiPage

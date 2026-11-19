@@ -49,6 +49,41 @@ final class AuthStore: ObservableObject {
         }
     }
 
+    // MARK: 个人访问令牌（PAT）登录 —— 无需创建 OAuth App，最省事的路径
+
+    @discardableResult
+    func signIn(withToken raw: String) async -> Bool {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 20 else {
+            status = .failed("令牌看起来不完整，请检查是否复制全了")
+            return false
+        }
+        guard Keychain.save(trimmed, for: Keychain.tokenKey) else {
+            status = .failed("令牌保存失败，请重试")
+            return false
+        }
+        hasToken = true
+        do {
+            user = try await GitHubService.shared.currentUser()
+            status = .signedIn
+            Haptics.success()
+            CrashReporter.log("auth: signed in as \(user?.login ?? "?")")
+            return true
+        } catch {
+            Keychain.delete(Keychain.tokenKey)
+            hasToken = false
+            user = nil
+            status = .failed(error.localizedDescription)
+            return false
+        }
+    }
+
+    /// 刷新头像 / 仓库数等资料
+    func refreshProfile() async {
+        guard hasToken else { return }
+        user = try? await GitHubService.shared.currentUser()
+    }
+
     // MARK: Device Flow
 
     func start() async {

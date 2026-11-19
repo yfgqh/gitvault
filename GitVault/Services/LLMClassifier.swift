@@ -2,33 +2,40 @@
 //  LLMClassifier.swift
 //  GitVault
 //
-//  AI 摘要 / 分类：
-//  - 默认接入「内置免费模型」（Pollinations 的 OpenAI 兼容端点，无需 API Key）
-//  - 用户可随时改成自己的模型（任意 OpenAI 兼容网关）
-//  - 未联网 / 被限流时自动回落到本地规则，App 永远可用
+//  AI 能力：
+//  - 默认内置免费模型（Pollinations，OpenAI 兼容，无需 Key）
+//  - 支持用户自定义任意 OpenAI 兼容网关
+//  - 提供「分类 + 中文摘要」与「README 翻译」两个能力
+//  - 失败一律静默回落本地规则，绝不阻塞 UI
 //
 
 import Foundation
 
-/// 大模型返回的结构化洞察
 struct RepoInsight: Equatable {
     var chineseSummary: String
     var category: RepoCategory
     var tags: [String]
 }
 
-/// 模型配置（可持久化）
+// MARK: - 配置
+
 struct LLMConfig: Codable, Equatable {
     var endpoint: String
     var model: String
     var apiKey: String
 
-    /// 内置免费模型：Pollinations 提供 OpenAI 兼容接口，无需 Key
+    /// 内置免费端点：Pollinations 的 OpenAI 兼容接口
     static let freeDefault = LLMConfig(
         endpoint: "https://text.pollinations.ai/openai",
         model: "openai",
         apiKey: ""
     )
+
+    /// 备用免费端点（主端点被限流时轮换）
+    static let freeFallbacks: [LLMConfig] = [
+        LLMConfig(endpoint: "https://text.pollinations.ai/openai", model: "openai", apiKey: ""),
+        LLMConfig(endpoint: "https://text.pollinations.ai/openai", model: "openai-large", apiKey: "")
+    ]
 
     var isFreeDefault: Bool {
         endpoint == LLMConfig.freeDefault.endpoint
@@ -39,7 +46,7 @@ struct LLMConfig: Codable, Equatable {
         return model.isEmpty ? "自定义模型" : model
     }
 
-    // MARK: 持久化（Key 单独进 Keychain）
+    // MARK: 持久化
 
     private static let endpointKey = "gv.llm.endpoint"
     private static let modelKey = "gv.llm.model"
@@ -75,13 +82,18 @@ struct LLMConfig: Codable, Equatable {
     }
 }
 
+// MARK: - 协议
+
 protocol LLMClassifierProtocol {
     var isConfigured: Bool { get }
     var displayName: String { get }
     func analyze(repo: RepositoryDTO) async throws -> RepoInsight
+    /// 把英文 README 片段翻译成简体中文
+    func translate(_ text: String) async throws -> String
 }
 
-/// OpenAI 兼容实现（同时覆盖内置免费端点与用户自建网关）
+// MARK: - OpenAI 兼容实现
+
 struct RemoteLLMClassifier: LLMClassifierProtocol {
     let config: LLMConfig
     private let session: URLSession
@@ -89,12 +101,12 @@ struct RemoteLLMClassifier: LLMClassifierProtocol {
     init(config: LLMConfig) {
         self.config = config
         let configuration = URLSessionConfiguration.default
-        configuration.timeoutIntervalForRequest = 15
-        configuration.timeoutIntervalForResource = 25
+        configuration.timeoutIntervalForRequest = 10
+        configuration.timeoutIntervalForResource = 18
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         self.session = URLSession(configuration: configuration)
     }
 
-    /// 结构体不允许 convenience init，这里用可失败 init 委托到指定 init
     init?(endpointString: String, apiKey: String, model: String = "openai") {
         let trimmed = endpointString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, URL(string: trimmed) != nil else { return nil }
@@ -104,91 +116,153 @@ struct RemoteLLMClassifier: LLMClassifierProtocol {
     var isConfigured: Bool { !config.endpoint.isEmpty }
     var displayName: String { config.displayName }
 
-    func analyze(repo: RepositoryDTO) async throws -> RepoInsight {
-        guard let url = URL(string: config.endpoint) else { throw GitHubError.invalidURL }
+    // MARK: 分类 + 摘要
 
+    func analyze(repo: RepositoryDTO) async throws -> RepoInsight {
         let system = """
-        你是中文开源项目编辑。阅读仓库信息，输出严格 JSON：
-        {"summary":"不超过40字的中文一句话介绍","category":"ai|tooling|frontend|backend|mobile|learning","tags":["中文标签1","中文标签2"]}
-        只输出 JSON，不要任何解释。
+        你是中文开源编辑。只输出 JSON：
+        {"summary":"40字内中文一句话","category":"ai|tooling|frontend|backend|mobile|learning","tags":["中文标签"]}
         """
         let user = """
         仓库：\(repo.fullName)
         描述：\(repo.description ?? "无")
-        主语言：\(repo.language ?? "未知")
-        topics：\((repo.topics ?? []).joined(separator: ", "))
+        语言：\(repo.language ?? "未知")
+        topics：\((repo.topics ?? []).joined(separator: ","))
         星标：\(repo.stargazersCount)
         """
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("GitVault/1.3", forHTTPHeaderField: "User-Agent")
-        if !config.apiKey.isEmpty {
-            request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
+        let content = try await chat(system: system, user: user, maxTokens: 300, temperature: 0.2)
+        guard let payload = decodeJSONObject(from: content, as: InsightPayload.self) else {
+            throw GitHubError.decoding("分类结果不是合法 JSON")
         }
-
-        var body: [String: Any] = [
-            "model": config.model,
-            "temperature": 0.2,
-            "messages": [
-                ["role": "system", "content": system],
-                ["role": "user", "content": user]
-            ]
-        ]
-        // 官方 OpenAI 支持 json_object；免费端点不一定支持，做了降级重试
-        body["response_format"] = ["type": "json_object"]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw GitHubError.transport("大模型无响应")
-        }
-        guard (200..<300).contains(http.statusCode) else {
-            throw GitHubError.transport("大模型接口返回 HTTP \(http.statusCode)")
-        }
-        return try parseInsight(from: data)
-    }
-
-    // MARK: 解析（兼容带 markdown 代码块的返回）
-
-    private func parseInsight(from data: Data) throws -> RepoInsight {
-        struct Completion: Decodable {
-            struct Choice: Decodable {
-                struct Message: Decodable { let content: String }
-                let message: Message
-            }
-            let choices: [Choice]
-        }
-        struct Payload: Decodable {
-            let summary: String
-            let category: String
-            let tags: [String]?
-        }
-
-        guard let completion = try? JSONDecoder().decode(Completion.self, from: data),
-              let raw = completion.choices.first?.message.content else {
-            throw GitHubError.decoding("大模型返回结构不符合预期")
-        }
-
-        let cleaned = raw
-            .replacingOccurrences(of: "```json", with: "")
-            .replacingOccurrences(of: "```", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let payloadData = cleaned.data(using: .utf8),
-              let payload = try? JSONDecoder().decode(Payload.self, from: payloadData) else {
-            throw GitHubError.decoding("大模型返回内容无法解析为 JSON")
-        }
-
         return RepoInsight(
             chineseSummary: payload.summary,
             category: RepoCategory(rawValue: payload.category) ?? .learning,
             tags: payload.tags ?? []
         )
     }
+
+    // MARK: 翻译
+
+    func translate(_ text: String) async throws -> String {
+        let system = """
+        你是资深技术译者。把用户给出的 README 片段翻译成简体中文：
+        1) 保留代码、命令、URL、包名原样；
+        2) 术语用国内开发者习惯说法；
+        3) 只输出译文正文，不要加任何解释、标题或引号。
+        """
+        let clipped = String(text.prefix(1400))
+        let content = try await chat(system: system, user: clipped, maxTokens: 700, temperature: 0.1)
+        let cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { throw GitHubError.decoding("翻译结果为空") }
+        return cleaned
+    }
+
+    // MARK: 请求
+
+    private struct InsightPayload: Decodable {
+        let summary: String
+        let category: String
+        let tags: [String]?
+    }
+
+    private func chat(system: String, user: String, maxTokens: Int, temperature: Double) async throws -> String {
+        guard let url = URL(string: config.endpoint) else { throw GitHubError.invalidURL }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("GitVault/1.4", forHTTPHeaderField: "User-Agent")
+        if !config.apiKey.isEmpty {
+            request.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
+        }
+
+        // 不吃 response_format：免费端点多不支持，带上会直接 400。
+        let body: [String: Any] = [
+            "model": config.model,
+            "temperature": temperature,
+            "max_tokens": maxTokens,
+            "messages": [
+                ["role": "system", "content": system],
+                ["role": "user", "content": user]
+            ]
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        var lastError: Error = GitHubError.transport("大模型无响应")
+        for attempt in 0..<2 {
+            do {
+                let (data, response) = try await session.data(for: request)
+                guard let http = response as? HTTPURLResponse else {
+                    throw GitHubError.transport("大模型无响应")
+                }
+                if (200..<300).contains(http.statusCode) {
+                    return try parseCompletion(data)
+                }
+                // 429 / 5xx 值得再试一次
+                if http.statusCode == 429 || http.statusCode >= 500 {
+                    lastError = GitHubError.transport("大模型限流 HTTP \(http.statusCode)")
+                    if attempt == 0 {
+                        try? await Task.sleep(nanoseconds: 800_000_000)
+                        continue
+                    }
+                }
+                throw GitHubError.transport("大模型接口 HTTP \(http.statusCode)")
+            } catch {
+                lastError = error
+                if attempt == 0 {
+                    try? await Task.sleep(nanoseconds: 600_000_000)
+                    continue
+                }
+            }
+        }
+        throw lastError
+    }
+
+    private func parseCompletion(_ data: Data) throws -> String {
+        struct Completion: Decodable {
+            struct Choice: Decodable {
+                struct Message: Decodable { let content: String? }
+                let message: Message
+                let text: String?
+            }
+            let choices: [Choice]?
+        }
+        if let completion = try? JSONDecoder().decode(Completion.self, from: data),
+           let first = completion.choices?.first,
+           let content = first.message.content ?? first.text,
+           !content.isEmpty {
+            return content
+        }
+        // 兼容直接返回纯文本的端点
+        if let plain = String(data: data, encoding: .utf8), !plain.isEmpty, !plain.hasPrefix("{") {
+            return plain
+        }
+        throw GitHubError.decoding("大模型返回结构不符合预期")
+    }
+
+    /// 从可能带 markdown 代码块 / 前后缀说明的文本里抠出 JSON 对象
+    private func decodeJSONObject<T: Decodable>(from text: String, as type: T.Type) -> T? {
+        let cleaned = text
+            .replacingOccurrences(of: "```json", with: "")
+            .replacingOccurrences(of: "```", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let decoder = JSONDecoder()
+        if let data = cleaned.data(using: .utf8), let value = try? decoder.decode(T.self, from: data) {
+            return value
+        }
+        // 截取第一个 { 到最后一个 }
+        guard let start = cleaned.firstIndex(of: "{"),
+              let end = cleaned.lastIndex(of: "}"),
+              start < end else { return nil }
+        let slice = String(cleaned[start...end])
+        guard let data = slice.data(using: .utf8) else { return nil }
+        return try? decoder.decode(T.self, from: data)
+    }
 }
 
-/// 规则实现（离线兜底）
+// MARK: - 本地规则实现（离线兜底）
+
 struct RuleLLMClassifier: LLMClassifierProtocol {
     var isConfigured: Bool { false }
     var displayName: String { "本地规则" }
@@ -205,5 +279,9 @@ struct RuleLLMClassifier: LLMClassifierProtocol {
             tags: SummaryService.chineseTopics(repo.topics ?? [], limit: 3)
                 .split(separator: "、").map(String.init)
         )
+    }
+
+    func translate(_ text: String) async throws -> String {
+        throw GitHubError.transport("未配置大模型，无法翻译")
     }
 }

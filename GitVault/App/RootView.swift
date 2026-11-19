@@ -67,7 +67,8 @@ struct RootView: View {
                 }
             }
         }
-        .animation(DS.Motion.fade, value: tab)
+        // 不再对整棵树做 opacity 动画：那会让 5 个页面同时重绘，
+        // 切 Tab 时表现为整屏闪烁（iOS 16 上尤其明显）。
     }
 
     @ViewBuilder

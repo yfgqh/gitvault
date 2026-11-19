@@ -2,7 +2,10 @@
 //  RepoDetailView.swift
 //  GitVault
 //
-//  项目详情（iOS 16 兼容）：Hero + 数据卡 + 语言占比 + README 摘要 + 标签 + 底部操作栏 + 相似项目。
+//  项目详情（iOS 16）。
+//  布局刻意避开两个已知卡死源：
+//  1) 不用 `.safeAreaInset(edge: .bottom)` + hidden navigation bar 的组合（iOS 16 会反复重排）
+//  2) 不在 ScrollView 内部注册 `navigationDestination`（会让导航状态反复重算）
 //
 
 import SwiftUI
@@ -16,6 +19,7 @@ struct RepoDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     @StateObject private var vm: DetailViewModel
+    @State private var showOriginal = false
     @State private var readmeExpanded = false
 
     init(repo: ShowcaseRepo) {
@@ -24,47 +28,42 @@ struct RepoDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: DS.Space.l) {
-                hero
-                titleBlock.screenPadding()
-                statsCard.screenPadding()
-                readmeCard.screenPadding()
-                tagsSection.screenPadding()
-                similarSection
+        ZStack(alignment: .topLeading) {
+            DS.bgPrimary.ignoresSafeArea()
 
-                Color.clear.frame(height: DS.Space.tabBarInset)
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: DS.Space.l) {
+                        hero
+                        titleBlock.screenPadding()
+                        statsCard.screenPadding()
+                        readmeCard.screenPadding()
+                        tagsSection.screenPadding()
+                        similarSection
+
+                        Color.clear.frame(height: DS.Space.m)
+                    }
+                }
+                .scrollIndicators(.hidden)
+
+                bottomBar
             }
+
+            backButton
         }
-        .scrollIndicators(.hidden)
-        .background(DS.bgPrimary)
-        .navigationBarTitleDisplayMode(.inline)
         .navigationBarHidden(true)
-        .safeAreaInset(edge: .bottom) { bottomBar }
-        .overlay(alignment: .topLeading) { backButton }
         .task {
             vm.llm = env.llm
             if let item = vault.item(id: repo.id) {
                 vm.mark = item.mark
                 vm.isSaved = true
             }
-            await vm.loadDetailIfNeeded()
-            await vm.loadReadmeIfNeeded()
         }
+        .task { await vm.loadDetailIfNeeded() }
+        .task { await vm.loadReadmeIfNeeded() }
     }
 
     // MARK: Hero
-
-    /// 直接把头像画出来：不做 matchedGeometryEffect 跨 NavigationStack 转场，
-    /// 那套组合在 iOS 16 上有卡转场 / 黑屏的已知问题。
-    private var heroAvatar: some View {
-        AvatarView(
-            url: vm.repo.avatarURL,
-            size: 64,
-            initials: vm.repo.initials,
-            gradient: vm.repo.gradient
-        )
-    }
 
     private var hero: some View {
         ZStack(alignment: .bottomLeading) {
@@ -77,7 +76,12 @@ struct RepoDetailView: View {
                 .offset(x: 130, y: -80)
 
             HStack(alignment: .bottom, spacing: DS.Space.m) {
-                heroAvatar
+                AvatarView(
+                    url: vm.repo.avatarURL,
+                    size: 64,
+                    initials: vm.repo.initials,
+                    gradient: vm.repo.gradient
+                )
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(vm.repo.owner)
@@ -93,18 +97,17 @@ struct RepoDetailView: View {
             }
             .padding(DS.Space.screen)
         }
-        .frame(height: 252)
+        .frame(height: 240)
         .clipShape(RoundedRectangle(cornerRadius: DS.Radius.cardLarge, style: .continuous))
         .padding(.horizontal, DS.Space.s)
         .padding(.top, DS.Space.s)
-        .dsShadow(.light)
     }
 
-    // MARK: 标题 + 摘要 + 状态标签
+    // MARK: 标题区
 
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
-            ScrollView(.horizontal) {
+            ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     TagChip(text: vm.repo.category.emoji + " " + vm.repo.category.title,
                             tint: vm.repo.category.tint)
@@ -115,7 +118,6 @@ struct RepoDetailView: View {
                     TagChip(text: vm.repo.license.title, tint: vm.repo.license.tint)
                 }
             }
-            .scrollIndicators(.hidden)
 
             Text(vm.repo.summary)
                 .font(DS.Typo.body)
@@ -178,7 +180,7 @@ struct RepoDetailView: View {
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: README 摘要
+    // MARK: README（原文优先，英文自动翻译）
 
     private var readmeCard: some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
@@ -187,12 +189,26 @@ struct RepoDetailView: View {
                     Image(systemName: "text.alignleft")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(DS.accent)
-                    Text("README 中文摘要")
+                    Text("README 摘要")
                         .font(DS.Typo.headline)
                         .foregroundStyle(DS.textPrimary)
                     TagChip(text: vm.readmeSource, tint: DS.accentAlt, compact: true)
                 }
                 Spacer()
+                if vm.showingTranslation {
+                    Button {
+                        Haptics.tap()
+                        withAnimation(DS.Motion.snappy) { showOriginal.toggle() }
+                    } label: {
+                        Text(showOriginal ? "看译文" : "看原文")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(DS.accent)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(DS.accent.opacity(0.12)))
+                    }
+                    .buttonStyle(.springPressSilent)
+                }
                 Button {
                     Haptics.tap()
                     withAnimation(DS.Motion.snappy) { readmeExpanded.toggle() }
@@ -205,51 +221,44 @@ struct RepoDetailView: View {
                 .accessibilityLabel(readmeExpanded ? "收起摘要" : "展开摘要")
             }
 
-            if vm.isLoadingReadme && vm.readmeSummary == nil {
-                HStack(spacing: 8) {
-                    ProgressView().scaleEffect(0.7).tint(DS.accent)
-                    Text("正在读 README…")
-                        .font(DS.Typo.caption)
-                        .foregroundStyle(DS.textTertiary)
-                }
-                .frame(height: 44)
-            } else {
-                Text(vm.readmeSummary ?? "暂无摘要")
-                    .font(DS.Typo.bodySmall)
-                    .foregroundStyle(DS.textSecondary)
-                    .lineLimit(readmeExpanded ? nil : 3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            Text(currentReadmeText)
+                .font(DS.Typo.bodySmall)
+                .foregroundStyle(DS.textSecondary)
+                .lineLimit(readmeExpanded ? nil : 5)
+                .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: DS.Space.s) {
+            HStack(spacing: 6) {
+                if vm.isTranslating || vm.isLoadingReadme {
+                    ProgressView().scaleEffect(0.55).tint(DS.accent)
+                }
+                Text(vm.readmeHint)
+                    .font(.system(size: 10))
+                    .foregroundStyle(DS.textTertiary)
+                Spacer()
                 Button {
                     Haptics.tap()
                     Task { await vm.loadReadmeIfNeeded(force: true) }
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 3) {
                         Image(systemName: "arrow.clockwise")
                             .font(.system(size: 9, weight: .bold))
-                        Text("重新生成")
+                        Text("重新读取")
                             .font(.system(size: 10, weight: .medium))
                     }
                     .foregroundStyle(DS.accent)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(DS.accent.opacity(0.12)))
                 }
                 .buttonStyle(.springPressSilent)
-
-                Text("AI 摘要来源：\(env.llmModeTitle) · 可在「我的」里切换")
-                    .font(.system(size: 10))
-                    .foregroundStyle(DS.textTertiary)
-                Spacer()
             }
         }
         .padding(DS.Space.m)
-        .background(
-            RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
-                .fill(DS.bgSecondary)
-        )
+        .glassSurface()
+    }
+
+    private var currentReadmeText: String {
+        if vm.showingTranslation, showOriginal {
+            return vm.readmeOriginal ?? vm.readmeDisplayText
+        }
+        return vm.readmeDisplayText
     }
 
     // MARK: 标签区
@@ -294,37 +303,32 @@ struct RepoDetailView: View {
         }
     }
 
-    // MARK: 相似项目
+    // MARK: 相似项目（destination 已由根 NavigationStack 注册）
 
+    @ViewBuilder
     private var similarSection: some View {
-        Group {
-            if !vm.similar.isEmpty {
-                VStack(alignment: .leading, spacing: DS.Space.m) {
-                    SectionHeader(title: "相似项目", subtitle: "同 topic 的高星仓库",
-                                  actionTitle: nil, onAction: nil)
-                        .screenPadding()
+        if !vm.similar.isEmpty {
+            VStack(alignment: .leading, spacing: DS.Space.m) {
+                SectionHeader(title: "相似项目", subtitle: "同 topic 的高星仓库",
+                              actionTitle: nil, onAction: nil)
+                    .screenPadding()
 
-                    ScrollView(.horizontal) {
-                        HStack(spacing: DS.Space.m) {
-                            ForEach(vm.similar) { item in
-                                NavigationLink(value: item) {
-                                    RepoMiniCard(repo: item)
-                                }
-                                .buttonStyle(.springPressCard)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: DS.Space.m) {
+                        ForEach(vm.similar) { item in
+                            NavigationLink(value: item) {
+                                RepoMiniCard(repo: item)
                             }
+                            .buttonStyle(.springPressCard)
                         }
-                        .padding(.horizontal, DS.Space.screen)
                     }
-                    .scrollIndicators(.hidden)
-                }
-                .navigationDestination(for: ShowcaseRepo.self) { next in
-                    RepoDetailView(repo: next)
+                    .padding(.horizontal, DS.Space.screen)
                 }
             }
         }
     }
 
-    // MARK: 底部操作栏
+    // MARK: 底部操作栏（固定在 VStack 底部，不用 safeAreaInset）
 
     private var bottomBar: some View {
         HStack(spacing: DS.Space.s) {
@@ -369,18 +373,12 @@ struct RepoDetailView: View {
             }
         }
         .padding(.horizontal, DS.Space.m)
-        .padding(.vertical, DS.Space.s)
-        .background {
-            RoundedRectangle(cornerRadius: DS.Radius.button + 6, style: .continuous)
-                .fill(DS.cardGlass)
-        }
-        .overlay(
-            RoundedRectangle(cornerRadius: DS.Radius.button + 6, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
-        )
-        .dsShadow(.elevated)
-        .padding(.horizontal, DS.Space.l)
+        .padding(.top, DS.Space.s)
         .padding(.bottom, DS.Space.s)
+        .background(DS.bgPrimary)
+        .overlay(alignment: .top) {
+            Rectangle().fill(DS.separator).frame(height: 1)
+        }
     }
 
     private func iconButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
@@ -410,12 +408,12 @@ struct RepoDetailView: View {
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(DS.textPrimary)
                 .frame(width: 36, height: 36)
-                .background(.ultraThinMaterial, in: Circle())
-                .overlay(Circle().strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
+                .background(Circle().fill(DS.bgSecondary))
+                .overlay(Circle().strokeBorder(DS.separator, lineWidth: 1))
         }
         .buttonStyle(.springPressSilent)
         .padding(.leading, DS.Space.m)
-        .padding(.top, DS.Space.xl)
+        .padding(.top, DS.Space.s)
         .accessibilityLabel("返回")
     }
 

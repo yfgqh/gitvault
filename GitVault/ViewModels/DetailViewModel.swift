@@ -2,7 +2,9 @@
 //  DetailViewModel.swift
 //  GitVault
 //
-//  详情页编排（iOS 16 兼容：ObservableObject）。
+//  详情页编排：
+//  - 详情/语言/相似项目并发拉取，避免串行等待造成「像卡住」
+//  - README：先展示原文摘录；原文不是中文时再交给 AI 翻译
 //
 
 import Foundation
@@ -18,17 +20,24 @@ struct LanguageSlice: Identifiable, Equatable {
 final class DetailViewModel: ObservableObject {
     @Published var repo: ShowcaseRepo
     @Published var languages: [LanguageSlice] = []
-    @Published var readmeSummary: String?
-    @Published var readmeSource: String = "本地规则"
-    @Published var isLoadingDetail = false
+    @Published var similar: [ShowcaseRepo] = []
+
+    /// README 原文摘录（默认展示内容）
+    @Published var readmeOriginal: String?
+    /// AI 翻译后的中文（原文非中文且翻译成功时才有）
+    @Published var readmeTranslated: String?
+    @Published var readmeSource: String = "原文"
     @Published var isLoadingReadme = false
+    @Published var isTranslating = false
+
+    @Published var isLoadingDetail = false
     @Published var errorMessage: String?
     @Published var isSaved = false
     @Published var mark: MyMark?
-    @Published var similar: [ShowcaseRepo] = []
+
+    var llm: any LLMClassifierProtocol
 
     private let api: any GitHubAPI
-    var llm: any LLMClassifierProtocol
     private var didLoadDetail = false
     private var didLoadReadme = false
 
@@ -40,14 +49,40 @@ final class DetailViewModel: ObservableObject {
         self.llm = llm
     }
 
+    // MARK: 展示内容
+
+    /// 卡片里显示的文字：有译文显示译文，否则显示原文
+    var readmeDisplayText: String {
+        if let translated = readmeTranslated, !translated.isEmpty { return translated }
+        if let original = readmeOriginal, !original.isEmpty { return original }
+        return "正在读取 README…"
+    }
+
+    var showingTranslation: Bool {
+        readmeTranslated?.isEmpty == false
+    }
+
+    var readmeHint: String {
+        if isTranslating { return "原文为英文，正在用 AI 翻译…" }
+        if showingTranslation { return "已由 \(llm.displayName) 译为中文" }
+        if isLoadingReadme { return "正在读取 README 原文…" }
+        return "README 原文摘录"
+    }
+
+    // MARK: 详情
+
     func loadDetailIfNeeded() async {
         guard !didLoadDetail else { return }
         didLoadDetail = true
         isLoadingDetail = true
         defer { isLoadingDetail = false }
 
-        let detailDTO = try? await api.repository(owner: repo.owner, name: repo.name)
-        let languageDTO = try? await api.languages(owner: repo.owner, name: repo.name)
+        // 三个请求并发，最坏等待时间从 3×12s 降到 1×12s
+        async let detailCall = api.repository(owner: repo.owner, name: repo.name)
+        async let languageCall = api.languages(owner: repo.owner, name: repo.name)
+
+        let detailDTO = try? await detailCall
+        let languageDTO = try? await languageCall
 
         if let dto = detailDTO {
             var mapped = ShowcaseRepo(dto: dto)
@@ -77,34 +112,51 @@ final class DetailViewModel: ObservableObject {
             .map { $0 }
     }
 
+    // MARK: README（原文优先，非中文再翻译）
+
     func loadReadmeIfNeeded(force: Bool = false) async {
         guard force || !didLoadReadme else { return }
         didLoadReadme = true
-        isLoadingReadme = true
         errorMessage = nil
+
+        // 先用仓库描述兜底，保证卡片一出现就有内容，不留白屏
+        if readmeOriginal?.isEmpty ?? true {
+            readmeOriginal = repo.rawDescription ?? repo.summary
+            readmeSource = "原文"
+        }
+
+        isLoadingReadme = true
         defer { isLoadingReadme = false }
 
+        let markdown: String
         do {
-            let markdown = try await api.readme(owner: repo.owner, name: repo.name)
-            guard !markdown.isEmpty else {
-                readmeSummary = "这个仓库没有 README，建议直接打开仓库查看源码结构。"
-                readmeSource = "本地规则"
-                return
-            }
-            if llm.isConfigured,
-               let dto = try? await api.repository(owner: repo.owner, name: repo.name),
-               let insight = try? await llm.analyze(repo: dto) {
-                readmeSummary = insight.chineseSummary
-                readmeSource = "大模型"
-            } else {
-                readmeSummary = SummaryService.summarizeReadme(markdown)
-                readmeSource = "本地规则"
-            }
+            markdown = try await api.readme(owner: repo.owner, name: repo.name)
         } catch {
-            if readmeSummary == nil {
-                readmeSummary = "README 读取失败：\(error.localizedDescription)"
-                readmeSource = "错误"
-            }
+            readmeSource = "原文"
+            return
+        }
+
+        let excerpt = SummaryService.readmeExcerpt(markdown)
+        guard !excerpt.isEmpty else {
+            readmeOriginal = repo.rawDescription ?? repo.summary
+            return
+        }
+
+        readmeOriginal = excerpt
+        readmeSource = "原文"
+
+        // 已是中文就不翻译
+        guard !SummaryService.containsCJK(excerpt) else {
+            readmeSource = "原文（中文）"
+            return
+        }
+        guard llm.isConfigured else { return }
+
+        isTranslating = true
+        defer { isTranslating = false }
+        if let translated = try? await llm.translate(excerpt), !translated.isEmpty {
+            readmeTranslated = translated
+            readmeSource = "AI 翻译"
         }
     }
 }

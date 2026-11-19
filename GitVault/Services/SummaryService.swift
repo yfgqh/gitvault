@@ -121,6 +121,54 @@ enum SummaryService {
 
     // MARK: 工具
 
+
+    // MARK: README 原文摘录（先展示原文，非中文再交给 AI 翻译）
+
+    /// 从 markdown 里抽出可读正文：去代码块 / 图片 / badge / HTML / 表格，保留标题与段落
+    static func readmeExcerpt(_ markdown: String, maxChars: Int = 800) -> String {
+        var kept: [String] = []
+        var inFence = false
+
+        for rawLine in markdown.components(separatedBy: .newlines) {
+            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            if line.hasPrefix("```") {
+                inFence.toggle()
+                continue
+            }
+            if inFence { continue }
+            if line.isEmpty {
+                if kept.last?.isEmpty == false { kept.append("") }
+                continue
+            }
+            if line.hasPrefix("![") || line.hasPrefix("[![") || line.hasPrefix("<") || line.hasPrefix("|") {
+                continue
+            }
+            if line.lowercased().contains("shields.io") || line.lowercased().contains("badge") {
+                continue
+            }
+            if line.hasPrefix("#") {
+                let title = line.replacingOccurrences(of: "#", with: "")
+                    .trimmingCharacters(in: .whitespaces)
+                if !title.isEmpty && title.count <= 40 {
+                    kept.append(title)
+                }
+                continue
+            }
+            kept.append(line)
+        }
+
+        var text = kept.joined(separator: "\n")
+        while text.contains("\n\n\n") {
+            text = text.replacingOccurrences(of: "\n\n\n", with: "\n\n")
+        }
+        text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.isEmpty { return "" }
+        if text.count > maxChars {
+            let end = text.index(text.startIndex, offsetBy: maxChars)
+            text = String(text[..<end]) + "…"
+        }
+        return text
+    }
     /// 是否包含中日韩统一表意文字
     static func containsCJK(_ text: String) -> Bool {
         text.unicodeScalars.contains { scalar in

@@ -124,7 +124,7 @@ struct HeroRepoCard: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 34, height: 34)
-                .background(.ultraThinMaterial, in: Circle())
+                .background(Circle().fill(DS.glassFill))
                 .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: 1))
                 .overlay { HeartBurst(active: heartBurst) }
         }

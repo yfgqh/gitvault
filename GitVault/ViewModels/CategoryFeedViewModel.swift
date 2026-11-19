@@ -59,7 +59,12 @@ final class CategoryFeedViewModel: ObservableObject {
         return list
     }
 
-    var canLoadMore: Bool { items.count < totalCount }
+    /// 只取前 100（GitHub 单页上限），够用且省额度
+    let fetchLimit = 100
+    var canLoadMore: Bool { false }
+    var truncatedHint: String? {
+        totalCount > items.count ? "共 \(totalCount) 个，展示前 \(items.count) 名" : nil
+    }
 
     func loadIfNeeded() async {
         guard !didLoad else { return }
@@ -73,7 +78,7 @@ final class CategoryFeedViewModel: ObservableObject {
         defer { isLoading = false }
         page = 1
         do {
-            let result = try await api.searchByCategory(category, page: 1)
+            let result = try await api.searchByCategory(category, page: 1, perPage: fetchLimit)
             items = result.items.map(ShowcaseRepo.init(dto:))
             totalCount = result.totalCount
         } catch {
@@ -85,19 +90,6 @@ final class CategoryFeedViewModel: ObservableObject {
         }
     }
 
-    func loadMore() async {
-        guard canLoadMore, !isLoadingMore, !isLoading else { return }
-        isLoadingMore = true
-        defer { isLoadingMore = false }
-        page += 1
-        do {
-            let result = try await api.searchByCategory(category, page: page)
-            let mapped = result.items.map(ShowcaseRepo.init(dto:))
-            let existing = Set(items.map(\.id))
-            items.append(contentsOf: mapped.filter { !existing.contains($0.id) })
-            totalCount = result.totalCount
-        } catch {
-            page = max(1, page - 1)
-        }
-    }
+    /// 首屏已经拿满 100 条，这里保留接口但不再翻页（保持调用方兼容）
+    func loadMore() async { }
 }

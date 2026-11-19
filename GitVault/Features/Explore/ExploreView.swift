@@ -64,6 +64,7 @@ struct ExploreView: View {
             }
             .task {
                 await vm.loadIfNeeded()
+                await env.refreshCategoryCounts()
             }
         }
     }
@@ -216,7 +217,7 @@ struct ExploreView: View {
             LazyVGrid(columns: topicColumns, spacing: DS.Space.s) {
                 ForEach(RepoCategory.allCases.indexed) { entry in
                     NavigationLink(value: CategoryRoute(category: entry.item)) {
-                        CategoryShortcut(category: entry.item, count: 0)
+                        CategoryShortcut(category: entry.item, count: env.categoryCount(entry.item))
                     }
                     .buttonStyle(.springPress)
                     .staggerAppear(entry.index)

@@ -51,7 +51,7 @@ struct GlassTabBar: View {
         .padding(.horizontal, DS.Space.s)
         .padding(.vertical, DS.Space.s)
         .background {
-            Capsule(style: .continuous).fill(DS.cardGlass)
+            Capsule(style: .continuous).fill(DS.glassFill)
         }
         .overlay {
             Capsule(style: .continuous)

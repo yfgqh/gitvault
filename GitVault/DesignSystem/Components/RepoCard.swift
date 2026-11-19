@@ -100,7 +100,7 @@ struct RepoMiniCard: View {
                     Text(repo.category.emoji)
                         .font(.system(size: 12))
                         .padding(6)
-                        .background(.ultraThinMaterial, in: Circle())
+                        .background(Circle().fill(DS.glassFill))
                         .padding(8)
                 }
 

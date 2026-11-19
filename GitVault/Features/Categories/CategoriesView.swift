@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct CategoriesView: View {
+    @EnvironmentObject private var env: AppEnvironment
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     private var columns: [GridItem] {
@@ -35,7 +36,7 @@ struct CategoriesView: View {
                     LazyVGrid(columns: columns, spacing: DS.Space.m) {
                         ForEach(RepoCategory.allCases.indexed) { entry in
                             NavigationLink(value: CategoryRoute(category: entry.item)) {
-                                CategoryLargeCard(category: entry.item, count: 0)
+                                CategoryLargeCard(category: entry.item, count: env.categoryCount(entry.item))
                             }
                             .buttonStyle(.springPressCard)
                             .staggerAppear(entry.index)
@@ -55,6 +56,7 @@ struct CategoriesView: View {
             .navigationDestination(for: ShowcaseRepo.self) { repo in
                 RepoDetailView(repo: repo)
             }
+            .task { await env.refreshCategoryCounts() }
         }
     }
 }
@@ -200,29 +202,19 @@ struct CategoryFeedView: View {
                 Spacer()
             }
             .padding(.vertical, DS.Space.m)
-        } else if vm.canLoadMore && !vm.items.isEmpty {
-            Button {
-                Haptics.tap()
-                Task { await vm.loadMore() }
-            } label: {
-                Text("加载更多")
-                    .font(DS.Typo.caption)
-                    .foregroundStyle(DS.accent)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                            .fill(DS.bgSecondary)
-                    )
-            }
-            .buttonStyle(.springPress)
-            .screenPadding()
+        } else if let hint = vm.truncatedHint {
+            Text(hint)
+                .font(DS.Typo.caption)
+                .foregroundStyle(DS.textTertiary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, DS.Space.m)
         }
     }
 }
 
 #Preview("分类页") {
     CategoriesView()
+        .environmentObject(AppEnvironment.live())
 }
 
 #Preview("二级主题") {

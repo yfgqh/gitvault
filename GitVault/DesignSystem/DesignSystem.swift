@@ -17,6 +17,15 @@ private func dynamicColor(dark: UInt32, light: UInt32) -> Color {
     })
 }
 
+/// 带透明度的动态色（玻璃填充用）
+private func dynamicColor(darkAlpha: UInt32, lightAlpha: UInt32) -> Color {
+    Color(uiColor: UIColor { trait in
+        trait.userInterfaceStyle == .dark
+            ? UIColor(hex: darkAlpha, alpha: 0.72)
+            : UIColor(hex: lightAlpha, alpha: 0.88)
+    })
+}
+
 // MARK: - Design System
 
 enum DS {
@@ -63,8 +72,11 @@ enum DS {
         endPoint: .trailing
     )
 
-    /// 玻璃材质
+    /// 玻璃材质（仅在少量非滚动场景使用）
     static let cardGlass: Material = .ultraThinMaterial
+
+    /// 玻璃填充：半透明底色，视觉接近 material，但零离屏渲染开销
+    static let glassFill = dynamicColor(darkAlpha: 0x1A2130, lightAlpha: 0xEFF1F7)
 
     /// 品牌 Logo 用的深色点阵底
     static let logoBase = Color(hex: 0x0B0E14)
@@ -165,13 +177,18 @@ enum DS {
 
 extension View {
 
-    /// 柔和高光描边 + 材质的玻璃卡片
+    /// 玻璃卡片（性能优先）：用半透明纯色 + 描边模拟，避免 `.ultraThinMaterial`
+    /// 的实时模糊。material 在滚动/高频刷新时会让主线程持续做离屏渲染，
+    /// iOS 16 上表现为掉帧与「页面闪烁」。
     func glassSurface(
         radius: CGFloat = DS.Radius.card,
         strokeOpacity: Double = 0.10
     ) -> some View {
         self
-            .background(DS.cardGlass, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .background(
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .fill(DS.glassFill)
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
                     .strokeBorder(Color.white.opacity(strokeOpacity), lineWidth: 1)
