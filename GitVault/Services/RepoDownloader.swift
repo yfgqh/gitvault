@@ -105,6 +105,8 @@ final class RepoDownloader: NSObject, ObservableObject {
         }
 
         let task = session.downloadTask(with: request)
+        // 目标文件名挂在 task 上：代理方法在非主线程回调，不能直接读 @MainActor 属性
+        task.taskDescription = currentName
         self.task = task
         task.resume()
     }
@@ -134,22 +136,33 @@ extension RepoDownloader: URLSessionDownloadDelegate {
     nonisolated func urlSession(_ session: URLSession,
                                 downloadTask: URLSessionDownloadTask,
                                 didFinishDownloadingTo location: URL) {
-        // 用我们自己的文件名，避免 GitHub 的随机 id
+        // 关键：这个回调一返回，系统就会删除 location 指向的临时文件。
+        // 所以必须在这里同步完成搬运，不能丢进 Task 里等主线程调度，
+        // 否则会报 "CFNetworkDownload_xxx.tmp ... no such file"。
         let fallback = downloadTask.originalRequest?.url?.lastPathComponent ?? "repo.zip"
+        let described = downloadTask.taskDescription ?? ""
+        let name = described.isEmpty ? fallback : described
+
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSTemporaryDirectory())
         let dir = documents.appendingPathComponent("GitVault/Downloads", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let destination = dir.appendingPathComponent(name)
 
-        Task { @MainActor in
-            let name = self.currentName.isEmpty ? fallback : self.currentName
-            let destination = dir.appendingPathComponent(name)
+        do {
             try? FileManager.default.removeItem(at: destination)
             do {
+                try FileManager.default.moveItem(at: location, to: destination)
+            } catch {
+                // 跨卷等场景退回复制
                 try FileManager.default.copyItem(at: location, to: destination)
+            }
+            Task { @MainActor in
                 self.state = .finished(destination)
                 Haptics.success()
-            } catch {
+            }
+        } catch {
+            Task { @MainActor in
                 self.state = .failed("保存失败：\(error.localizedDescription)")
             }
         }
