@@ -84,10 +84,10 @@ struct HealthCard: View {
                     .frame(width: 62, height: 62)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    metricRow("活跃度", health.activity, 40, DS.accent)
-                    metricRow("社区", health.community, 25, DS.accentAlt)
-                    metricRow("维护", health.maintenance, 20, DS.warning)
-                    metricRow("文档", health.documentation, 15, DS.success)
+                    metricRow("活跃度", health.activity, total: 40, tint: DS.accent)
+                    metricRow("社区", health.community, total: 25, tint: DS.accentAlt)
+                    metricRow("维护", health.maintenance, total: 20, tint: DS.warning)
+                    metricRow("文档", health.documentation, total: 15, tint: DS.success)
                 }
             }
 
@@ -100,7 +100,7 @@ struct HealthCard: View {
         .glassSurface()
     }
 
-    private func metricRow(_ title: String, _ value: Int, _ max: Int, _ tint: Color) -> some View {
+    private func metricRow(_ title: String, _ value: Int, total: Int, tint: Color) -> some View {
         HStack(spacing: 6) {
             Text(title)
                 .font(.system(size: 10))
@@ -111,7 +111,7 @@ struct HealthCard: View {
                     Capsule().fill(DS.bgTertiary)
                     Capsule()
                         .fill(tint)
-                        .frame(width: max(2, geo.size.width * CGFloat(value) / CGFloat(max)))
+                        .frame(width: Swift.max(2, geo.size.width * CGFloat(value) / CGFloat(Swift.max(total, 1))))
                 }
             }
             .frame(height: 4)
