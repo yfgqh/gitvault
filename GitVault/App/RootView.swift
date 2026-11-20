@@ -53,8 +53,9 @@ struct RootView: View {
         }
         .task {
             await auth.restore()
-            await env.pro.bootstrap()
-            await env.update.checkIfNeeded()
+            // 这两件事不阻塞启动：StoreKit 与 Releases 都可能慢
+            Task { await env.pro.bootstrap() }
+            Task { await env.update.checkIfNeeded() }
             env.allRepos.loadIfNeeded()
             try? await Task.sleep(nanoseconds: 1_600_000_000)
             withAnimation(.easeInOut(duration: 0.55)) {

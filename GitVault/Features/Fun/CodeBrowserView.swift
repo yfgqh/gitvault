@@ -187,8 +187,13 @@ struct CodeFileView: View {
     @Environment(\.openURL) private var openURL
     @StateObject private var vm = CodeFileViewModel()
 
+    /// 超大文件只渲染前 2000 行：一次布局十万行文本会让主线程直接卡死
     private var lines: [String] {
-        (vm.content ?? "").components(separatedBy: .newlines)
+        Array((vm.content ?? "").components(separatedBy: .newlines).prefix(2000))
+    }
+
+    private var truncated: Bool {
+        (vm.content ?? "").components(separatedBy: .newlines).count > 2000
     }
 
     var body: some View {
@@ -222,6 +227,14 @@ struct CodeFileView: View {
                         }
                     }
                     .padding(DS.Space.m)
+
+                    if truncated {
+                        Text("文件较长，仅显示前 2000 行。可用右上角复制全文。")
+                            .font(.system(size: 10))
+                            .foregroundStyle(DS.textTertiary)
+                            .padding(.horizontal, DS.Space.m)
+                            .padding(.bottom, DS.Space.m)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
