@@ -94,6 +94,11 @@ struct RepoDetailView: View {
                 env.show(message, kind: .warning)
             }
         }
+        .sheet(isPresented: $downloader.showsAssetPicker) {
+            AssetPickerView(downloader: downloader)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
         .sheet(isPresented: $showCode) {
             CodeBrowserView(repo: vm.repo)
         }
@@ -330,7 +335,7 @@ struct RepoDetailView: View {
             }
 
             actionButton(symbol: "square.and.arrow.down",
-                         title: downloader.isDownloading ? "下载中" : "下载",
+                         title: downloadTitle,
                          tint: DS.success,
                          showsProgress: downloader.isDownloading) {
                 startDownload()
@@ -443,12 +448,14 @@ struct RepoDetailView: View {
         }
     }
 
-    private func startDownload() {
-        if case .finished(let url) = downloader.state {
-            UIPasteboard.general.string = url.path
-            env.show("安装包已保存：\(url.lastPathComponent)", kind: .success)
-            return
+    private var downloadTitle: String {
+        if case .downloading(let progress) = downloader.state {
+            return "\(Int(progress * 100))%"
         }
+        return "下载"
+    }
+
+    private func startDownload() {
         downloader.start(owner: vm.repo.owner, repo: vm.repo.name, branch: "main")
     }
     // MARK: 标签区

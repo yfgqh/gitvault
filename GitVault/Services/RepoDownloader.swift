@@ -10,6 +10,22 @@
 import Foundation
 import Combine
 
+/// 一个可下载的 Release 资产
+struct AssetChoice: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let size: Int
+    let kind: String
+    let url: URL
+    var recommended: Bool = false
+
+    var sizeText: String {
+        if size > 1024 * 1024 { return String(format: "%.1f MB", Double(size) / 1024 / 1024) }
+        if size > 1024 { return "\(size / 1024) KB" }
+        return "\(size) B"
+    }
+}
+
 @MainActor
 final class RepoDownloader: NSObject, ObservableObject {
     enum State: Equatable {
@@ -23,6 +39,13 @@ final class RepoDownloader: NSObject, ObservableObject {
     @Published private(set) var currentName: String = ""
     /// 需要提示给用户的说明（例如「没有二进制文件，改下源码」）
     @Published private(set) var notice: String?
+
+    /// 多个资产时待选择的列表
+    @Published private(set) var assetChoices: [AssetChoice] = []
+    /// 是否弹出资产选择器
+    @Published var showsAssetPicker = false
+
+    private var pendingSource: (owner: String, repo: String, branch: String)?
 
     private var session: URLSession?
     private var task: URLSessionDownloadTask?
@@ -40,37 +63,50 @@ final class RepoDownloader: NSObject, ObservableObject {
 
     func start(owner: String, repo: String, branch: String) {
         guard !isDownloading else { return }
+        pendingSource = (owner, repo, branch)
         currentName = "\(owner)-\(repo).zip"
-        state = .downloading(progress: 0)
+        assetChoices = []
         Haptics.tap()
 
         Task {
-            var target: URL?
-            var fileName: String?
+            let choices = await resolveAssets(owner: owner, repo: repo)
 
-            if let release = try? await GitHubExtrasService.shared.latestRelease(owner: owner, repo: repo) {
-                let assets = release.assets ?? []
-                let binary = assets.first(where: { Self.looksBinary($0.name) })
-                let chosen = binary ?? assets.first
-                if let asset = chosen, let url = URL(string: asset.browserDownloadURL) {
-                    target = url
-                    fileName = asset.name
-                }
-            }
-
-            if target == nil {
+            switch choices.count {
+            case 0:
                 notice = "该仓库没有发布编译好的二进制文件，正在下载源码包"
-                target = GitHubExtrasService.shared.zipballURL(owner: owner, repo: repo, branch: branch)
-                fileName = "\(owner)-\(repo)-source.zip"
+                downloadSource()
+            case 1:
+                if let only = choices.first {
+                    beginDownload(only.url, fileName: only.name)
+                }
+            default:
+                // 多个资产：交给用户挑，避免默认下错平台
+                assetChoices = choices
+                state = .idle
+                showsAssetPicker = true
             }
-
-            guard let url = target else {
-                state = .failed("下载地址无效")
-                return
-            }
-            if let fileName { currentName = fileName }
-            beginDownload(url)
         }
+    }
+
+    /// 用户在资产选择器里选定后的入口
+    func choose(_ asset: AssetChoice) {
+        showsAssetPicker = false
+        assetChoices = []
+        beginDownload(asset.url, fileName: asset.name)
+    }
+
+    /// 选择器里的「下载源码包」
+    func chooseSourcePackage() {
+        showsAssetPicker = false
+        assetChoices = []
+        notice = "正在下载源码包"
+        downloadSource()
+    }
+
+    func dismissPicker() {
+        showsAssetPicker = false
+        assetChoices = []
+        state = .idle
     }
 
     func cancel() {
@@ -83,14 +119,74 @@ final class RepoDownloader: NSObject, ObservableObject {
 
     // MARK: 内部
 
-    private static func looksBinary(_ name: String) -> Bool {
+    /// 资产分类：安装包 > 压缩包 > 其他
+    private static func kind(of name: String) -> String {
         let lower = name.lowercased()
-        let suffixes = [".ipa", ".apk", ".dmg", ".pkg", ".zip", ".tar.gz", ".tgz",
-                        ".7z", ".exe", ".msi", ".msix", ".appx", ".deb", ".rpm", ".jar"]
-        return suffixes.contains { lower.hasSuffix($0) }
+        let installers = [".ipa", ".apk", ".dmg", ".pkg", ".msix", ".appx",
+                          ".exe", ".msi", ".deb", ".rpm", ".apk"]
+        let archives = [".zip", ".tar.gz", ".tgz", ".7z", ".tar", ".xz", ".gz"]
+        if installers.contains(where: { lower.hasSuffix($0) }) { return "安装包" }
+        if archives.contains(where: { lower.hasSuffix($0) }) { return "压缩包" }
+        return "其他"
     }
 
-    private func beginDownload(_ url: URL) {
+    private static func rank(of kind: String) -> Int {
+        switch kind {
+        case "安装包": return 0
+        case "压缩包": return 1
+        default: return 2
+        }
+    }
+
+    /// 拉取 latest release 的资产并排序（安装包优先，同类按体积降序）
+    private func resolveAssets(owner: String, repo: String) async -> [AssetChoice] {
+        guard let release = try? await GitHubExtrasService.shared.latestRelease(owner: owner, repo: repo) else {
+            return []
+        }
+        let assets = release.assets ?? []
+        var list: [AssetChoice] = []
+        for asset in assets {
+            guard let url = URL(string: asset.browserDownloadURL) else { continue }
+            list.append(AssetChoice(
+                id: asset.browserDownloadURL,
+                name: asset.name,
+                size: asset.size,
+                kind: RepoDownloader.kind(of: asset.name),
+                url: url
+            ))
+        }
+        list.sort { lhs, rhs in
+            let l = RepoDownloader.rank(of: lhs.kind)
+            let r = RepoDownloader.rank(of: rhs.kind)
+            if l != r { return l < r }
+            return lhs.size > rhs.size
+        }
+        if !list.isEmpty {
+            list[0].recommended = true
+        }
+        return list
+    }
+
+    /// 下载源码包（zipball）
+    private func downloadSource() {
+        guard let pendingSource else {
+            state = .failed("缺少仓库信息，请重试")
+            return
+        }
+        guard let url = GitHubExtrasService.shared.zipballURL(
+            owner: pendingSource.owner,
+            repo: pendingSource.repo,
+            branch: pendingSource.branch
+        ) else {
+            state = .failed("下载地址无效")
+            return
+        }
+        beginDownload(url, fileName: "\(pendingSource.owner)-\(pendingSource.repo)-source.zip")
+    }
+
+    private func beginDownload(_ url: URL, fileName: String) {
+        currentName = fileName
+        state = .downloading(progress: 0)
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 1800
@@ -106,7 +202,7 @@ final class RepoDownloader: NSObject, ObservableObject {
 
         let task = session.downloadTask(with: request)
         // 目标文件名挂在 task 上：代理方法在非主线程回调，不能直接读 @MainActor 属性
-        task.taskDescription = currentName
+        task.taskDescription = fileName
         self.task = task
         task.resume()
     }
