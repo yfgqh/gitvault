@@ -48,7 +48,7 @@ struct ExploreView: View {
 
                     if let message = vm.errorMessage {
                         ErrorBanner(message: vm.isUsingFallback ? "已切换到离线示例：\(message)" : message) {
-                            Task { await vm.reload() }
+                            Task { await vm.reload(profile: discoveryProfile) }
                         }
                         .screenPadding()
                     }
@@ -92,7 +92,7 @@ struct ExploreView: View {
             }
             .scrollIndicators(.hidden)
             .background(DS.bgPrimary)
-            .refreshable { await vm.reload() }
+            .refreshable { await vm.reload(profile: discoveryProfile) }
             .navigationBarHidden(true)
             .navigationDestination(for: ShowcaseRepo.self) { repo in
                 RepoDetailView(repo: repo)
