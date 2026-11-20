@@ -21,6 +21,12 @@ struct RepoDetailView: View {
     @StateObject private var vm: DetailViewModel
     @State private var showOriginal = false
     @State private var readmeExpanded = false
+    @State private var showCode = false
+    @State private var showGraph = false
+    @State private var showPro = false
+    @State private var isStarred = false
+    @State private var isBusy = false
+    @StateObject private var downloader = RepoDownloader()
 
     init(repo: ShowcaseRepo) {
         self.repo = repo
@@ -34,7 +40,10 @@ struct RepoDetailView: View {
                         hero
                         titleBlock.screenPadding()
                         statsCard.screenPadding()
+                        HealthCard(repo: vm.repo).screenPadding()
+                        demoSection.screenPadding()
                         readmeCard.screenPadding()
+                        actionRow.screenPadding()
                         tagsSection.screenPadding()
                         similarSection
 
@@ -61,6 +70,20 @@ struct RepoDetailView: View {
         }
         .task { await vm.loadDetailIfNeeded() }
         .task { await vm.loadReadmeIfNeeded() }
+        .task {
+            guard env.auth.isSignedIn else { return }
+            isStarred = await GitHubExtrasService.shared.isStarred(owner: vm.repo.owner, repo: vm.repo.name)
+        }
+        .sheet(isPresented: $showCode) {
+            CodeBrowserView(repo: vm.repo)
+        }
+        .sheet(isPresented: $showGraph) {
+            RepoGraphView(repo: vm.repo)
+        }
+        .sheet(isPresented: $showPro) {
+            ProUnlockView()
+                .environmentObject(env)
+        }
     }
 
     // MARK: Hero
@@ -261,6 +284,179 @@ struct RepoDetailView: View {
         return vm.readmeDisplayText
     }
 
+    // MARK: 演示与预览（作者主页 / README 首图）
+
+    @ViewBuilder
+    private var demoSection: some View {
+        if vm.previewImageURL != nil || vm.repo.homepageURL != nil {
+            VStack(alignment: .leading, spacing: DS.Space.s) {
+                HStack(spacing: 6) {
+                    Image(systemName: "play.rectangle.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(DS.accentAlt)
+                    Text("演示与预览")
+                        .font(DS.Typo.headline)
+                        .foregroundStyle(DS.textPrimary)
+                    Spacer()
+                    if let home = vm.repo.homepageURL {
+                        Button {
+                            Haptics.tap()
+                            openURL(home)
+                        } label: {
+                            HStack(spacing: 3) {
+                                Text(home.host ?? "打开主页")
+                                    .lineLimit(1)
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 8, weight: .bold))
+                            }
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(DS.accent)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                if let image = vm.previewImageURL {
+                    RemoteImage(url: image, height: 170)
+                }
+            }
+            .padding(DS.Space.m)
+            .glassSurface()
+        }
+    }
+
+    // MARK: 快捷操作（星标 / Fork / 代码 / 下载 / 结构）
+
+    private var actionRow: some View {
+        HStack(spacing: DS.Space.s) {
+            actionButton(symbol: isStarred ? "star.fill" : "star",
+                         title: isStarred ? "已星标" : "星标",
+                         tint: MyMark.starred.tint,
+                         showsProgress: isBusy && !downloader.isDownloading) {
+                toggleStar()
+            }
+
+            actionButton(symbol: "arrow.triangle.branch",
+                         title: "Fork",
+                         tint: DS.accent,
+                         showsProgress: false) {
+                forkRepo()
+            }
+
+            actionButton(symbol: "chevron.left.forwardslash.chevron.right",
+                         title: "代码",
+                         tint: DS.accentAlt,
+                         showsProgress: false) {
+                showCode = true
+            }
+
+            actionButton(symbol: "square.and.arrow.down",
+                         title: downloader.isDownloading ? "下载中" : "下载",
+                         tint: DS.success,
+                         showsProgress: downloader.isDownloading) {
+                startDownload()
+            }
+
+            actionButton(symbol: "point.3.connected.trianglepath.dotted",
+                         title: "结构",
+                         tint: DS.warning,
+                         showsProgress: false) {
+                showGraph = true
+            }
+        }
+    }
+
+    private func actionButton(symbol: String,
+                              title: String,
+                              tint: Color,
+                              showsProgress: Bool,
+                              action: @escaping () -> Void) -> some View {
+        Button {
+            Haptics.tap()
+            action()
+        } label: {
+            VStack(spacing: 4) {
+                ZStack {
+                    if showsProgress {
+                        ProgressView().scaleEffect(0.6).tint(tint)
+                    } else {
+                        Image(systemName: symbol)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(tint)
+                    }
+                }
+                .frame(width: 26, height: 20)
+
+                Text(title)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(DS.textSecondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 9)
+            .background(
+                RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
+                    .fill(DS.bgSecondary)
+            )
+        }
+        .buttonStyle(.springPressSilent)
+    }
+
+    // MARK: 写操作
+
+    private func toggleStar() {
+        guard env.auth.isSignedIn else {
+            env.show("请先在「我的」里登录 GitHub", kind: .warning)
+            return
+        }
+        guard !isBusy else { return }
+        isBusy = true
+        Task {
+            defer { isBusy = false }
+            do {
+                if isStarred {
+                    try await GitHubExtrasService.shared.unstar(owner: vm.repo.owner, repo: vm.repo.name)
+                    isStarred = false
+                    env.show("已取消星标")
+                } else {
+                    try await GitHubExtrasService.shared.star(owner: vm.repo.owner, repo: vm.repo.name)
+                    isStarred = true
+                    env.show("已星标 \(vm.repo.fullName)", kind: .success)
+                }
+                Haptics.success()
+            } catch {
+                env.show("操作失败：\(error.localizedDescription)", kind: .warning)
+            }
+        }
+    }
+
+    private func forkRepo() {
+        guard env.auth.isSignedIn else {
+            env.show("Fork 需要登录 GitHub", kind: .warning)
+            return
+        }
+        guard !isBusy else { return }
+        isBusy = true
+        Task {
+            defer { isBusy = false }
+            do {
+                let forked = try await GitHubExtrasService.shared.fork(owner: vm.repo.owner, repo: vm.repo.name)
+                env.show("已 Fork 到 \(forked.fullName)", kind: .success)
+                Haptics.success()
+            } catch {
+                env.show("Fork 失败：\(error.localizedDescription)", kind: .warning)
+            }
+        }
+    }
+
+    private func startDownload() {
+        if case .finished(let url) = downloader.state {
+            UIPasteboard.general.string = url.path
+            env.show("安装包已保存：\(url.lastPathComponent)", kind: .success)
+            return
+        }
+        downloader.start(owner: vm.repo.owner, repo: vm.repo.name, branch: "main")
+    }
     // MARK: 标签区
 
     private var tagsSection: some View {

@@ -117,7 +117,7 @@ struct GitHubService: GitHubAPI {
     func trending(days: Int = 14) async throws -> [RepositoryDTO] {
         let since = DateFormatter.githubDay.string(from: Date().addingTimeInterval(-Double(days) * 86_400))
         let query = "stars:>800 pushed:>\(since)"
-        let page = try await searchRepositories(query: query, sort: .stars, page: 1, perPage: 25)
+        let page = try await searchRepositories(query: query, sort: .stars, page: 1, perPage: 50)
         return page.items
     }
 

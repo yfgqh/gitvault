@@ -31,7 +31,7 @@ enum AppConfig {
     }
 
     /// Device Flow 申请的权限（最小化：只读用户信息 + 公开仓库）
-    static let oauthScopes = "read:user"
+    static let oauthScopes = "read:user public_repo"
 
     /// 搜索历史持久化键
     static let searchHistoryKey = "gv.searchHistory.v1"

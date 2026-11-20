@@ -20,6 +20,12 @@ struct ProfileView: View {
 
     @State private var exportFile: ExportFile?
     @State private var showAbout = false
+    @State private var showBadges = false
+    @State private var showWeekly = false
+    @State private var showMap = false
+    @State private var showQuiz = false
+    @State private var showMyRepos = false
+    @State private var showPro = false
     @State private var cacheSizeText = "—"
 
     private var appearance: AppearanceMode {
@@ -64,6 +70,15 @@ struct ProfileView: View {
                 AboutSheetView()
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showBadges) { BadgesView() }
+            .sheet(isPresented: $showWeekly) { WeeklyReportView() }
+            .sheet(isPresented: $showMap) { CollectionMapView() }
+            .sheet(isPresented: $showQuiz) { StarQuizView() }
+            .sheet(isPresented: $showMyRepos) { MyReposView() }
+            .sheet(isPresented: $showPro) {
+                ProUnlockView()
+                    .environmentObject(env)
             }
             .onAppear { updateCacheSize() }
         }
@@ -283,6 +298,45 @@ struct ProfileView: View {
                 .foregroundStyle(DS.textPrimary)
 
             VStack(spacing: 0) {
+                SettingsRow(symbol: "crown.fill", title: "GitVault Pro",
+                            detail: env.pro.statusTitle, tint: DS.accent) {
+                    showPro = true
+                }
+                Divider().padding(.leading, 52)
+                SettingsRow(symbol: "rosette", title: "成就徽章",
+                            detail: "\(Gamification.achievements(items: vault.items).filter { $0.unlocked }.count)/8") {
+                    showBadges = true
+                }
+                Divider().padding(.leading, 52)
+                SettingsRow(symbol: "chart.bar.doc.horizontal", title: "探索报告", detail: "近 7 天") {
+                    showWeekly = true
+                }
+                Divider().padding(.leading, 52)
+                SettingsRow(symbol: "circle.hexagongrid", title: "收藏地图", detail: "\(vault.items.count) 个") {
+                    showMap = true
+                }
+                Divider().padding(.leading, 52)
+                SettingsRow(symbol: "gamecontroller", title: "猜星标", detail: "小游戏") {
+                    showQuiz = true
+                }
+                Divider().padding(.leading, 52)
+                SettingsRow(symbol: "shippingbox", title: "我的仓库",
+                            detail: auth.isSignedIn ? auth.displayName : "未登录") {
+                    showMyRepos = true
+                }
+                Divider().padding(.leading, 52)
+                SettingsRow(symbol: "arrow.down.circle", title: "检查更新",
+                            detail: env.update.available?.tag ?? "已是最新") {
+                    Task {
+                        await env.update.checkIfNeeded(force: true)
+                        if let update = env.update.available {
+                            env.show("发现新版本 \(update.tag)", kind: .success)
+                        } else {
+                            env.show("已是最新版本", kind: .info)
+                        }
+                    }
+                }
+                Divider().padding(.leading, 52)
                 SettingsRow(symbol: "info.circle", title: "关于 GitVault", detail: versionText) {
                     showAbout = true
                 }

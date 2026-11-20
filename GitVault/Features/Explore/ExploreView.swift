@@ -14,6 +14,7 @@ struct ExploreView: View {
     @EnvironmentObject private var vault: VaultStore
     @Environment(\.horizontalSizeClass) private var sizeClass
 
+    @Environment(\.openURL) private var openURL
     @StateObject private var vm = ExploreViewModel()
     @State private var showSettings = false
 
@@ -22,6 +23,19 @@ struct ExploreView: View {
             ? Array(repeating: GridItem(.flexible(), spacing: DS.Space.s), count: 3)
             : [GridItem(.flexible(), spacing: DS.Space.s),
                GridItem(.flexible(), spacing: DS.Space.s)]
+    }
+
+    /// 今日考古：从 30 天前的收藏里按日期固定挑一个
+    private var archiveItem: (item: VaultItem, days: Int)? {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
+        let pool = vault.items
+            .filter { $0.savedAt <= cutoff }
+            .sorted { $0.savedAt < $1.savedAt }
+        guard !pool.isEmpty else { return nil }
+        let ordinal = Calendar.current.ordinality(of: .day, in: .era, for: .now) ?? 0
+        let picked = pool[ordinal % pool.count]
+        let days = Calendar.current.dateComponents([.day], from: picked.savedAt, to: .now).day ?? 30
+        return (picked, max(days, 0))
     }
 
     var body: some View {
@@ -36,6 +50,22 @@ struct ExploreView: View {
                         ErrorBanner(message: vm.isUsingFallback ? "已切换到离线示例：\(message)" : message) {
                             Task { await vm.reload() }
                         }
+                        .screenPadding()
+                    }
+
+                    if let update = env.update.available {
+                        UpdateBanner(available: update) {
+                            if let url = update.url { openURL(url) }
+                        } onDismiss: {
+                            env.update.dismissBanner()
+                        }
+                    }
+
+                    if let archive = archiveItem {
+                        NavigationLink(value: ShowcaseRepo(entry: archive.item)) {
+                            TodayArchiveCard(item: archive.item, daysAgo: archive.days)
+                        }
+                        .buttonStyle(.springPressCard)
                         .screenPadding()
                     }
 
@@ -65,6 +95,8 @@ struct ExploreView: View {
             .task {
                 await vm.loadIfNeeded()
                 await env.refreshCategoryCounts()
+                env.allRepos.loadIfNeeded()
+                await env.allRepos.refreshStep()
             }
         }
     }
@@ -187,7 +219,7 @@ struct ExploreView: View {
                 SkeletonList(count: 3).screenPadding()
             } else {
                 VStack(spacing: DS.Space.s) {
-                    ForEach(Array(vm.trending.prefix(AppConfig.trendingCount)).indexed) { entry in
+                    ForEach(Array(vm.trending.prefix(30)).indexed) { entry in
                         NavigationLink(value: entry.item) {
                             HStack(spacing: DS.Space.m) {
                                 Text("\(entry.index + 1)")

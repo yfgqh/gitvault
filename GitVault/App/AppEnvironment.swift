@@ -21,6 +21,13 @@ final class AppEnvironment: ObservableObject {
     /// 详情页可见时隐藏悬浮 Tab Bar（避免盖住底部操作栏）
     @Published var isShowingDetail = false
 
+    /// Pro 解锁（StoreKit 2）
+    let pro: ProStore
+    /// 在线更新检查
+    @Published var update: UpdateChecker
+    /// 全量仓库库（分桶抓取）
+    let allRepos = AllReposStore()
+
     /// 各分类的真实项目总数（GitHub total_count），带本地缓存
     @Published private(set) var categoryCounts: [RepoCategory: Int] = [:]
     private var countsLoadedAt: Date?
@@ -28,11 +35,15 @@ final class AppEnvironment: ObservableObject {
     init(api: any GitHubAPI,
          auth: AuthStore,
          config: LLMConfig,
-         llm: any LLMClassifierProtocol) {
+         llm: any LLMClassifierProtocol,
+         pro: ProStore? = nil,
+         update: UpdateChecker? = nil) {
         self.api = api
         self.auth = auth
         self.config = config
         self.llm = llm
+        self.pro = pro ?? ProStore()
+        self.update = update ?? UpdateChecker()
         loadCachedCounts()
     }
 

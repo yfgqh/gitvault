@@ -122,6 +122,24 @@ enum SummaryService {
     // MARK: 工具
 
 
+    /// README 里的第一张配图（用于详情页预览）
+    static func firstImageURL(in markdown: String) -> URL? {
+        let patterns = [
+            "!\\[[^\\]]*\\]\\((https?://[^)\\s]+)\\)",
+            "<img[^>]+src=[\"'](https?://[^\"']+)[\"']"
+        ]
+        for pattern in patterns {
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { continue }
+            let range = NSRange(markdown.startIndex..<markdown.endIndex, in: markdown)
+            guard let match = regex.firstMatch(in: markdown, options: [], range: range),
+                  match.numberOfRanges > 1,
+                  let urlRange = Range(match.range(at: 1), in: markdown) else { continue }
+            let raw = String(markdown[urlRange])
+            if let url = URL(string: raw) { return url }
+        }
+        return nil
+    }
+
     // MARK: README 原文摘录（先展示原文，非中文再交给 AI 翻译）
 
     /// 从 markdown 里抽出可读正文：去代码块 / 图片 / badge / HTML / 表格，保留标题与段落

@@ -42,6 +42,8 @@ struct ShowcaseRepo: Identifiable, Hashable {
     var updatedAt: Date? = nil
     /// 原始英文描述（摘要卡里作为「原文」展示）
     var rawDescription: String? = nil
+    /// 作者填写的项目主页 / 演示站点
+    var homepageURL: URL? = nil
 
     var fullName: String { "\(owner)/\(name)" }
 
@@ -86,7 +88,8 @@ struct ShowcaseRepo: Identifiable, Hashable {
         avatarURL: URL? = nil,
         htmlURL: URL? = nil,
         updatedAt: Date? = nil,
-        rawDescription: String? = nil
+        rawDescription: String? = nil,
+        homepageURL: URL? = nil
     ) {
         self.id = id
         self.owner = owner
@@ -108,6 +111,7 @@ struct ShowcaseRepo: Identifiable, Hashable {
         self.htmlURL = htmlURL
         self.updatedAt = updatedAt
         self.rawDescription = rawDescription
+        self.homepageURL = homepageURL
     }
 
     // MARK: DTO → UI 模型（规则分类 + 规则中文摘要）
@@ -146,6 +150,10 @@ struct ShowcaseRepo: Identifiable, Hashable {
         self.htmlURL = URL(string: dto.htmlURL)
         self.updatedAt = dto.pushedAt ?? dto.updatedAt
         self.rawDescription = dto.description
+        self.homepageURL = {
+            guard let raw = dto.homepage, !raw.isEmpty else { return nil }
+            return URL(string: raw)
+        }()
     }
 }
 

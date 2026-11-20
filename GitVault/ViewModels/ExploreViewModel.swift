@@ -21,15 +21,20 @@ final class ExploreViewModel: ObservableObject {
     private let api: any GitHubAPI
     private var didLoad = false
     private var lastLoadedAt: Date?
-    /// 冷却时间：避免切换 Tab / 反复上下拉时堆叠请求（未登录只有 60 次/小时）
-    private let cooldown: TimeInterval = 90
+
+    /// 每天 08:00 是「今日精选」的刷新点
+    static func todayRefreshPoint(_ now: Date = .now) -> Date {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: now)
+        return calendar.date(byAdding: .hour, value: 8, to: start) ?? start
+    }
 
     init(api: any GitHubAPI = GitHubService.shared) {
         self.api = api
     }
 
     func loadIfNeeded() async {
-        if didLoad, let last = lastLoadedAt, Date().timeIntervalSince(last) < cooldown {
+        if didLoad, let last = lastLoadedAt, last >= ExploreViewModel.todayRefreshPoint() {
             return
         }
         didLoad = true

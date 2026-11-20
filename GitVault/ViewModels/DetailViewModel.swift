@@ -28,6 +28,8 @@ final class DetailViewModel: ObservableObject {
     @Published var readmeTranslated: String?
     @Published var readmeSource: String = "原文"
     @Published var isLoadingReadme = false
+    /// README 首图 / 演示站点预览
+    @Published var previewImageURL: URL?
     @Published var isTranslating = false
 
     @Published var isLoadingDetail = false
@@ -136,6 +138,7 @@ final class DetailViewModel: ObservableObject {
             return
         }
 
+        previewImageURL = SummaryService.firstImageURL(in: markdown)
         let excerpt = SummaryService.readmeExcerpt(markdown)
         guard !excerpt.isEmpty else {
             readmeOriginal = repo.rawDescription ?? repo.summary
