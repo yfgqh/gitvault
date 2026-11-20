@@ -217,7 +217,7 @@ struct GitHubExtrasService {
 
         private enum CodingKeys: String, CodingKey {
             case tagName = "tag_name"
-            case name, body, prerelease
+            case name, body, prerelease, assets
             case htmlURL = "html_url"
             case publishedAt = "published_at"
         }
