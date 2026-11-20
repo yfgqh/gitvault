@@ -11,6 +11,8 @@ struct RepoCard: View {
     let repo: ShowcaseRepo
     var showsStarDelta: Bool = true
     var compact: Bool = false
+    /// 发现页的推荐理由，例如「新项目 · 4 个月 · 日增 12 星」
+    var reason: String? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: DS.Space.m) {
@@ -52,6 +54,16 @@ struct RepoCard: View {
 
                 // 元信息行
                 HStack(spacing: 10) {
+                    if let reason, !reason.isEmpty {
+                        Text(reason)
+                            .font(DS.Typo.micro)
+                            .foregroundStyle(DS.accent)
+                            .lineLimit(1)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(DS.accent.opacity(0.12)))
+                    }
+
                     HStack(spacing: 4) {
                         LanguageDot(color: LanguagePalette.color(for: repo.language))
                         Text(repo.language)
@@ -91,6 +103,7 @@ struct RepoCard: View {
 /// 小尺寸卡片：用于「相似项目」「为你推荐」横向滑动
 struct RepoMiniCard: View {
     let repo: ShowcaseRepo
+    var reason: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
@@ -114,6 +127,16 @@ struct RepoMiniCard: View {
                 .foregroundStyle(DS.textSecondary)
                 .lineLimit(2)
                 .frame(height: 32, alignment: .top)
+
+            if let reason, !reason.isEmpty {
+                Text(reason)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(DS.accent)
+                    .lineLimit(1)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(DS.accent.opacity(0.12)))
+            }
 
             HStack(spacing: 6) {
                 LanguageDot(color: LanguagePalette.color(for: repo.language))

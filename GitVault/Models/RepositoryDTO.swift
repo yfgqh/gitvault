@@ -23,6 +23,7 @@ struct RepositoryDTO: Decodable, Sendable, Identifiable {
     let license: License?
     let htmlURL: String
     let homepage: String?
+    let createdAt: Date?
     let updatedAt: Date?
     let pushedAt: Date?
     let defaultBranch: String?
@@ -52,6 +53,7 @@ struct RepositoryDTO: Decodable, Sendable, Identifiable {
         case forksCount = "forks_count"
         case openIssuesCount = "open_issues_count"
         case htmlURL = "html_url"
+        case createdAt = "created_at"
         case updatedAt = "updated_at"
         case pushedAt = "pushed_at"
         case defaultBranch = "default_branch"
@@ -72,6 +74,7 @@ struct RepositoryDTO: Decodable, Sendable, Identifiable {
         license = try c.decodeIfPresent(License.self, forKey: .license)
         htmlURL = try c.decodeIfPresent(String.self, forKey: .htmlURL) ?? ""
         homepage = try c.decodeIfPresent(String.self, forKey: .homepage)
+        createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt)
         updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt)
         pushedAt = try c.decodeIfPresent(Date.self, forKey: .pushedAt)
         defaultBranch = try c.decodeIfPresent(String.self, forKey: .defaultBranch)

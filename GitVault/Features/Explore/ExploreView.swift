@@ -53,6 +53,17 @@ struct ExploreView: View {
                         .screenPadding()
                     }
 
+                    if vm.loadedFromCache, let saved = vm.lastUpdated {
+                        HStack(spacing: 5) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.system(size: 9, weight: .semibold))
+                            Text("显示缓存（" + saved.formatted(date: .abbreviated, time: .shortened) + "），下拉可刷新")
+                                .font(.system(size: 11))
+                        }
+                        .foregroundStyle(DS.textTertiary)
+                        .screenPadding()
+                    }
+
                     if let update = env.update.available {
                         UpdateBanner(available: update) {
                             if let url = update.url { openURL(url) }
@@ -70,7 +81,9 @@ struct ExploreView: View {
                     }
 
                     heroSection
-                    trendingSection
+                    risingSection
+                    gemsSection
+                    hotSection
                     topicSection
                     forYouSection
 
@@ -93,7 +106,7 @@ struct ExploreView: View {
                     .presentationDragIndicator(.visible)
             }
             .task {
-                await vm.loadIfNeeded()
+                await vm.loadIfNeeded(profile: discoveryProfile)
                 await env.refreshCategoryCounts()
                 env.allRepos.loadIfNeeded()
                 await env.allRepos.refreshStep()
@@ -163,7 +176,7 @@ struct ExploreView: View {
             )
             .screenPadding()
 
-            if vm.featured.isEmpty {
+            if vm.feed.featured.isEmpty {
                 SkeletonHero()
                     .screenPadding()
             } else {
@@ -173,7 +186,7 @@ struct ExploreView: View {
                 GeometryReader { geo in
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: DS.Space.m) {
-                            ForEach(vm.featured.indexed) { entry in
+                            ForEach(vm.feed.featured.indexed) { entry in
                                 NavigationLink(value: entry.item) {
                                     HeroRepoCard(
                                         repo: entry.item,
@@ -195,7 +208,7 @@ struct ExploreView: View {
                 HStack(spacing: 5) {
                     Image(systemName: "hand.draw")
                         .font(.system(size: 10, weight: .semibold))
-                    Text("左右滑动查看全部 \(vm.featured.count) 个精选")
+                    Text("左右滑动查看全部 \(vm.feed.featured.count) 个精选")
                         .font(.system(size: 11))
                 }
                 .foregroundStyle(DS.textTertiary)
@@ -204,31 +217,53 @@ struct ExploreView: View {
         }
     }
 
-    // MARK: 飙升榜
+    // MARK: 新星（半年内创建，按平均日增排序）
 
-    private var trendingSection: some View {
+    private var risingSection: some View {
+        discoveryRail(
+            title: "新星 Rising",
+            subtitle: "半年内创建 · 按平均日增排序",
+            items: vm.feed.rising,
+            emptyHint: "今天还没有新的候选，稍后刷新"
+        )
+    }
+
+    // MARK: 隐藏宝石（200–3000 星，按质量排序）
+
+    private var gemsSection: some View {
+        discoveryRail(
+            title: "隐藏宝石",
+            subtitle: "200–3000 星里文档与维护都不差的",
+            items: vm.feed.gems,
+            emptyHint: "这一档暂时没有合适的项目"
+        )
+    }
+
+    // MARK: 近期热门（综合分，不只看星）
+
+    private var hotSection: some View {
         VStack(alignment: .leading, spacing: DS.Space.m) {
             SectionHeader(
-                title: "飙升榜 Trending",
-                subtitle: "近 14 天有推送的高星项目",
+                title: "近期热门",
+                subtitle: "综合热度、活跃度与文档质量",
                 actionTitle: nil,
                 onAction: nil
             )
             .screenPadding()
 
-            if vm.trending.isEmpty {
+            if vm.feed.trending.isEmpty {
                 SkeletonList(count: 3).screenPadding()
             } else {
                 VStack(spacing: DS.Space.s) {
-                    ForEach(Array(vm.trending.prefix(30)).indexed) { entry in
-                        NavigationLink(value: entry.item) {
+                    ForEach(Array(vm.feed.trending.prefix(12)).indexed) { entry in
+                        NavigationLink(value: entry.item.repo) {
                             HStack(spacing: DS.Space.m) {
                                 Text("\(entry.index + 1)")
                                     .font(.system(size: 13, weight: .bold, design: .rounded))
                                     .foregroundStyle(entry.index < 3 ? DS.accent : DS.textTertiary)
                                     .frame(width: 18, alignment: .center)
 
-                                RepoCard(repo: entry.item)
+                                RepoCard(repo: entry.item.repo, reason: entry.item.reason)
                             }
                         }
                         .buttonStyle(.springPressCard)
@@ -236,6 +271,37 @@ struct ExploreView: View {
                     }
                 }
                 .screenPadding()
+            }
+        }
+    }
+
+    /// 横向卡片流（新星 / 宝石共用）
+    private func discoveryRail(title: String,
+                               subtitle: String,
+                               items: [DiscoveryItem],
+                               emptyHint: String) -> some View {
+        VStack(alignment: .leading, spacing: DS.Space.m) {
+            SectionHeader(title: title, subtitle: subtitle, actionTitle: nil, onAction: nil)
+                .screenPadding()
+
+            if items.isEmpty {
+                Text(emptyHint)
+                    .font(DS.Typo.caption)
+                    .foregroundStyle(DS.textTertiary)
+                    .screenPadding()
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: DS.Space.m) {
+                        ForEach(items.indexed) { entry in
+                            NavigationLink(value: entry.item.repo) {
+                                RepoMiniCard(repo: entry.item.repo, reason: entry.item.reason)
+                            }
+                            .buttonStyle(.springPressCard)
+                            .staggerAppear(entry.index)
+                        }
+                    }
+                    .padding(.horizontal, DS.Space.screen)
+                }
             }
         }
     }
@@ -264,17 +330,22 @@ struct ExploreView: View {
 
     private var forYouSection: some View {
         VStack(alignment: .leading, spacing: DS.Space.m) {
-            SectionHeader(title: "为你推荐", subtitle: "AI 与工具链里的高星项目", actionTitle: nil, onAction: nil)
-                .screenPadding()
+            SectionHeader(
+                title: "为你推荐",
+                subtitle: vault.items.isEmpty ? "先收藏几个项目，这里会更准" : "基于你收藏的主题与语言",
+                actionTitle: nil,
+                onAction: nil
+            )
+            .screenPadding()
 
-            if vm.forYou.isEmpty {
+            if vm.feed.forYou.isEmpty {
                 SkeletonList(count: 2).screenPadding()
             } else {
-                ScrollView(.horizontal) {
+                ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: DS.Space.m) {
-                        ForEach(vm.forYou.indexed) { entry in
-                            NavigationLink(value: entry.item) {
-                                RepoMiniCard(repo: entry.item)
+                        ForEach(vm.feed.forYou.indexed) { entry in
+                            NavigationLink(value: entry.item.repo) {
+                                RepoMiniCard(repo: entry.item.repo, reason: entry.item.reason)
                             }
                             .buttonStyle(.springPressCard)
                             .staggerAppear(entry.index)
@@ -282,9 +353,16 @@ struct ExploreView: View {
                     }
                     .padding(.horizontal, DS.Space.screen)
                 }
-                .scrollIndicators(.hidden)
             }
         }
+    }
+
+    /// 用于个性化的画像：收藏里的 topic 与语言
+    private var discoveryProfile: DiscoveryProfile {
+        DiscoveryProfile(
+            topics: Set(vault.items.flatMap { $0.topics.map { $0.lowercased() } }),
+            languages: Set(vault.items.map { $0.language.lowercased() })
+        )
     }
 
     // MARK: 动作
