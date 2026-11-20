@@ -18,6 +18,9 @@ final class AppEnvironment: ObservableObject {
     @Published var llm: any LLMClassifierProtocol
     @Published var toast: ToastMessage?
 
+    /// 详情页可见时隐藏悬浮 Tab Bar（避免盖住底部操作栏）
+    @Published var isShowingDetail = false
+
     /// 各分类的真实项目总数（GitHub total_count），带本地缓存
     @Published private(set) var categoryCounts: [RepoCategory: Int] = [:]
     private var countsLoadedAt: Date?

@@ -11,6 +11,7 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var auth: AuthStore
+    @EnvironmentObject private var env: AppEnvironment
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     @State private var showSplash = true
@@ -31,9 +32,13 @@ struct RootView: View {
             } else {
                 ZStack(alignment: .bottom) {
                     content
-                    GlassTabBar(selection: $tab)
-                        .padding(.bottom, DS.Space.s)
+                    if !env.isShowingDetail {
+                        GlassTabBar(selection: $tab)
+                            .padding(.bottom, DS.Space.s)
+                            .transition(.opacity)
+                    }
                 }
+                .animation(DS.Motion.fade, value: env.isShowingDetail)
             }
 
             if showSplash {

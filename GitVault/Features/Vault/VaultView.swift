@@ -65,6 +65,9 @@ struct VaultView: View {
                 ShareSheet(items: [file.url])
                     .presentationDetents([.medium, .large])
             }
+            .navigationDestination(for: ShowcaseRepo.self) { repo in
+                RepoDetailView(repo: repo)
+            }
         }
     }
 
@@ -220,7 +223,10 @@ struct VaultView: View {
     }
 
     private func entryRow(_ item: VaultItem) -> some View {
-        VaultRow(item: item)
+        NavigationLink(value: ShowcaseRepo(entry: item)) {
+            VaultRow(item: item)
+        }
+        .buttonStyle(.plain)
             .listRowInsets(EdgeInsets(top: 4, leading: DS.Space.screen, bottom: 4, trailing: DS.Space.screen))
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)

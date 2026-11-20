@@ -50,6 +50,8 @@ struct RepoDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(DS.bgPrimary, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
+        .onAppear { env.isShowingDetail = true }
+        .onDisappear { env.isShowingDetail = false }
         .task {
             vm.llm = env.llm
             if let item = vault.item(id: repo.id) {
@@ -222,7 +224,7 @@ struct RepoDetailView: View {
             Text(currentReadmeText)
                 .font(DS.Typo.bodySmall)
                 .foregroundStyle(DS.textSecondary)
-                .lineLimit(readmeExpanded ? nil : 5)
+                .lineLimit(readmeExpanded ? nil : 8)
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 6) {

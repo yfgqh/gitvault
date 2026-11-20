@@ -203,7 +203,10 @@ struct GitHubService: GitHubAPI {
                 switch urlError.code {
                 case .notConnectedToInternet, .networkConnectionLost: mapped = .offline
                 case .timedOut: mapped = .timeout
-                case .cancelled: mapped = .transport("请求已取消")
+                case .cancelled:
+                    // 下拉刷新时手指一停 SwiftUI 会取消请求：这是正常行为，
+                    // 抛 CancellationError 让上层静默处理，不要弹「请求失败」。
+                    throw CancellationError()
                 default: mapped = .transport(urlError.localizedDescription)
                 }
                 if mapped.isRetryable && attempt < retries {

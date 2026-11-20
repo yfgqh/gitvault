@@ -125,7 +125,7 @@ enum SummaryService {
     // MARK: README 原文摘录（先展示原文，非中文再交给 AI 翻译）
 
     /// 从 markdown 里抽出可读正文：去代码块 / 图片 / badge / HTML / 表格，保留标题与段落
-    static func readmeExcerpt(_ markdown: String, maxChars: Int = 800) -> String {
+    static func readmeExcerpt(_ markdown: String, maxChars: Int = 4000) -> String {
         var kept: [String] = []
         var inFence = false
 

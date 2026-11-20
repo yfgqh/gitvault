@@ -77,7 +77,7 @@ struct SettingsSheetView: View {
                         )
                     }
 
-                    Text("提示：登录 GitHub 后接口额度提升到 5000 次/小时，收藏与标记也能跨设备同步（阶段 5 完成后）。")
+                    Text("提示：登录 GitHub 后接口额度提升到 5000 次/小时，收藏与标记也能跨设备同步。")
                         .font(.system(size: 11))
                         .foregroundStyle(DS.textTertiary)
                 }

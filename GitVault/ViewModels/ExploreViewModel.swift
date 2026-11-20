@@ -70,7 +70,11 @@ final class ExploreViewModel: ObservableObject {
             self.lastUpdated = .now
             self.lastLoadedAt = .now
             CrashReporter.log("explore: loaded \(mapped.count) trending / \(self.forYou.count) for-you")
+        } catch is CancellationError {
+            // 下拉刷新被打断：静默返回，保留现有内容
+            return
         } catch {
+            if Task.isCancelled { return }
             errorMessage = error.localizedDescription
             CrashReporter.log("explore: load failed \(error.localizedDescription)")
             if trending.isEmpty {

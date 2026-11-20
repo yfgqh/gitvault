@@ -124,7 +124,10 @@ final class CategoryFeedViewModel: ObservableObject {
                 CategoryCache.shared.save(category, total: totalCount, repos: items)
             }
             CrashReporter.log("category \(category.rawValue): \(items.count) items / total \(totalCount)")
+        } catch is CancellationError {
+            return
         } catch {
+            if Task.isCancelled { return }
             errorMessage = error.localizedDescription
             if items.isEmpty {
                 items = MockData.repos(in: category)
