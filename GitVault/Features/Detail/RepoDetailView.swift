@@ -34,14 +34,14 @@ struct RepoDetailView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        GeometryReader { proxy in
+            VStack(spacing: 0) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: DS.Space.l) {
                         hero
                         titleBlock.screenPadding()
                         statsCard.screenPadding()
                         HealthCard(repo: vm.repo).screenPadding()
-                        demoSection.screenPadding()
                         readmeCard.screenPadding()
                         actionRow.screenPadding()
                         tagsSection.screenPadding()
@@ -49,11 +49,17 @@ struct RepoDetailView: View {
 
                         Color.clear.frame(height: DS.Space.m)
                     }
+                    // 关键：把宽度钉死为屏幕宽。垂直 ScrollView 给出的宽度提案
+                    // 会让内部 GeometryReader（语言条、进度条）算出超大宽度，
+                    // 从而把整页撑到屏幕外（表现为内容错位、文字被裁切）。
+                    .frame(width: proxy.size.width, alignment: .leading)
                 }
                 .scrollIndicators(.hidden)
 
                 bottomBar
+                    .frame(width: proxy.size.width)
             }
+        }
         .background(DS.bgPrimary.ignoresSafeArea())
         .navigationTitle(vm.repo.name)
         .navigationBarTitleDisplayMode(.inline)
@@ -73,6 +79,20 @@ struct RepoDetailView: View {
         .task {
             guard env.auth.isSignedIn else { return }
             isStarred = await GitHubExtrasService.shared.isStarred(owner: vm.repo.owner, repo: vm.repo.name)
+        }
+        .onChange(of: downloader.notice) { newValue in
+            if let newValue {
+                env.show(newValue, kind: .info)
+                downloader.clearNotice()
+            }
+        }
+        .onChange(of: downloader.state) { newValue in
+            if case .finished(let url) = newValue {
+                env.show("已保存：\(url.lastPathComponent)", kind: .success)
+            }
+            if case .failed(let message) = newValue {
+                env.show(message, kind: .warning)
+            }
         }
         .sheet(isPresented: $showCode) {
             CodeBrowserView(repo: vm.repo)
@@ -284,47 +304,6 @@ struct RepoDetailView: View {
         return vm.readmeDisplayText
     }
 
-    // MARK: 演示与预览（作者主页 / README 首图）
-
-    @ViewBuilder
-    private var demoSection: some View {
-        if vm.previewImageURL != nil || vm.repo.homepageURL != nil {
-            VStack(alignment: .leading, spacing: DS.Space.s) {
-                HStack(spacing: 6) {
-                    Image(systemName: "play.rectangle.fill")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(DS.accentAlt)
-                    Text("演示与预览")
-                        .font(DS.Typo.headline)
-                        .foregroundStyle(DS.textPrimary)
-                    Spacer()
-                    if let home = vm.repo.homepageURL {
-                        Button {
-                            Haptics.tap()
-                            openURL(home)
-                        } label: {
-                            HStack(spacing: 3) {
-                                Text(home.host ?? "打开主页")
-                                    .lineLimit(1)
-                                Image(systemName: "arrow.up.right")
-                                    .font(.system(size: 8, weight: .bold))
-                            }
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(DS.accent)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-
-                if let image = vm.previewImageURL {
-                    RemoteImage(url: image, height: 170)
-                }
-            }
-            .padding(DS.Space.m)
-            .glassSurface()
-        }
-    }
-
     // MARK: 快捷操作（星标 / Fork / 代码 / 下载 / 结构）
 
     private var actionRow: some View {
@@ -440,9 +419,24 @@ struct RepoDetailView: View {
         Task {
             defer { isBusy = false }
             do {
-                let forked = try await GitHubExtrasService.shared.fork(owner: vm.repo.owner, repo: vm.repo.name)
+                // GitHub 对「无权访问」也返回 404，先取一次仓库确认可达性，
+                // 才能把「权限不足」和「仓库真的不存在」区分开
+                let target = try await GitHubExtrasService.shared.repository(
+                    owner: vm.repo.owner,
+                    repo: vm.repo.name
+                )
+                let forked = try await GitHubExtrasService.shared.fork(
+                    owner: target.owner.login,
+                    repo: target.name
+                )
                 env.show("已 Fork 到 \(forked.fullName)", kind: .success)
                 Haptics.success()
+            } catch GitHubError.unauthorized {
+                env.show("Fork 失败：登录已失效，请重新登录", kind: .warning)
+            } catch GitHubError.forbidden {
+                env.show("Fork 失败：令牌缺少 public_repo 权限，请到「我的 → GitHub 登录」重新授权", kind: .warning)
+            } catch GitHubError.notFound {
+                env.show("Fork 失败：仓库不可访问（可能已改名/删除），或令牌缺少 public_repo 权限", kind: .warning)
             } catch {
                 env.show("Fork 失败：\(error.localizedDescription)", kind: .warning)
             }

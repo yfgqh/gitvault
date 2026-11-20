@@ -23,7 +23,6 @@ struct ProfileView: View {
     @State private var showBadges = false
     @State private var showWeekly = false
     @State private var showMap = false
-    @State private var showQuiz = false
     @State private var showMyRepos = false
     @State private var showPro = false
     @State private var cacheSizeText = "—"
@@ -74,7 +73,6 @@ struct ProfileView: View {
             .sheet(isPresented: $showBadges) { BadgesView() }
             .sheet(isPresented: $showWeekly) { WeeklyReportView() }
             .sheet(isPresented: $showMap) { CollectionMapView() }
-            .sheet(isPresented: $showQuiz) { StarQuizView() }
             .sheet(isPresented: $showMyRepos) { MyReposView() }
             .sheet(isPresented: $showPro) {
                 ProUnlockView()
@@ -315,10 +313,7 @@ struct ProfileView: View {
                 SettingsRow(symbol: "circle.hexagongrid", title: "收藏地图", detail: "\(vault.items.count) 个") {
                     showMap = true
                 }
-                Divider().padding(.leading, 52)
-                SettingsRow(symbol: "gamecontroller", title: "猜星标", detail: "小游戏") {
-                    showQuiz = true
-                }
+
                 Divider().padding(.leading, 52)
                 SettingsRow(symbol: "shippingbox", title: "我的仓库",
                             detail: auth.isSignedIn ? auth.displayName : "未登录") {

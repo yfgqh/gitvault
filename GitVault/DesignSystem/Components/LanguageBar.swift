@@ -25,11 +25,13 @@ struct LanguageBar: View {
                     ForEach(normalized) { slice in
                         RoundedRectangle(cornerRadius: height / 2, style: .continuous)
                             .fill(color(for: slice.name))
-                            .frame(width: max(2, geo.size.width * CGFloat(slice.percent / 100) - 2))
+                            .frame(width: Swift.max(2, geo.size.width * CGFloat(slice.percent / 100) - 2))
                     }
                 }
+                .frame(width: geo.size.width, alignment: .leading)
             }
             .frame(height: height)
+            .clipped()
 
             ScrollView(.horizontal) {
                 HStack(spacing: DS.Space.m) {

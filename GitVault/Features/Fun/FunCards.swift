@@ -106,15 +106,10 @@ struct HealthCard: View {
                 .font(.system(size: 10))
                 .foregroundStyle(DS.textTertiary)
                 .frame(width: 34, alignment: .leading)
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(DS.bgTertiary)
-                    Capsule()
-                        .fill(tint)
-                        .frame(width: Swift.max(2, geo.size.width * CGFloat(value) / CGFloat(Swift.max(total, 1))))
-                }
-            }
-            .frame(height: 4)
+            ProgressView(value: Double(value), total: Double(Swift.max(total, 1)))
+                .progressViewStyle(.linear)
+                .tint(tint)
+                .scaleEffect(x: 1, y: 0.55, anchor: .center)
             Text("\(value)")
                 .font(.system(size: 9, weight: .semibold, design: .rounded))
                 .foregroundStyle(DS.textSecondary)

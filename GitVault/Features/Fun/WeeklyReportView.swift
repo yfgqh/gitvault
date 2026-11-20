@@ -175,16 +175,11 @@ struct WeeklyReportView: View {
                     .font(.system(size: 10, weight: .semibold, design: .rounded))
                     .foregroundStyle(DS.textTertiary)
             }
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(DS.bgTertiary)
-                    Capsule()
-                        .fill(tint)
-                        .frame(width: Swift.max(4, geo.size.width * CGFloat(value) / CGFloat(Swift.max(total, 1))))
-                }
-            }
-            .frame(height: 6)
-            .blur(radius: locked ? 4 : 0)
+            ProgressView(value: Double(value), total: Double(Swift.max(total, 1)))
+                .progressViewStyle(.linear)
+                .tint(tint)
+                .scaleEffect(x: 1, y: 0.7, anchor: .center)
+                .blur(radius: locked ? 4 : 0)
         }
     }
 

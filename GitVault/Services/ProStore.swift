@@ -17,7 +17,7 @@ import Combine
 final class ProStore: ObservableObject {
     static let productID = "com.yfgqh.gitvault.pro"
     static let fallbackPrice = "¥9.9"
-    static let trialDays = 7
+    static let trialDays = 365
     static let freeAIDaily = 5
 
     @Published private(set) var product: Product?
@@ -127,6 +127,12 @@ final class ProStore: ObservableObject {
     // MARK: 购买 / 恢复
 
     func purchase() async {
+        // 当前阶段限时免费：不发起真实交易，直接给出提示
+        message = "目前无需购买（限时免费试用 365 天）"
+        return
+    }
+
+    private func purchaseFromStore() async {
         guard let product else {
             message = "当前环境无法连接 App Store，请稍后重试"
             return

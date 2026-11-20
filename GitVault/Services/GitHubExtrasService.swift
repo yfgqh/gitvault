@@ -193,6 +193,19 @@ struct GitHubExtrasService {
 
     // MARK: Releases（在线更新）
 
+    struct ReleaseAsset: Decodable {
+        let name: String
+        let size: Int
+        let contentType: String?
+        let browserDownloadURL: String
+
+        private enum CodingKeys: String, CodingKey {
+            case name, size
+            case contentType = "content_type"
+            case browserDownloadURL = "browser_download_url"
+        }
+    }
+
     struct ReleaseInfo: Decodable {
         let tagName: String
         let name: String?
@@ -200,6 +213,7 @@ struct GitHubExtrasService {
         let htmlURL: String
         let publishedAt: Date?
         let prerelease: Bool
+        let assets: [ReleaseAsset]?
 
         private enum CodingKeys: String, CodingKey {
             case tagName = "tag_name"
@@ -207,6 +221,10 @@ struct GitHubExtrasService {
             case htmlURL = "html_url"
             case publishedAt = "published_at"
         }
+    }
+
+    func repository(owner: String, repo: String) async throws -> RepositoryDTO {
+        try await send("GET", path: "/repos/\(owner)/\(repo)", as: RepositoryDTO.self)
     }
 
     /// 私有仓库需要带 token，因此走 API 而不是公开页面

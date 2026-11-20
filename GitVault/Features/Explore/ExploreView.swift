@@ -181,7 +181,7 @@ struct ExploreView: View {
                                     ) {
                                         toggleSave(entry.item)
                                     }
-                                    .frame(width: max(geo.size.width - DS.Space.screen * 2, 260))
+                                    .frame(width: min(max(geo.size.width - DS.Space.screen * 2, 240), 420))
                                 }
                                 .buttonStyle(.springPressCard)
                             }
@@ -190,6 +190,7 @@ struct ExploreView: View {
                     }
                 }
                 .frame(height: 248)
+                .clipped()
 
                 HStack(spacing: 5) {
                     Image(systemName: "hand.draw")

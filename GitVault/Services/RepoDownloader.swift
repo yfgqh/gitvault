@@ -2,8 +2,9 @@
 //  RepoDownloader.swift
 //  GitVault
 //
-//  仓库下载：GET /repos/{owner}/{repo}/zipball 保存到 Documents/GitVault/Downloads。
-//  带进度、可取消；完成后可直接分享。
+//  仓库下载：
+//  1) 先查该仓库最新 Release，若带可执行/打包类资产（.ipa/.apk/.zip/.dmg/.exe…）→ 下载资产
+//  2) Release 不存在或没有资产 → 提示后下载源码包（zipball）
 //
 
 import Foundation
@@ -20,26 +21,79 @@ final class RepoDownloader: NSObject, ObservableObject {
 
     @Published private(set) var state: State = .idle
     @Published private(set) var currentName: String = ""
+    /// 需要提示给用户的说明（例如「没有二进制文件，改下源码」）
+    @Published private(set) var notice: String?
 
     private var session: URLSession?
     private var task: URLSessionDownloadTask?
-    private var destination: URL?
 
     var isDownloading: Bool {
         if case .downloading = state { return true }
         return false
     }
 
+    func clearNotice() {
+        notice = nil
+    }
+
+    // MARK: 入口
+
     func start(owner: String, repo: String, branch: String) {
         guard !isDownloading else { return }
-        guard let url = GitHubExtrasService.shared.zipballURL(owner: owner, repo: repo, branch: branch) else {
-            state = .failed("下载地址无效")
-            return
-        }
+        currentName = "\(owner)-\(repo).zip"
+        state = .downloading(progress: 0)
+        Haptics.tap()
 
+        Task {
+            var target: URL?
+            var fileName: String?
+
+            if let release = try? await GitHubExtrasService.shared.latestRelease(owner: owner, repo: repo) {
+                let assets = release.assets ?? []
+                let binary = assets.first(where: { Self.looksBinary($0.name) })
+                let chosen = binary ?? assets.first
+                if let asset = chosen, let url = URL(string: asset.browserDownloadURL) {
+                    target = url
+                    fileName = asset.name
+                }
+            }
+
+            if target == nil {
+                notice = "该仓库没有发布编译好的二进制文件，正在下载源码包"
+                target = GitHubExtrasService.shared.zipballURL(owner: owner, repo: repo, branch: branch)
+                fileName = "\(owner)-\(repo)-source.zip"
+            }
+
+            guard let url = target else {
+                state = .failed("下载地址无效")
+                return
+            }
+            if let fileName { currentName = fileName }
+            beginDownload(url)
+        }
+    }
+
+    func cancel() {
+        task?.cancel()
+        task = nil
+        session?.invalidateAndCancel()
+        session = nil
+        state = .idle
+    }
+
+    // MARK: 内部
+
+    private static func looksBinary(_ name: String) -> Bool {
+        let lower = name.lowercased()
+        let suffixes = [".ipa", ".apk", ".dmg", ".pkg", ".zip", ".tar.gz", ".tgz",
+                        ".7z", ".exe", ".msi", ".msix", ".appx", ".deb", ".rpm", ".jar"]
+        return suffixes.contains { lower.hasSuffix($0) }
+    }
+
+    private func beginDownload(_ url: URL) {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 600
+        config.timeoutIntervalForResource = 1800
         let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
         self.session = session
 
@@ -50,21 +104,9 @@ final class RepoDownloader: NSObject, ObservableObject {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
-        currentName = "\(owner)-\(repo).zip"
-        state = .downloading(progress: 0)
-        Haptics.tap()
-
         let task = session.downloadTask(with: request)
         self.task = task
         task.resume()
-    }
-
-    func cancel() {
-        task?.cancel()
-        task = nil
-        session?.invalidateAndCancel()
-        session = nil
-        state = .idle
     }
 
     private func downloadDirectory() -> URL {
@@ -92,21 +134,22 @@ extension RepoDownloader: URLSessionDownloadDelegate {
     nonisolated func urlSession(_ session: URLSession,
                                 downloadTask: URLSessionDownloadTask,
                                 didFinishDownloadingTo location: URL) {
-        let name = downloadTask.originalRequest?.url?.lastPathComponent ?? "repo.zip"
+        // 用我们自己的文件名，避免 GitHub 的随机 id
+        let fallback = downloadTask.originalRequest?.url?.lastPathComponent ?? "repo.zip"
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSTemporaryDirectory())
         let dir = documents.appendingPathComponent("GitVault/Downloads", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let destination = dir.appendingPathComponent("\(name).zip")
-        try? FileManager.default.removeItem(at: destination)
-        do {
-            try FileManager.default.copyItem(at: location, to: destination)
-            Task { @MainActor in
+
+        Task { @MainActor in
+            let name = self.currentName.isEmpty ? fallback : self.currentName
+            let destination = dir.appendingPathComponent(name)
+            try? FileManager.default.removeItem(at: destination)
+            do {
+                try FileManager.default.copyItem(at: location, to: destination)
                 self.state = .finished(destination)
                 Haptics.success()
-            }
-        } catch {
-            Task { @MainActor in
+            } catch {
                 self.state = .failed("保存失败：\(error.localizedDescription)")
             }
         }

@@ -62,7 +62,7 @@ struct ProUnlockView: View {
                 Spacer(minLength: 0)
             }
 
-            Text("一次付费，终身可用。没有订阅、不会自动续费，换机可用「恢复购买」找回。")
+            Text("当前限时免费：Pro 全部功能试用 365 天，无需付费。")
                 .font(DS.Typo.bodySmall)
                 .foregroundStyle(DS.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -115,7 +115,7 @@ struct ProUnlockView: View {
                 } label: {
                     HStack(spacing: 6) {
                         if pro.isLoading { ProgressView().scaleEffect(0.7).tint(.white) }
-                        Text(pro.productAvailable ? "解锁 Pro · \(pro.priceText)" : "解锁 Pro · ¥9.9")
+                        Text("解锁 Pro · 当前限时免费")
                             .font(DS.Typo.body)
                     }
                     .foregroundStyle(.white)
@@ -161,10 +161,7 @@ struct ProUnlockView: View {
                 .font(.system(size: 11))
                 .foregroundStyle(DS.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("当前环境若无法连接 App Store（如自签安装），购买会提示不可用，不影响免费功能。")
-                .font(.system(size: 10))
-                .foregroundStyle(DS.textTertiary)
-                .fixedSize(horizontal: false, vertical: true)
+
         }
     }
 }
