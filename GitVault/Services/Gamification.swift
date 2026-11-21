@@ -222,6 +222,30 @@ enum Gamification {
                            symbol: "iphone.gen3",
                            tint: DS.accent,
                            topCategories: Array(sorted.prefix(3)).map { $0.key })
+        case .data:
+            return Persona(title: "数据炼金师",
+                           subtitle: "管道、指标、特征——你擅长把原始数据变成可用的结论",
+                           symbol: "chart.bar.xaxis",
+                           tint: DS.accent,
+                           topCategories: Array(sorted.prefix(3)).map { $0.key })
+        case .database:
+            return Persona(title: "存储守门人",
+                           subtitle: "你对索引、事务和一致性有执念，选型时会先看存储层",
+                           symbol: "cylinder.split.1x2",
+                           tint: DS.success,
+                           topCategories: Array(sorted.prefix(3)).map { $0.key })
+        case .systems:
+            return Persona(title: "底层潜水员",
+                           subtitle: "内核、运行时、编译器——你愿意为了搞清楚机制读汇编",
+                           symbol: "cpu",
+                           tint: DS.textSecondary,
+                           topCategories: Array(sorted.prefix(3)).map { $0.key })
+        case .security:
+            return Persona(title: "安全哨兵",
+                           subtitle: "你在意攻击面、供应链与隐私边界，看到权限申请会多看一眼",
+                           symbol: "lock.shield.fill",
+                           tint: DS.danger,
+                           topCategories: Array(sorted.prefix(3)).map { $0.key })
         case .learning:
             return Persona(title: "知识猎人",
                            subtitle: "清单、教程、面试题——你更在意把知识搬进自己的脑子",
