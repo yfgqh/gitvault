@@ -25,6 +25,7 @@ struct RepoDetailView: View {
     @State private var showGraph = false
     @State private var showPro = false
     @State private var showReadmeFull = false
+    @State private var showAuthor = false
     @State private var showDownloadOptions = false
     @State private var exportedURL: URL?
     @State private var isStarred = false
@@ -110,6 +111,11 @@ struct RepoDetailView: View {
         } message: {
             Text("二进制文件来自该仓库的 Release 资产；没有资产时会自动改下源码包。")
         }
+        .sheet(isPresented: $showAuthor) {
+            AuthorView(login: vm.repo.owner)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
         .sheet(isPresented: $showReadmeFull) {
             ReadmeFullView(repo: vm.repo, markdown: vm.readmeMarkdown ?? "")
         }
@@ -161,9 +167,20 @@ struct RepoDetailView: View {
                 )
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(vm.repo.owner)
-                        .font(DS.Typo.caption)
-                        .foregroundStyle(.white.opacity(0.75))
+                    Button {
+                        Haptics.tap()
+                        showAuthor = true
+                    } label: {
+                        HStack(spacing: 3) {
+                            Text(vm.repo.owner)
+                                .font(DS.Typo.caption)
+                                .foregroundStyle(.white.opacity(0.85))
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 7, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.6))
+                        }
+                    }
+                    .buttonStyle(.plain)
                     Text(vm.repo.name)
                         .font(.system(.title2, design: .default).weight(.bold))
                         .foregroundStyle(.white)

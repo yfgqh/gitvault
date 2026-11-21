@@ -18,7 +18,7 @@ final class ProStore: ObservableObject {
     static let productID = "com.yfgqh.gitvault.pro"
     static let fallbackPrice = "¥9.9"
     static let trialDays = 365
-    static let freeAIDaily = 5
+    static let freeAIDaily = 20
 
     @Published private(set) var product: Product?
     @Published private(set) var isPro = false

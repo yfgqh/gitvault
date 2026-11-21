@@ -191,6 +191,28 @@ struct GitHubExtrasService {
         )
     }
 
+    // MARK: 作者
+
+    /// 某个作者的高星仓库（搜索 user:login 按 star 排序）
+    func repositories(by login: String, perPage: Int = 20) async throws -> [RepositoryDTO] {
+        let page: SearchPage = try await send(
+            "GET",
+            path: "/search/repositories",
+            query: [
+                URLQueryItem(name: "q", value: "user:\(login)"),
+                URLQueryItem(name: "sort", value: "stars"),
+                URLQueryItem(name: "order", value: "desc"),
+                URLQueryItem(name: "per_page", value: "\(perPage)")
+            ],
+            as: SearchPage.self
+        )
+        return page.items
+    }
+
+    struct SearchPage: Decodable {
+        let items: [RepositoryDTO]
+    }
+
     // MARK: Releases（在线更新）
 
     struct ReleaseAsset: Decodable {

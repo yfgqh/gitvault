@@ -186,6 +186,18 @@ struct CodeFileView: View {
 
     @Environment(\.openURL) private var openURL
     @StateObject private var vm = CodeFileViewModel()
+    @State private var searchText = ""
+
+    /// 命中的行号（0 基）
+    private var matchedLines: Set<Int> {
+        let keyword = searchText.trimmingCharacters(in: .whitespaces)
+        guard !keyword.isEmpty else { return [] }
+        var result = Set<Int>()
+        for (index, line) in lines.enumerated() where line.range(of: keyword, options: .caseInsensitive) != nil {
+            result.insert(index)
+        }
+        return result
+    }
 
     /// 超大文件只渲染前 2000 行：一次布局十万行文本会让主线程直接卡死
     private var lines: [String] {
@@ -218,11 +230,17 @@ struct CodeFileView: View {
                         }
 
                         VStack(alignment: .leading, spacing: 0) {
-                            ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                            ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
                                 Text(line.isEmpty ? " " : line)
                                     .font(.system(size: 11, design: .monospaced))
                                     .foregroundStyle(DS.textPrimary)
                                     .frame(height: 16, alignment: .leading)
+                                    .padding(.horizontal, 2)
+                                    .background(
+                                        matchedLines.contains(index)
+                                            ? DS.warning.opacity(0.22)
+                                            : Color.clear
+                                    )
                             }
                         }
                     }
@@ -242,6 +260,10 @@ struct CodeFileView: View {
         .background(DS.bgPrimary)
         .navigationTitle(path.split(separator: "/").last.map(String.init) ?? path)
         .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $searchText, prompt: "在文件中查找")
+        .onChange(of: searchText) { _ in
+            if !searchText.isEmpty { Haptics.selection() }
+        }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {

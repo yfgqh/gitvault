@@ -25,6 +25,11 @@ struct ProfileView: View {
     @State private var showMap = false
     @State private var showMyRepos = false
     @State private var showPro = false
+    @State private var showCompare = false
+    @State private var showHealth = false
+    @State private var showRadar = false
+    @State private var showLearning = false
+    @State private var shareTarget: ExportTarget?
     @State private var cacheSizeText = "—"
 
     private var appearance: AppearanceMode {
@@ -74,6 +79,16 @@ struct ProfileView: View {
             .sheet(isPresented: $showWeekly) { WeeklyReportView() }
             .sheet(isPresented: $showMap) { CollectionMapView() }
             .sheet(isPresented: $showMyRepos) { MyReposView() }
+            .sheet(isPresented: $showCompare) { RepoCompareView() }
+            .sheet(isPresented: $showHealth) { VaultHealthView() }
+            .sheet(isPresented: $showRadar) { TechRadarView() }
+            .sheet(isPresented: $showLearning) {
+                LearningPathView(category: vault.items.first?.category ?? .ai)
+            }
+            .sheet(item: $shareTarget) { target in
+                ShareSheet(items: [target.url])
+                    .presentationDetents([.medium, .large])
+            }
             .sheet(isPresented: $showPro) {
                 ProUnlockView()
                     .environmentObject(env)
@@ -296,6 +311,32 @@ struct ProfileView: View {
                 .foregroundStyle(DS.textPrimary)
 
             VStack(spacing: 0) {
+                SettingsRow(symbol: "rectangle.split.3x1", title: "仓库对比", detail: "选 2–3 个") {
+                    showCompare = true
+                }
+                Divider().padding(.leading, 52)
+                SettingsRow(symbol: "stethoscope", title: "收藏库体检",
+                            detail: "\(VaultHealthScanner.scan(vault.items).count) 处待处理") {
+                    showHealth = true
+                }
+                Divider().padding(.leading, 52)
+                SettingsRow(symbol: "antenna.radiowaves.left.and.right", title: "技术雷达", detail: "近半年") {
+                    showRadar = true
+                }
+                Divider().padding(.leading, 52)
+                SettingsRow(symbol: "graduationcap", title: "学习路径", detail: "按难度分档") {
+                    showLearning = true
+                }
+                Divider().padding(.leading, 52)
+                SettingsRow(symbol: "square.and.arrow.up.on.square", title: "分享收藏夹", detail: "导出 HTML") {
+                    if let url = ShareVaultHTML.writeFile(items: vault.items, title: "我的 GitVault 收藏") {
+                        shareTarget = ExportTarget(url: url)
+                        env.show("已生成分享页", kind: .success)
+                    } else {
+                        env.show("生成失败，请重试", kind: .warning)
+                    }
+                }
+                Divider().padding(.leading, 52)
                 SettingsRow(symbol: "crown.fill", title: "GitVault Pro",
                             detail: env.pro.statusTitle, tint: DS.accent) {
                     showPro = true

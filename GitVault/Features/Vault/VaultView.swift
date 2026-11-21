@@ -17,6 +17,10 @@ struct VaultView: View {
     @State private var newFolderName = ""
     /// 在「移入文件夹」里点了「新建文件夹」时记住要移动的项目
     @State private var pendingMoveItem: VaultItem?
+    /// 正在编辑笔记的项目
+    @State private var noteItem: VaultItem?
+    @State private var noteDraft = ""
+    @State private var batchProgress: String?
     @State private var exportFile: ExportFile?
     @State private var moveTarget: VaultItem?
 
@@ -85,6 +89,23 @@ struct VaultView: View {
                 }
                 Button("取消", role: .cancel) { moveTarget = nil }
             }
+            .alert("收藏笔记", isPresented: Binding(
+                get: { noteItem != nil },
+                set: { if !$0 { noteItem = nil } }
+            )) {
+                TextField("为什么收藏它？", text: $noteDraft, axis: .vertical)
+                Button("取消", role: .cancel) { noteItem = nil; noteDraft = "" }
+                Button("保存") {
+                    if let item = noteItem {
+                        vault.updateNote(id: item.repoID, note: noteDraft)
+                        env.show("笔记已保存", kind: .success)
+                    }
+                    noteItem = nil
+                    noteDraft = ""
+                }
+            } message: {
+                Text("笔记会随收藏一起导出，帮助你半年后想起当初为什么存它。")
+            }
             .sheet(item: $exportFile) { file in
                 ShareSheet(items: [file.url])
                     .presentationDetents([.medium, .large])
@@ -128,7 +149,17 @@ struct VaultView: View {
                     Label("导出 Markdown", systemImage: "doc.plaintext")
                 }
                 Divider()
-                Button(editMode.isEditing ? "完成排序" : "拖拽排序") {
+                Button {
+                Task { await batchStar() }
+            } label: {
+                Label("批量星标（Pro）", systemImage: "star.square.on.square")
+            }
+            Button {
+                Task { await batchFork() }
+            } label: {
+                Label("批量 Fork（Pro）", systemImage: "arrow.triangle.branch")
+            }
+            Button(editMode.isEditing ? "完成排序" : "拖拽排序") {
                     withAnimation(DS.Motion.snappy) {
                         editMode = editMode.isEditing ? .inactive : .active
                     }
@@ -248,7 +279,20 @@ struct VaultView: View {
 
     private func entryRow(_ item: VaultItem) -> some View {
         NavigationLink(value: ShowcaseRepo(entry: item)) {
-            VaultRow(item: item)
+            VStack(alignment: .leading, spacing: 6) {
+                VaultRow(item: item)
+                if let note = item.note, !note.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "text.quote")
+                            .font(.system(size: 8))
+                        Text(note)
+                            .font(.system(size: 10))
+                            .lineLimit(2)
+                    }
+                    .foregroundStyle(DS.textTertiary)
+                    .padding(.leading, 56)
+                }
+            }
         }
         .buttonStyle(.plain)
             .listRowInsets(EdgeInsets(top: 4, leading: DS.Space.screen, bottom: 4, trailing: DS.Space.screen))
@@ -309,7 +353,76 @@ struct VaultView: View {
                 } label: {
                     Label("移入文件夹", systemImage: "folder")
                 }
+                Button {
+                    noteItem = item
+                    noteDraft = item.note ?? ""
+                } label: {
+                    Label(item.note == nil ? "添加笔记" : "编辑笔记", systemImage: "square.and.pencil")
+                }
+                Button {
+                    if let url = ShareVaultHTML.writeFile(items: [item], title: item.name) {
+                        exportFile = ExportFile(url: url, title: item.name)
+                    }
+                } label: {
+                    Label("分享为 HTML", systemImage: "square.and.arrow.up")
+                }
             }
+    }
+
+    // MARK: 批量操作
+
+    private func batchStar() async {
+        guard env.pro.hasFullAccess else {
+            env.show("批量操作是 Pro 功能（当前限时免费试用中，请先解锁）", kind: .warning)
+            return
+        }
+        guard env.auth.isSignedIn else {
+            env.show("请先登录 GitHub", kind: .warning)
+            return
+        }
+        let targets = Array(vault.items.prefix(20))
+        guard !targets.isEmpty else { return }
+
+        var done = 0
+        for item in targets {
+            batchProgress = "\(done)/\(targets.count)"
+            do {
+                try await GitHubExtrasService.shared.star(owner: item.owner, repo: item.name)
+                done += 1
+            } catch {
+                CrashReporter.log("batch-star: \(item.name) failed")
+            }
+        }
+        batchProgress = nil
+        Haptics.success()
+        env.show("已批量星标 \(done) 个仓库", kind: .success)
+    }
+
+    private func batchFork() async {
+        guard env.pro.hasFullAccess else {
+            env.show("批量 Fork 是 Pro 功能（当前限时免费试用中，请先解锁）", kind: .warning)
+            return
+        }
+        guard env.auth.isSignedIn else {
+            env.show("请先登录 GitHub", kind: .warning)
+            return
+        }
+        let targets = Array(vault.items.prefix(10))
+        guard !targets.isEmpty else { return }
+
+        var done = 0
+        for item in targets {
+            batchProgress = "\(done)/\(targets.count)"
+            do {
+                _ = try await GitHubExtrasService.shared.fork(owner: item.owner, repo: item.name)
+                done += 1
+            } catch {
+                CrashReporter.log("batch-fork: \(item.name) failed")
+            }
+        }
+        batchProgress = nil
+        Haptics.success()
+        env.show("已 Fork \(done) 个仓库（上限 10 个/次）", kind: .success)
     }
 
     private func folderRow(_ folder: VaultFolderItem) -> some View {

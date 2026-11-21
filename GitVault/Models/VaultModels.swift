@@ -26,6 +26,8 @@ struct VaultItem: Codable, Identifiable, Hashable {
     var avatarURL: String?
     var htmlURL: String
     var topics: [String]
+    /// 个人笔记：为什么收藏它
+    var note: String? = nil
 
     var id: String { repoID }
 

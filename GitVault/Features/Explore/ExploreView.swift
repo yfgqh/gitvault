@@ -109,7 +109,10 @@ struct ExploreView: View {
                 await vm.loadIfNeeded(profile: discoveryProfile)
                 await env.refreshCategoryCounts()
                 env.allRepos.loadIfNeeded()
-                await env.allRepos.refreshStep()
+                // 离线全量库是 Pro 能力：免费用户只读本地已有缓存，不再自动抓取
+                if env.pro.hasFullAccess {
+                    await env.allRepos.refreshStep()
+                }
             }
         }
     }

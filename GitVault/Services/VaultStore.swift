@@ -77,6 +77,16 @@ final class VaultStore: ObservableObject {
         persist()
     }
 
+    /// 更新个人笔记
+    func updateNote(id: String, note: String?) {
+        guard let index = items.firstIndex(where: { $0.repoID == id }) else { return }
+        var item = items[index]
+        let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines)
+        item.note = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        items[index] = item
+        persist()
+    }
+
     func assign(id: String, to folder: String?) {
         guard let index = items.firstIndex(where: { $0.repoID == id }) else { return }
         items[index].folderName = folder

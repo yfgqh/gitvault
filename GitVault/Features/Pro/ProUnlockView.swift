@@ -14,10 +14,11 @@ struct ProUnlockView: View {
     private var pro: ProStore { env.pro }
 
     private let benefits: [(String, String, String)] = [
-        ("infinity", "AI 翻译无限", "免费版每日 5 次，Pro 不限次数，长文自动分节翻译"),
-        ("chart.bar.doc.horizontal", "探索报告明细", "主题 / 语言分布、分享长图，记录你的收藏轨迹"),
-        ("wand.and.stars", "批量智能整理", "一键重算全部收藏的分类与标签，不用逐条打开"),
-        ("clock.arrow.circlepath", "优先体验", "新功能先在 Pro 通道开放")
+        ("infinity", "AI 翻译无限", "免费版每日 20 次；Pro 不限次数，长文自动分节翻译"),
+        ("arrow.down.circle", "离线全量库", "把 star>500 的仓库全部缓存到本地，地铁与弱网也能搜索浏览"),
+        ("square.stack.3d.up", "批量操作", "批量星标、批量 Fork、批量导出，整理上百条收藏不用逐条点"),
+        ("bell.badge", "更新提醒", "收藏的仓库发布新版本时在列表里标出来，不错过重要变更"),
+        ("chevron.left.forwardslash.chevron.right", "代码浏览增强", "文件内搜索与关键字高亮，读源码更省力")
     ]
 
     var body: some View {
