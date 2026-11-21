@@ -32,6 +32,10 @@ struct ProfileView: View {
     @State private var shareTarget: ExportTarget?
     @State private var cacheSizeText = "—"
 
+    /// 我的：主页 / 实验室 / 设置 三层
+    private enum Pane { case home, lab, settings }
+    @State private var pane: Pane = .home
+
     private var appearance: AppearanceMode {
         AppearanceMode(rawValue: appearanceRaw) ?? .dark
     }
@@ -40,14 +44,23 @@ struct ProfileView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: DS.Space.l) {
-                    accountCard
-                        .screenPadding()
-                        .padding(.top, DS.Space.s)
+                    if pane == .home {
+                        accountCard
+                            .screenPadding()
+                            .padding(.top, DS.Space.s)
 
-                    appearanceSection.screenPadding()
-                    aiSection.screenPadding()
-                    dataSection.screenPadding()
-                    aboutSection.screenPadding()
+                        proCard.screenPadding()
+                        collectionCard.screenPadding()
+                        entrySection.screenPadding()
+                    } else if pane == .lab {
+                        paneHeader(title: "实验室", subtitle: "分析、整理与创作工具")
+                        labSection.screenPadding()
+                    } else {
+                        paneHeader(title: "设置", subtitle: "外观、AI 与数据")
+                        appearanceSection.screenPadding()
+                        aiSection.screenPadding()
+                        dataSection.screenPadding()
+                    }
 
                     Color.clear.frame(height: DS.Space.tabBarInset)
                 }
@@ -194,6 +207,220 @@ struct ProfileView: View {
         .glassSurface()
     }
 
+    // MARK: 主页卡片
+
+    private var proCard: some View {
+        Button {
+            Haptics.tap()
+            showPro = true
+        } label: {
+            HStack(spacing: DS.Space.m) {
+                ZStack {
+                    Circle().fill(DS.accent.opacity(0.14)).frame(width: 44, height: 44)
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(DS.accent)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("GitVault Pro")
+                        .font(DS.Typo.body)
+                        .foregroundStyle(DS.textPrimary)
+                    Text(env.pro.statusTitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(env.pro.isPro ? DS.success : DS.textTertiary)
+                }
+
+                Spacer(minLength: 0)
+
+                Text(env.pro.isPro ? "已解锁" : "查看")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(DS.accentGradient))
+            }
+            .padding(DS.Space.m)
+            .glassSurface()
+        }
+        .buttonStyle(.springPressSilent)
+    }
+
+    private var collectionCard: some View {
+        HStack(spacing: DS.Space.l) {
+            statistic(value: "\(vault.items.count)", title: "收藏")
+            statistic(value: "\(vault.folders.count)", title: "文件夹")
+            statistic(value: "\(Set(vault.items.map { $0.category }).count)", title: "主题")
+            Spacer(minLength: 0)
+        }
+        .padding(DS.Space.m)
+        .glassSurface()
+    }
+
+    private func statistic(value: String, title: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(value)
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .foregroundStyle(DS.textPrimary)
+            Text(title)
+                .font(.system(size: 10))
+                .foregroundStyle(DS.textTertiary)
+        }
+    }
+
+    // MARK: 入口
+
+    private var entrySection: some View {
+        VStack(spacing: 0) {
+            SettingsRow(symbol: "testtube.2", title: "实验室",
+                        detail: "对比 · 体检 · 雷达 · 学习路径") {
+                Haptics.tap()
+                withAnimation(DS.Motion.fade) { pane = .lab }
+            }
+            Divider().padding(.leading, 52)
+            SettingsRow(symbol: "gearshape", title: "设置", detail: "外观 · AI · 数据") {
+                Haptics.tap()
+                withAnimation(DS.Motion.fade) { pane = .settings }
+            }
+            Divider().padding(.leading, 52)
+            SettingsRow(symbol: "info.circle", title: "关于 GitVault", detail: versionText) {
+                showAbout = true
+            }
+            Divider().padding(.leading, 52)
+            SettingsRow(symbol: "bubble.left.and.bubble.right", title: "加入 Telegram 群", detail: "反馈 / 交流") {
+                if let url = URL(string: "https://t.me/GitVaultipa") { openURL(url) }
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                .fill(DS.bgSecondary)
+        )
+    }
+
+    // MARK: 实验室
+
+    private var labSection: some View {
+        VStack(alignment: .leading, spacing: DS.Space.l) {
+            VStack(alignment: .leading, spacing: DS.Space.s) {
+                Text("分析")
+                    .font(DS.Typo.caption)
+                    .foregroundStyle(DS.textTertiary)
+
+                VStack(spacing: 0) {
+                    SettingsRow(symbol: "rectangle.split.3x1", title: "仓库对比", detail: "选 2–3 个") {
+                        showCompare = true
+                    }
+                    Divider().padding(.leading, 52)
+                    SettingsRow(symbol: "stethoscope", title: "收藏库体检",
+                                detail: "\(VaultHealthScanner.scan(vault.items).count) 处待处理") {
+                        showHealth = true
+                    }
+                    Divider().padding(.leading, 52)
+                    SettingsRow(symbol: "antenna.radiowaves.left.and.right", title: "技术雷达", detail: "近半年") {
+                        showRadar = true
+                    }
+                    Divider().padding(.leading, 52)
+                    SettingsRow(symbol: "graduationcap", title: "学习路径", detail: "按难度分档") {
+                        showLearning = true
+                    }
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                        .fill(DS.bgSecondary)
+                )
+            }
+
+            VStack(alignment: .leading, spacing: DS.Space.s) {
+                Text("记录与创作")
+                    .font(DS.Typo.caption)
+                    .foregroundStyle(DS.textTertiary)
+
+                VStack(spacing: 0) {
+                    SettingsRow(symbol: "rosette", title: "成就徽章",
+                                detail: "\(Gamification.achievements(items: vault.items).filter { $0.unlocked }.count)/8") {
+                        showBadges = true
+                    }
+                    Divider().padding(.leading, 52)
+                    SettingsRow(symbol: "chart.bar.doc.horizontal", title: "探索报告", detail: "近 7 天") {
+                        showWeekly = true
+                    }
+                    Divider().padding(.leading, 52)
+                    SettingsRow(symbol: "circle.hexagongrid", title: "收藏地图", detail: "\(vault.items.count) 个") {
+                        showMap = true
+                    }
+                    Divider().padding(.leading, 52)
+                    SettingsRow(symbol: "square.and.arrow.up.on.square", title: "分享收藏夹", detail: "导出 HTML") {
+                        if let url = ShareVaultHTML.writeFile(items: vault.items, title: "我的 GitVault 收藏") {
+                            shareTarget = ExportTarget(url: url)
+                            env.show("已生成分享页", kind: .success)
+                        } else {
+                            env.show("生成失败，请重试", kind: .warning)
+                        }
+                    }
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                        .fill(DS.bgSecondary)
+                )
+            }
+
+            VStack(alignment: .leading, spacing: DS.Space.s) {
+                Text("账号")
+                    .font(DS.Typo.caption)
+                    .foregroundStyle(DS.textTertiary)
+
+                VStack(spacing: 0) {
+                    SettingsRow(symbol: "shippingbox", title: "我的仓库",
+                                detail: auth.isSignedIn ? auth.displayName : "未登录") {
+                        showMyRepos = true
+                    }
+                    Divider().padding(.leading, 52)
+                    SettingsRow(symbol: "arrow.clockwise", title: "刷新账号资料",
+                                detail: auth.isSignedIn ? "已登录" : "未登录") {
+                        Task {
+                            await auth.refreshProfile()
+                            env.show(auth.isSignedIn ? "资料已刷新" : "请先登录",
+                                     kind: auth.isSignedIn ? .success : .warning)
+                        }
+                    }
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                        .fill(DS.bgSecondary)
+                )
+            }
+        }
+    }
+
+    // MARK: 面板头
+
+    private func paneHeader(title: String, subtitle: String) -> some View {
+        HStack(spacing: DS.Space.s) {
+            Button {
+                Haptics.tap()
+                withAnimation(DS.Motion.fade) { pane = .home }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(DS.textPrimary)
+                    .frame(width: 32, height: 32)
+                    .background(Circle().fill(DS.bgSecondary))
+            }
+            .buttonStyle(.springPressSilent)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(DS.textPrimary)
+                Text(subtitle)
+                    .font(.system(size: 10))
+                    .foregroundStyle(DS.textTertiary)
+            }
+            Spacer(minLength: 0)
+        }
+        .screenPadding()
+        .padding(.top, DS.Space.s)
+    }
     // MARK: 外观
 
     private var appearanceSection: some View {
@@ -283,6 +510,18 @@ struct ProfileView: View {
                     export(.markdown)
                 }
                 Divider().padding(.leading, 52)
+                SettingsRow(symbol: "arrow.down.circle", title: "检查更新",
+                            detail: env.update.available?.tag ?? versionText) {
+                    Task {
+                        await env.update.checkIfNeeded(force: true)
+                        if let update = env.update.available {
+                            env.show("发现新版本 \(update.tag)", kind: .success)
+                        } else {
+                            env.show("已是最新版本", kind: .info)
+                        }
+                    }
+                }
+                Divider().padding(.leading, 52)
                 SettingsRow(symbol: "photo", title: "清理图片缓存", detail: cacheSizeText) {
                     URLCache.shared.removeAllCachedResponses()
                     updateCacheSize()
@@ -299,97 +538,6 @@ struct ProfileView: View {
                 RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
                     .fill(DS.bgSecondary)
             )
-        }
-    }
-
-    // MARK: 关于
-
-    private var aboutSection: some View {
-        VStack(alignment: .leading, spacing: DS.Space.s) {
-            Text("关于")
-                .font(DS.Typo.headline)
-                .foregroundStyle(DS.textPrimary)
-
-            VStack(spacing: 0) {
-                SettingsRow(symbol: "rectangle.split.3x1", title: "仓库对比", detail: "选 2–3 个") {
-                    showCompare = true
-                }
-                Divider().padding(.leading, 52)
-                SettingsRow(symbol: "stethoscope", title: "收藏库体检",
-                            detail: "\(VaultHealthScanner.scan(vault.items).count) 处待处理") {
-                    showHealth = true
-                }
-                Divider().padding(.leading, 52)
-                SettingsRow(symbol: "antenna.radiowaves.left.and.right", title: "技术雷达", detail: "近半年") {
-                    showRadar = true
-                }
-                Divider().padding(.leading, 52)
-                SettingsRow(symbol: "graduationcap", title: "学习路径", detail: "按难度分档") {
-                    showLearning = true
-                }
-                Divider().padding(.leading, 52)
-                SettingsRow(symbol: "square.and.arrow.up.on.square", title: "分享收藏夹", detail: "导出 HTML") {
-                    if let url = ShareVaultHTML.writeFile(items: vault.items, title: "我的 GitVault 收藏") {
-                        shareTarget = ExportTarget(url: url)
-                        env.show("已生成分享页", kind: .success)
-                    } else {
-                        env.show("生成失败，请重试", kind: .warning)
-                    }
-                }
-                Divider().padding(.leading, 52)
-                SettingsRow(symbol: "crown.fill", title: "GitVault Pro",
-                            detail: env.pro.statusTitle, tint: DS.accent) {
-                    showPro = true
-                }
-                Divider().padding(.leading, 52)
-                SettingsRow(symbol: "rosette", title: "成就徽章",
-                            detail: "\(Gamification.achievements(items: vault.items).filter { $0.unlocked }.count)/8") {
-                    showBadges = true
-                }
-                Divider().padding(.leading, 52)
-                SettingsRow(symbol: "chart.bar.doc.horizontal", title: "探索报告", detail: "近 7 天") {
-                    showWeekly = true
-                }
-                Divider().padding(.leading, 52)
-                SettingsRow(symbol: "circle.hexagongrid", title: "收藏地图", detail: "\(vault.items.count) 个") {
-                    showMap = true
-                }
-
-                Divider().padding(.leading, 52)
-                SettingsRow(symbol: "shippingbox", title: "我的仓库",
-                            detail: auth.isSignedIn ? auth.displayName : "未登录") {
-                    showMyRepos = true
-                }
-                Divider().padding(.leading, 52)
-                SettingsRow(symbol: "arrow.down.circle", title: "检查更新",
-                            detail: env.update.available?.tag ?? "已是最新") {
-                    Task {
-                        await env.update.checkIfNeeded(force: true)
-                        if let update = env.update.available {
-                            env.show("发现新版本 \(update.tag)", kind: .success)
-                        } else {
-                            env.show("已是最新版本", kind: .info)
-                        }
-                    }
-                }
-                Divider().padding(.leading, 52)
-                SettingsRow(symbol: "info.circle", title: "关于 GitVault", detail: versionText) {
-                    showAbout = true
-                }
-                Divider().padding(.leading, 52)
-                SettingsRow(symbol: "bubble.left.and.bubble.right", title: "加入 Telegram 群", detail: "反馈 / 交流") {
-                    if let url = URL(string: "https://t.me/GitVaultipa") { openURL(url) }
-                }
-            }
-            .background(
-                RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
-                    .fill(DS.bgSecondary)
-            )
-
-            Text("数据来源 GitHub REST API v3，本应用与 GitHub 官方无隶属关系。")
-                .font(.system(size: 11))
-                .foregroundStyle(DS.textTertiary)
-                .padding(.top, DS.Space.s)
         }
     }
 

@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
+  <defs>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6E7BFF"/>
+      <stop offset="1" stop-color="#A66CFF"/>
+    </linearGradient>
+  </defs>
+  <rect width="390" height="844" fill="#0B0E14"/>
+
+  <text x="28" y="30" fill="#E6E9F0" font-family="-apple-system, Helvetica" font-size="13" font-weight="600">9:41</text>
+  <text x="20" y="76" fill="#E6E9F0" font-family="-apple-system, Helvetica" font-size="24" font-weight="700">我的</text>
+
+  <!-- 账号卡 -->
+  <rect x="20" y="92" width="350" height="96" rx="16" fill="#151A23"/>
+  <circle cx="60" cy="140" r="24" fill="#2A3040"/>
+  <text x="100" y="134" fill="#E6E9F0" font-family="-apple-system, Helvetica" font-size="14" font-weight="600">yfgqh</text>
+  <text x="100" y="152" fill="#5A6472" font-family="-apple-system, Helvetica" font-size="10">已登录 · 12 个公开仓库</text>
+  <rect x="286" y="126" width="64" height="28" rx="14" fill="url(#accent)"/>
+  <text x="302" y="144" fill="#FFFFFF" font-family="-apple-system, Helvetica" font-size="10" font-weight="600">管理</text>
+
+  <!-- Pro 卡 -->
+  <rect x="20" y="200" width="350" height="76" rx="16" fill="#151A23"/>
+  <circle cx="56" cy="238" r="18" fill="#7C6DF2" opacity="0.16"/>
+  <text x="50" y="243" fill="#A99BFF" font-family="-apple-system, Helvetica" font-size="13">♛</text>
+  <text x="86" y="231" fill="#E6E9F0" font-family="-apple-system, Helvetica" font-size="13" font-weight="600">GitVault Pro</text>
+  <text x="86" y="248" fill="#5A6472" font-family="-apple-system, Helvetica" font-size="10">Pro 试用中 · 剩 351 天</text>
+  <rect x="286" y="224" width="64" height="28" rx="14" fill="url(#accent)"/>
+  <text x="316" y="242" fill="#FFFFFF" font-family="-apple-system, Helvetica" font-size="10" font-weight="600">查看</text>
+
+  <!-- 收藏统计 -->
+  <rect x="20" y="288" width="350" height="76" rx="16" fill="#151A23"/>
+  <text x="44" y="320" fill="#E6E9F0" font-family="-apple-system, Helvetica" font-size="19" font-weight="700">87</text>
+  <text x="44" y="336" fill="#5A6472" font-family="-apple-system, Helvetica" font-size="9">收藏</text>
+  <text x="132" y="320" fill="#E6E9F0" font-family="-apple-system, Helvetica" font-size="19" font-weight="700">4</text>
+  <text x="132" y="336" fill="#5A6472" font-family="-apple-system, Helvetica" font-size="9">文件夹</text>
+  <text x="220" y="320" fill="#E6E9F0" font-family="-apple-system, Helvetica" font-size="19" font-weight="700">6</text>
+  <text x="220" y="336" fill="#5A6472" font-family="-apple-system, Helvetica" font-size="9">主题</text>
+
+  <!-- 入口 -->
+  <rect x="20" y="376" width="350" height="212" rx="16" fill="#151A23"/>
+  <text x="38" y="404" fill="#E6E9F0" font-family="-apple-system, Helvetica" font-size="12">实验室</text>
+  <text x="38" y="419" fill="#5A6472" font-family="-apple-system, Helvetica" font-size="9">对比 · 体检 · 雷达 · 学习路径</text>
+  <text x="340" y="410" fill="#5A6472" font-family="-apple-system, Helvetica" font-size="12">›</text>
+  <line x1="36" y1="434" x2="354" y2="434" stroke="#242A36"/>
+
+  <text x="38" y="462" fill="#E6E9F0" font-family="-apple-system, Helvetica" font-size="12">设置</text>
+  <text x="38" y="477" fill="#5A6472" font-family="-apple-system, Helvetica" font-size="9">外观 · AI · 数据</text>
+  <text x="340" y="468" fill="#5A6472" font-family="-apple-system, Helvetica" font-size="12">›</text>
+  <line x1="36" y1="492" x2="354" y2="492" stroke="#242A36"/>
+
+  <text x="38" y="520" fill="#E6E9F0" font-family="-apple-system, Helvetica" font-size="12">关于 GitVault</text>
+  <text x="38" y="535" fill="#5A6472" font-family="-apple-system, Helvetica" font-size="9">v2.4.0 (15)</text>
+  <text x="340" y="526" fill="#5A6472" font-family="-apple-system, Helvetica" font-size="12">›</text>
+  <line x1="36" y1="550" x2="354" y2="550" stroke="#242A36"/>
+
+  <text x="38" y="578" fill="#E6E9F0" font-family="-apple-system, Helvetica" font-size="12">加入 Telegram 群</text>
+  <text x="38" y="593" fill="#5A6472" font-family="-apple-system, Helvetica" font-size="9">反馈 / 交流</text>
+
+  <!-- TabBar -->
+  <rect x="30" y="778" width="330" height="48" rx="24" fill="#151A23"/>
+  <text x="60" y="806" fill="#9AA3B2" font-family="-apple-system, Helvetica" font-size="10">发现</text>
+  <text x="128" y="806" fill="#9AA3B2" font-family="-apple-system, Helvetica" font-size="10">分类</text>
+  <text x="196" y="806" fill="#9AA3B2" font-family="-apple-system, Helvetica" font-size="10">搜索</text>
+  <text x="262" y="806" fill="#9AA3B2" font-family="-apple-system, Helvetica" font-size="10">收藏</text>
+  <circle cx="316" cy="802" r="17" fill="url(#accent)"/>
+  <text x="306" y="807" fill="#FFFFFF" font-family="-apple-system, Helvetica" font-size="9" font-weight="600">我的</text>
+</svg>

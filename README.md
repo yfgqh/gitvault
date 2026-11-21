@@ -1,137 +1,187 @@
 # GitVault · GitHub 精选
 
-> 帮助中文开发者整理、分类、追踪 GitHub 优质开源项目的 iOS App。
-> 纯 SwiftUI + SwiftData，深色优先的原生高级感界面。
+为中文开发者打造的开源项目**发现 · 分类 · 收藏 · 追踪**工具。
+
+原生 SwiftUI 编写，深色为默认外观，收藏数据全部保存在本地，不上传任何内容。
+
+<p>
+  <b>iOS 16.0+</b> · <b>SwiftUI</b> · <b>零第三方依赖</b> · <b>未签名 IPA（TrollStore / 自签）</b>
+</p>
 
 ---
 
-## 进度：阶段 1 – 5 全部完成 ✅
+## 截图
 
-| 阶段 | 内容 | 状态 |
-|---|---|---|
-| 阶段 1 | 工程骨架 / DesignSystem / 悬浮 Tab Bar / Splash / 五个页面 / Mock 数据 | ✅ |
-| 阶段 2 | DTO + GitHubService + Keychain + 规则分类器 + 中文摘要 + LLM 抽象层 + SwiftData 本地库 | ✅ |
-| 阶段 3 | 首页 Explore + 分类页 + RepoCard + 详情页（Hero 转场 / 语言占比 / README 摘要） | ✅ |
-| 阶段 4 | 搜索防抖 + 分页 + SwiftData 收藏 + 左滑操作 + 文件夹 + 环形统计 + 导出 | ✅ |
-| 阶段 5 | Device Flow 登录 + 大模型配置 + iPad 分栏 + 动效 / 深色适配 / 无障碍 | ✅ |
+| 发现 | 详情 | 实验室 | 我的 |
+| :--: | :--: | :--: | :--: |
+| <img src="docs/screenshots/01-explore.svg" width="220" alt="发现页" /> | <img src="docs/screenshots/02-detail.svg" width="220" alt="详情页" /> | <img src="docs/screenshots/03-lab.svg" width="220" alt="实验室" /> | <img src="docs/screenshots/04-profile.svg" width="220" alt="我的" /> |
+
+> 截图为界面结构示意（矢量图），实际界面以真机为准。
+
+---
+
+## 它解决什么问题
+
+逛 GitHub 时"看到好项目却存不下来、存下来又找不到"是常态。GitVault 把这条链路收敛成四步：
+
+1. **发现**：不是单纯按星标排序，而是五维评分（热度 / 新鲜度 / 活跃度 / 质量 / 个人相关）分区分发；
+2. **分类**：六大主题 + 二级子分类，配合状态、语言、许可、用途四组标签；
+3. **收藏**：四态标记（收藏 / 观察 / 在用 / 归档）、自定义文件夹、拖拽排序、个人笔记；
+4. **追踪**：项目体检、更新时间、Release 资产下载、代码结构浏览。
+
+半年后再打开，你依然知道每个项目是什么、当初为什么收藏。
+
+---
 
 ## 功能清单
 
-- **数据层**：`GitHubService`（REST v3，async/await，统一中文错误 + 自动重试 + 限流提示）
-- **鉴权**：OAuth **Device Flow**（客户端不需要 secret），Token 存 **Keychain**
-- **分类**：`RuleClassifier` 本地规则（topics / 语言 / 活跃度 / 许可）→ 6 大主题 + 四组标签
-- **AI**：`LLMClassifierProtocol` 抽象，内置 OpenAI 兼容实现；未配置时规则兜底，离线可用
-- **中文摘要**：优先中文 description，否则模板化中文句 + topic 中英映射；README 结构摘要
-- **本地库**：SwiftData `VaultEntry` / `VaultFolder`，左滑标记、拖拽排序、JSON/Markdown 导出
-- **交互**：spring 按压反馈、交错入场、爱心粒子、hero 转场、`.symbolEffect`、触觉反馈
-- **适配**：深/浅色（深色默认）、Dynamic Type、VoiceOver 标签、iPhone + iPad 竖向轨道分栏
+### 发现
 
-## 环境要求
+- **今日精选**：六大主题各取一个，按日期轮换，每天 08:00 更新
+- **新星 Rising**：半年内创建、star ≥ 300，按 `star / 存续天数` 排序
+- **隐藏宝石**：200–3000 星区间，按文档质量与活跃度排序
+- **近期热门**：综合分排序（GitHub 不提供 star 历史，不虚构增速）
+- **为你推荐**：基于收藏的 topic 与语言
+- 全局去重：同一仓库只出现一次，同作者全页最多 1 个，同分类每区最多 2–3 个
+- 卡片显示推荐理由，例如「新项目 · 4 个月 · 日增 12 星」
+- 今日考古：随机回顾 30 天前的收藏
 
-- macOS 14+，Xcode 15.4 及以上（CI 实测 Xcode 26.x / iOS SDK 26.5 通过）
-- 部署目标 **iOS 17.0**（`@Observable`、`.contentTransition`、`.symbolEffect`、
-  `.scrollTargetBehavior(.paging)` 均为 iOS 17 API）
-- 工程由 [XcodeGen](https://github.com/yonaskolb/XcodeGen) 从 `project.yml` 生成，`.xcodeproj` 不入库
+### 分类
 
-## 本地运行
+- 6 大主题 × 4–5 个二级子分类（如「移动与跨端」→ iOS / Android / Flutter / React Native / 鸿蒙）
+- 每页 100 条，下滑自动续载（GitHub 搜索上限 1000 条）
+- 磁盘缓存：断网也能看上次结果
+
+### 详情
+
+- **项目体检**：0–100 分，拆解活跃度 / 社区 / 维护 / 文档，给一句话结论
+- **README**：先展示原文摘录；非中文自动交由 AI 翻译；可打开全文，按 Markdown 原格式渲染（标题、列表、表格、代码块、图片、视频、链接）
+- **代码结构**：`git/trees` 拉全树，按目录分组，单文件查看并支持文件内搜索与命中高亮
+- **一键星标 / Fork**、下载仓库（优先 Release 资产，多资产可选，无资产回落源码包）
+- 最近更新时间、语言占比、相似项目、作者页
+
+### 收藏
+
+- 四态标记、文件夹、拖拽排序、左滑操作
+- 个人笔记（长按添加，随导出携带）
+- 收藏库体检：停更 / 许可缺失筛查，一键归档
+- 仓库对比：选 2–3 个并排比较 7 项指标
+- 分享收藏夹：导出为独立 HTML 页面
+
+### 实验室（我的 → 实验室）
+
+- 仓库对比、收藏库体检、技术雷达（近半年主题趋势）、学习路径（入门 / 进阶 / 深入）
+- 成就徽章、探索报告、收藏地图、作者页
+
+### 其他
+
+- GitHub 登录：访问令牌（推荐）或 OAuth Device Flow
+- AI 摘要：默认内置免费模型（Pollinations，无需 Key），可替换为任意 OpenAI 兼容网关，失败自动回落本地规则
+- 在线更新：比对 GitHub Releases 的 tag
+- 深色 / 浅色 / 跟随系统，iPhone 与 iPad 自适应
+
+---
+
+## Pro 与免费
+
+一次性 ¥9.9，无订阅、不自动续费。**当前为限时免费试用（365 天）**，点击解锁会提示"目前无需购买"。
+
+| 能力 | 免费 | Pro |
+| --- | --- | --- |
+| 浏览 / 搜索 / 收藏 / 分类 | ✅ | ✅ |
+| README 全文渲染与下载 | ✅ | ✅ |
+| AI 翻译 | 每日 20 次 | 无限 |
+| 离线全量库（star > 500） | 只读已有缓存 | 自动增量抓取 |
+| 批量星标 / 批量 Fork | — | ✅ |
+| 代码浏览增强（搜索 + 高亮） | 行号 + 复制 | ✅ |
+| 徽章 / 周报 / 主题 | ✅ 全部免费 | — |
+
+核心永远免费：**不会锁收藏，不会锁浏览**。
+
+---
+
+## 技术实现
+
+| 项 | 选型 |
+| --- | --- |
+| 界面 | SwiftUI，iOS 16.0 起 |
+| 持久化 | `Codable` + JSON 原子写入（`VaultStore` / `CategoryCache` / `ExploreCache` / `AllReposStore`），未使用 SwiftData |
+| 网络 | `URLSession` + `async/await`，统一错误映射与幂等重试 |
+| 图片 | 自建 `NSCache` 加载器，避免 `AsyncImage` 在列表滚动时反复重建 |
+| README 渲染 | 自研 Markdown → HTML（约 300 行）+ `WKWebView`，无第三方库 |
+| 内购 | StoreKit 2，非消耗型 `com.yfgqh.gitvault.pro` |
+| 图形 | 全部 SwiftUI `Canvas` / `Path` 绘制（关系图、收藏地图、评分环） |
+| 构建 | XcodeGen（`project.yml` 为唯一事实来源）+ GitHub Actions macOS Runner |
+| 依赖 | 无 CocoaPods / SPM 三方依赖 |
+
+### 目录结构
+
+```
+GitVault/
+├── App/                # 入口、根容器、依赖容器
+├── Models/             # DTO、UI 模型、分类与标签
+├── Services/           # 网络、鉴权、收藏、AI、发现引擎、缓存、下载
+├── ViewModels/         # 首页 / 分类 / 搜索 / 详情 / 代码
+├── Features/           # Explore 详情 分类 搜索 收藏 我的 实验室
+├── DesignSystem/       # 颜色、字体、间距、通用组件
+├── Utils/              # Keychain、崩溃日志、触感、配置
+└── Mock/               # 离线示例数据
+```
+
+---
+
+## 构建
+
+需要 macOS + Xcode 15 以上、[XcodeGen](https://github.com/yonaskolb/XcodeGen)。
 
 ```bash
 brew install xcodegen
-cd gitvault
 xcodegen generate
-open GitVault.xcodeproj
+xcodebuild -project GitVault.xcodeproj \
+  -scheme GitVault \
+  -configuration Release \
+  -sdk iphoneos \
+  -destination 'generic/platform=iOS' \
+  -derivedDataPath build \
+  CODE_SIGNING_ALLOWED=NO \
+  build
 ```
 
-命令行编译（无签名）：
+生成的 `.app` 放入 `Payload/` 后压缩即可得到未签名 IPA。
 
-```bash
-xcodebuild -project GitVault.xcodeproj -scheme GitVault \
-  -sdk iphoneos -configuration Release \
-  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
-```
+### 安装
 
-## 产出 IPA（无需 macOS 本机）
+- **TrollStore**：直接把 IPA 拖进去安装（iOS 14–17）
+- **自签工具**（AltStore / Sideloadly / Xcode）：需要自己的证书
 
-推送到 `main` 或手动触发 `Actions → iOS Build`：
+> 未签名包无法连接 App Store，因此 Pro 购买会提示"目前无需购买"（当前本就限时免费）。
 
-1. `macos-latest` runner 选最新 Xcode；
-2. `xcodegen generate` 生成工程；
-3. `xcodebuild -configuration Release CODE_SIGNING_ALLOWED=NO` 编译；
-4. 打包 `Payload/GitVault.app` → `GitVault-unsigned.ipa`（artifact）；
-5. 同时上传 `GitVault.xcodeproj` 压缩包，本地无需装 XcodeGen。
+---
 
-> IPA 为**未签名**包。装真机需自行签名（Sideloadly / AltStore / 个人证书重签）；
-> 也可解包后把 `.app` 拖进 iOS Simulator 直接运行。
+## 版本历史
 
-## 目录结构
+| 版本 | 重点 |
+| --- | --- |
+| 2.4.0 | 信息架构整理（主页 / 实验室 / 设置三层）、README 与截图更新 |
+| 2.3.0 | 仓库对比、收藏体检、分享 HTML、技术雷达、作者页、学习路径、收藏笔记、批量操作、代码搜索高亮；Pro 分层调整 |
+| 2.2.0 | 发现页重设：五维评分、新星 / 隐藏宝石 / 近期热门三条流、全局去重、推荐理由、整页缓存 |
+| 2.1.x | 详情页溢出修复、README 全文渲染、分类分页、下载二选一与资产选择、保存位置选择 |
+| 2.0.x | 降级到 iOS 16、移除 SwiftData、修复启动崩溃 |
+| 1.x | 骨架、数据层、核心页、搜索收藏、登录与打磨 |
 
-```
-gitvault/
-├── project.yml                      # XcodeGen 工程描述（唯一工程源）
-├── GitVault/
-│   ├── App/                         # 入口 / 根容器 / Splash / 依赖容器
-│   ├── DesignSystem/                # 设计规范 + 复用组件（13 个）
-│   ├── Models/                      # DTO / 分类 / 标签 / 展示模型 / SwiftData 实体
-│   ├── Services/                    # GitHubService / AuthStore / VaultService / 分类器 / 摘要
-│   ├── ViewModels/                  # Explore / CategoryFeed / Search / Detail
-│   ├── Features/                    # Explore / Categories / Search / Vault / Profile / Detail
-│   ├── Mock/                        # 离线示例数据
-│   ├── Utils/                       # Keychain / 配置 / 错误 / 颜色 / 触觉 / 索引包装
-│   └── Resources/Assets.xcassets    # AppIcon（脚本生成）+ AccentColor
-├── Scripts/make_icon.js             # 1024px 图标生成器（纯 Node，零依赖）
-└── .github/workflows/ios-build.yml  # macOS 编译 + 未签名 IPA
-```
+---
 
-## 登录与 AI 配置
+## 已知限制
 
-- **GitHub 登录**：在 GitHub → Settings → Developer settings → OAuth Apps 新建应用，
-  勾选 **Enable Device Flow**，把 Client ID 填进「我的 → GitHub 登录」。
-  App 走 Device Flow：展示验证码 → 浏览器授权 → 轮询换取 Token → 存 Keychain。
-- **大模型**：「我的 → AI 摘要」填任意 OpenAI 兼容的 `chat/completions` 地址、模型名与 Key；
-  Key 存 Keychain，请求直接发往你填写的地址。留空即使用本地规则。
+- **全量抓取**：GitHub 搜索单查询最多返回 1000 条，只能按星标区间分桶逐步逼近，无法一次拉完
+- **飙升榜**：GitHub 不提供 star 历史，改用「综合分 + 近期创建」，命名已改为「近期热门」
+- **小组件**：需要独立的 Widget Extension 与 App Group，未签名包无法挂载，暂未提供
+- **推送提醒**：需要 APNs 与服务端，目前仅提供「作者页」，不含通知推送
 
-## 设计规范速查
+---
 
-| 令牌 | 值 |
-|---|---|
-| bgPrimary | `#0B0E14` / `#FFFFFF` |
-| bgSecondary | `#151A23` / `#F5F6FA` |
-| accentGradient | `#6E7BFF → #A66CFF` |
-| cardCorner / chipCorner / buttonCorner | 22 / 12 / 16 |
-| spacing XS/S/M/L/XL | 4 / 8 / 16 / 24 / 32 |
-| softShadow | black 8% · radius 20 · y 8 |
-| springSnappy | `.spring(response: 0.4, dampingFraction: 0.7)` |
+## 声明
 
-## 图标
+数据来源 GitHub REST API v3。本项目与 GitHub 官方无隶属关系，所有项目内容版权归原作者所有。
 
-`Scripts/make_icon.js` 纯 Node 生成 1024×1024 无透明 PNG，零依赖。
-设计取向：借鉴 GitHub 的 **Octocat 猫耳**轮廓与 **fork 分支**语义，做成「保险库转盘」的二次创新 ——
-猫耳圆环（vault）+ 中心三节点分支符号（Git），墨黑底 + 品牌紫蓝渐变。
-改图标只需调脚本里的几何常量后 `node Scripts/make_icon.js` 重新生成。
-
-## 崩溃排查（真机闪退）
-
-1. **未签名 IPA 装真机会被系统直接 kill**：iOS 校验代码签名失败，表现就是点开即闪退。
-   必须用 Sideloadly / AltStore / Xcode 个人证书重签后再装（见下文「安装到真机」）。
-2. **App 内置启动取证**：`CrashReporter` 记录启动阶段埋点、未捕获异常和致命信号
-   （SIGABRT/SIGSEGV/SIGBUS/SIGILL/SIGFPE/SIGTRAP），写入 `Documents/GitVault/diagnostics.log`，
-   App 内「我的 → 诊断日志」可直接查看、复制、清空。
-3. **本地库三级降级**：store 版本化为 `GitVaultV2.store`（不碰旧版本库），
-   打不开 → 备份后重建 → 内存兜底，避免旧数据导致 `@Query` 崩溃。
-4. **Keychain 全防御**：设备锁定、无 entitlement、条目损坏时统一返回 nil，不影响启动。
-
-## 安装到真机
-
-```bash
-# 方式一：Xcode 直接跑（最稳，自带签名）
-xcodegen generate && open GitVault.xcodeproj   # 选自己的 Team，Run
-
-# 方式二：重签未签名 IPA（Sideloadly / AltStore）
-# 把 GitVault-unsigned.ipa 拖进 Sideloadly，登录 Apple ID 重签后安装
-```
-
-## 数据来源
-
-GitHub REST API v3（`search/repositories`、`repos/{owner}/{repo}`、`/languages`、`/readme`）。
-未登录 60 次/小时，登录后 5000 次/小时。Token 仅存 Keychain，绝不硬编码。
-本应用与 GitHub 官方无隶属关系。
+反馈与交流：[Telegram 群](https://t.me/GitVaultipa)
