@@ -25,9 +25,17 @@ struct VaultView: View {
     @State private var exportFile: ExportFile?
     @State private var moveTarget: VaultItem?
 
+    /// 主列表只显示「未分组」的项目；已归入文件夹的项目只在文件夹里出现
     private var filtered: [VaultItem] {
-        guard let activeMark else { return vault.items }
-        return vault.items.filter { $0.mark == activeMark }
+        var list = vault.items.filter { $0.folderName == nil }
+        if let activeMark {
+            list = list.filter { $0.mark == activeMark }
+        }
+        return list
+    }
+
+    private var groupedCount: Int {
+        vault.items.filter { $0.folderName != nil }.count
     }
 
     var body: some View {
@@ -257,9 +265,10 @@ struct VaultView: View {
                     entryRows
                 }
             } header: {
-                let grouped = filtered.filter { $0.folderName != nil }.count
-                sectionHeader("收藏项目",
-                              detail: grouped > 0 ? "\(filtered.count) 个 · \(grouped) 个已分组" : "\(filtered.count) 个")
+                sectionHeader("未分组项目",
+                              detail: groupedCount > 0
+                                ? "\(filtered.count) 个 · \(groupedCount) 个已归入文件夹"
+                                : "\(filtered.count) 个")
             }
         }
         .listStyle(.plain)
@@ -486,13 +495,27 @@ struct VaultView: View {
     }
 
     private var emptyRow: some View {
-        EmptyStateView(
-            symbol: "bookmark",
-            title: activeMark == nil ? "收藏库还是空的" : "这个标记下还没有项目",
-            message: activeMark == nil
-                ? "在发现页看到心动的项目，点一下书签就会出现在这里"
-                : "切换标记或去发现页补充几个"
-        )
+        Group {
+            if vault.items.isEmpty {
+                EmptyStateView(
+                    symbol: "bookmark",
+                    title: "收藏库还是空的",
+                    message: "在发现页看到心动的项目，点一下书签就会出现在这里"
+                )
+            } else if filtered.isEmpty, groupedCount > 0 {
+                EmptyStateView(
+                    symbol: "folder",
+                    title: "项目都已归入文件夹",
+                    message: "上方的文件夹里可以找到它们，长按项目可以移出文件夹"
+                )
+            } else {
+                EmptyStateView(
+                    symbol: "bookmark",
+                    title: "这个标记下还没有项目",
+                    message: "切换标记或去发现页补充几个"
+                )
+            }
+        }
         .padding(.vertical, DS.Space.l)
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
