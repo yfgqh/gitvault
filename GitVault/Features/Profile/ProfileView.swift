@@ -247,25 +247,28 @@ struct ProfileView: View {
     }
 
     private var collectionCard: some View {
-        HStack(spacing: DS.Space.l) {
+        HStack(spacing: 0) {
             statistic(value: "\(vault.items.count)", title: "收藏")
+            Divider().frame(height: 26)
             statistic(value: "\(vault.folders.count)", title: "文件夹")
+            Divider().frame(height: 26)
             statistic(value: "\(Set(vault.items.map { $0.category }).count)", title: "主题")
-            Spacer(minLength: 0)
         }
-        .padding(DS.Space.m)
+        .padding(.vertical, DS.Space.m)
         .glassSurface()
     }
 
     private func statistic(value: String, title: String) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
+        VStack(spacing: 2) {
             Text(value)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .font(.system(size: 19, weight: .bold, design: .rounded))
                 .foregroundStyle(DS.textPrimary)
             Text(title)
                 .font(.system(size: 10))
                 .foregroundStyle(DS.textTertiary)
         }
+        .frame(maxWidth: .infinity)
+        .multilineTextAlignment(.center)
     }
 
     // MARK: 入口

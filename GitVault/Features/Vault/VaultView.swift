@@ -21,6 +21,7 @@ struct VaultView: View {
     @State private var noteItem: VaultItem?
     @State private var noteDraft = ""
     @State private var batchProgress: String?
+    @State private var openFolder: VaultFolderItem?
     @State private var exportFile: ExportFile?
     @State private var moveTarget: VaultItem?
 
@@ -105,6 +106,11 @@ struct VaultView: View {
                 }
             } message: {
                 Text("笔记会随收藏一起导出，帮助你半年后想起当初为什么存它。")
+            }
+            .sheet(item: $openFolder) { folder in
+                FolderDetailView(folder: folder)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
             .sheet(item: $exportFile) { file in
                 ShareSheet(items: [file.url])
@@ -251,13 +257,14 @@ struct VaultView: View {
                     entryRows
                 }
             } header: {
-                sectionHeader("收藏项目", detail: "\(filtered.count) 个")
+                let grouped = filtered.filter { $0.folderName != nil }.count
+                sectionHeader("收藏项目",
+                              detail: grouped > 0 ? "\(filtered.count) 个 · \(grouped) 个已分组" : "\(filtered.count) 个")
             }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .environment(\.editMode, $editMode)
-        .animation(DS.Motion.snappy, value: filtered.count)
     }
 
     @ViewBuilder
@@ -426,6 +433,27 @@ struct VaultView: View {
     }
 
     private func folderRow(_ folder: VaultFolderItem) -> some View {
+        Button {
+            Haptics.tap()
+            openFolder = folder
+        } label: {
+            folderContent(folder)
+        }
+        .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets(top: 4, leading: DS.Space.screen, bottom: 4, trailing: DS.Space.screen))
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .swipeActions {
+            Button(role: .destructive) {
+                vault.deleteFolder(folder)
+                Haptics.warning()
+            } label: {
+                Label("删除文件夹", systemImage: "trash")
+            }
+        }
+    }
+
+    private func folderContent(_ folder: VaultFolderItem) -> some View {
         HStack(spacing: DS.Space.m) {
             Text(folder.emoji)
                 .font(.system(size: 18))
@@ -441,26 +469,20 @@ struct VaultView: View {
 
             Spacer()
 
-            Text("\(vault.items(inFolder: folder.name).count)")
+            Text("\(vault.items(inFolder: folder.name).count) 个")
                 .font(DS.Typo.caption)
+                .foregroundStyle(DS.textTertiary)
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(DS.textTertiary)
         }
         .padding(DS.Space.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
                 .fill(DS.bgSecondary)
         )
-        .listRowInsets(EdgeInsets(top: 4, leading: DS.Space.screen, bottom: 4, trailing: DS.Space.screen))
-        .listRowSeparator(.hidden)
-        .listRowBackground(Color.clear)
-        .swipeActions {
-            Button(role: .destructive) {
-                vault.deleteFolder(folder)
-                Haptics.warning()
-            } label: {
-                Label("删除文件夹", systemImage: "trash")
-            }
-        }
     }
 
     private var emptyRow: some View {

@@ -555,16 +555,26 @@ struct RepoDetailView: View {
                     .font(DS.Typo.headline)
                     .foregroundStyle(DS.textPrimary)
 
-                HStack(spacing: 8) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 82, maximum: 140), spacing: 8)],
+                          spacing: 8) {
                     ForEach(MyMark.allCases) { item in
                         Button {
                             apply(mark: item)
                         } label: {
-                            TagChip(
-                                text: item.title,
-                                systemImage: item.symbol,
-                                tint: item.tint,
-                                filled: vm.mark == item
+                            HStack(spacing: 4) {
+                                Image(systemName: item.symbol)
+                                    .font(.system(size: 11, weight: .semibold))
+                                Text(item.title)
+                                    .font(DS.Typo.caption)
+                                    .lineLimit(1)
+                            }
+                            .foregroundStyle(vm.mark == item ? .white : item.tint)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 9)
+                            .background(
+                                Capsule().fill(vm.mark == item
+                                               ? AnyShapeStyle(item.tint)
+                                               : AnyShapeStyle(item.tint.opacity(0.12)))
                             )
                         }
                         .buttonStyle(.springPressSilent)
@@ -688,8 +698,18 @@ struct RepoDetailView: View {
     }
 
     private func apply(mark: MyMark) {
-        if vault.isSaved(repo.id) {
-            vault.setMark(id: repo.id, to: mark)
+        // 再次点击同一个标记 = 取消：把该项目从收藏库移除
+        if vm.mark == mark {
+            vault.remove(id: vm.repo.id)
+            vm.isSaved = false
+            vm.mark = nil
+            Haptics.warning()
+            env.show("已取消「\(mark.title)」", kind: .info)
+            return
+        }
+
+        if vault.isSaved(vm.repo.id) {
+            vault.setMark(id: vm.repo.id, to: mark)
         } else {
             vault.toggle(vm.repo, mark: mark)
             vm.isSaved = true
