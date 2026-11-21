@@ -293,14 +293,10 @@ struct FlowChips: View {
     var showsFlame: Bool = false
     var onTap: (String) -> Void
 
-    // 用自适应网格替代自定义 Layout：宽度由系统按列计算，
-    // 不会再出现「每个 chip 独占一行」的排版错误。
-    private var columns: [GridItem] {
-        [GridItem(.adaptive(minimum: 86, maximum: 220), spacing: DS.Space.s, alignment: .leading)]
-    }
-
     var body: some View {
-        LazyVGrid(columns: columns, alignment: .leading, spacing: DS.Space.s) {
+        // 用 Layout 协议按真实文本宽度换行：父容器宽度已确定（详情页钉死屏幕宽），
+        // LazyVGrid 的等宽列会压缩长标签导致文字互相重叠。
+        FlowLayout(spacing: DS.Space.s) {
             ForEach(items, id: \.self) { item in
                 Button {
                     Haptics.tap()

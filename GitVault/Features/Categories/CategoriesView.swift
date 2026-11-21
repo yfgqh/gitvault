@@ -225,12 +225,29 @@ struct CategoryFeedView: View {
 
     @ViewBuilder
     private var footer: some View {
-        if let hint = vm.truncatedHint {
-            Text(hint)
-                .font(DS.Typo.caption)
-                .foregroundStyle(DS.textTertiary)
+        Group {
+            if vm.isLoadingMore {
+                HStack(spacing: 6) {
+                    ProgressView().scaleEffect(0.7).tint(DS.accent)
+                    Text("正在加载更多…")
+                        .font(DS.Typo.caption)
+                        .foregroundStyle(DS.textTertiary)
+                }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, DS.Space.m)
+            } else if let hint = vm.truncatedHint {
+                Text(hint)
+                    .font(DS.Typo.caption)
+                    .foregroundStyle(DS.textTertiary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, DS.Space.m)
+                    .onAppear {
+                        // 滚到底部即继续加载：分类不再只显示前 100 名
+                        if vm.canLoadMore {
+                            Task { await vm.loadMore() }
+                        }
+                    }
+            }
         }
     }
 }

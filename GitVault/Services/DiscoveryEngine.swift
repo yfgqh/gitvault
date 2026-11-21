@@ -181,22 +181,36 @@ enum DiscoveryEngine {
         feed.evergreen = pick(evergreenScored, limit: 6, maxPerCategory: 2, selection: &selection)
         feed.trending = pick(trendingScored, limit: 12, maxPerCategory: 3, selection: &selection)
 
-        // 为你：有画像才出，否则退化成「新星补充」
-        if profile.isEmpty {
-            feed.forYou = pick(allScored.filter { $0.repo.stars >= 1000 },
-                               limit: 6, maxPerCategory: 2, selection: &selection)
-        } else {
-            let relevant = allScored
-                .filter { item in
-                    item.repo.topics.contains { profile.topics.contains($0.lowercased()) }
-                        || profile.languages.contains(item.repo.language.lowercased())
+        // 为你：独立挑选，不参与全局去重的 selection，
+        // 否则前面的区块会把候选耗尽，导致「为你推荐」永远空白。
+        let relevant = allScored
+            .filter { item in
+                guard !profile.isEmpty else { return item.repo.stars >= 800 }
+                return item.repo.topics.contains { profile.topics.contains($0.lowercased()) }
+                    || profile.languages.contains(item.repo.language.lowercased())
+            }
+            .sorted { $0.score > $1.score }
+
+        var seenForYou = Set<String>()
+        var forYou = (relevant.isEmpty ? allScored : relevant)
+            .filter { item in
+                guard !seenForYou.contains(item.id) else { return false }
+                seenForYou.insert(item.id)
+                return true
+            }
+            .prefix(8)
+            .map { $0 }
+
+        // 仍不足时，从各池子里按分数补齐（允许与其它区块重复，但区块内不重复）
+        if forYou.count < 6 {
+            for item in allScored where forYou.count < 6 {
+                if !seenForYou.contains(item.id) {
+                    seenForYou.insert(item.id)
+                    forYou.append(item)
                 }
-                .sorted { $0.score > $1.score }
-            feed.forYou = pick(relevant, limit: 6, maxPerCategory: 2, selection: &selection)
-            if feed.forYou.isEmpty {
-                feed.forYou = pick(allScored, limit: 6, maxPerCategory: 2, selection: &selection)
             }
         }
+        feed.forYou = forYou
 
         feed.featured = featured(from: allScored, now: now)
         return feed

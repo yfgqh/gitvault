@@ -95,6 +95,14 @@ final class RepoDownloader: NSObject, ObservableObject {
         beginDownload(asset.url, fileName: asset.name)
     }
 
+    /// 直接下载源码包（详情页选择「仓库源码」时调用）
+    func startSource(owner: String, repo: String, branch: String) {
+        guard !isDownloading else { return }
+        pendingSource = (owner, repo, branch)
+        notice = "正在下载源码包"
+        downloadSource()
+    }
+
     /// 选择器里的「下载源码包」
     func chooseSourcePackage() {
         showsAssetPicker = false

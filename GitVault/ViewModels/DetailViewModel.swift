@@ -22,6 +22,8 @@ final class DetailViewModel: ObservableObject {
     @Published var languages: [LanguageSlice] = []
     @Published var similar: [ShowcaseRepo] = []
 
+    /// README 完整原文（Markdown，用于全文渲染）
+    @Published var readmeMarkdown: String?
     /// README 原文摘录（默认展示内容）
     @Published var readmeOriginal: String?
     /// AI 翻译后的中文（原文非中文且翻译成功时才有）
@@ -138,8 +140,9 @@ final class DetailViewModel: ObservableObject {
             return
         }
 
+        readmeMarkdown = markdown
         previewImageURL = SummaryService.firstImageURL(in: markdown)
-        let excerpt = SummaryService.readmeExcerpt(markdown)
+        let excerpt = SummaryService.readmeExcerpt(markdown, maxChars: 2000)
         guard !excerpt.isEmpty else {
             readmeOriginal = repo.rawDescription ?? repo.summary
             return

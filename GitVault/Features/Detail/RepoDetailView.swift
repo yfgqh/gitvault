@@ -24,6 +24,9 @@ struct RepoDetailView: View {
     @State private var showCode = false
     @State private var showGraph = false
     @State private var showPro = false
+    @State private var showReadmeFull = false
+    @State private var showDownloadOptions = false
+    @State private var exportedURL: URL?
     @State private var isStarred = false
     @State private var isBusy = false
     @StateObject private var downloader = RepoDownloader()
@@ -89,10 +92,32 @@ struct RepoDetailView: View {
         .onChange(of: downloader.state) { newValue in
             if case .finished(let url) = newValue {
                 env.show("已保存：\(url.lastPathComponent)", kind: .success)
+                // 下载完成即提供「保存到文件」的选择
+                exportedURL = url
             }
             if case .failed(let message) = newValue {
                 env.show(message, kind: .warning)
             }
+        }
+        .confirmationDialog("下载内容", isPresented: $showDownloadOptions, titleVisibility: .visible) {
+            Button("下载二进制文件") {
+                downloader.start(owner: vm.repo.owner, repo: vm.repo.name, branch: "main")
+            }
+            Button("下载仓库源码") {
+                downloader.startSource(owner: vm.repo.owner, repo: vm.repo.name, branch: "main")
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("二进制文件来自该仓库的 Release 资产；没有资产时会自动改下源码包。")
+        }
+        .sheet(isPresented: $showReadmeFull) {
+            ReadmeFullView(repo: vm.repo, markdown: vm.readmeMarkdown ?? "")
+        }
+        .sheet(item: Binding(
+            get: { exportedURL.map { ExportTarget(url: $0) } },
+            set: { exportedURL = $0?.url }
+        )) { target in
+            DocumentExporter(url: target.url)
         }
         .sheet(isPresented: $downloader.showsAssetPicker) {
             AssetPickerView(downloader: downloader)
@@ -101,9 +126,13 @@ struct RepoDetailView: View {
         }
         .sheet(isPresented: $showCode) {
             CodeBrowserView(repo: vm.repo)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showGraph) {
             RepoGraphView(repo: vm.repo)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showPro) {
             ProUnlockView()
@@ -173,9 +202,14 @@ struct RepoDetailView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             if let updated = vm.repo.updatedAt {
-                Text("最近推送：" + updated.formatted(date: .abbreviated, time: .shortened))
-                    .font(.system(size: 11))
-                    .foregroundStyle(DS.textTertiary)
+                HStack(spacing: 5) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 9, weight: .semibold))
+                    Text("最近更新：" + updated.formatted(date: .abbreviated, time: .shortened))
+                    Text("· " + relativeText(updated))
+                }
+                .font(.system(size: 11))
+                .foregroundStyle(DS.textTertiary)
             }
         }
     }
@@ -283,6 +317,22 @@ struct RepoDetailView: View {
                     .font(.system(size: 10))
                     .foregroundStyle(DS.textTertiary)
                 Spacer()
+                if vm.readmeMarkdown != nil {
+                    Button {
+                        Haptics.tap()
+                        showReadmeFull = true
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "doc.richtext")
+                                .font(.system(size: 9, weight: .bold))
+                            Text("查看完整 README")
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                        .foregroundStyle(DS.accent)
+                    }
+                    .buttonStyle(.springPressSilent)
+                }
+
                 Button {
                     Haptics.tap()
                     Task { await vm.loadReadmeIfNeeded(force: true) }
@@ -456,7 +506,14 @@ struct RepoDetailView: View {
     }
 
     private func startDownload() {
-        downloader.start(owner: vm.repo.owner, repo: vm.repo.name, branch: "main")
+        showDownloadOptions = true
+    }
+
+    private func relativeText(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        formatter.locale = Locale(identifier: "zh_CN")
+        return formatter.localizedString(for: date, relativeTo: .now)
     }
     // MARK: 标签区
 

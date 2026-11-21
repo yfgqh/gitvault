@@ -15,6 +15,8 @@ struct VaultView: View {
     @State private var editMode: EditMode = .inactive
     @State private var showingNewFolder = false
     @State private var newFolderName = ""
+    /// 在「移入文件夹」里点了「新建文件夹」时记住要移动的项目
+    @State private var pendingMoveItem: VaultItem?
     @State private var exportFile: ExportFile?
     @State private var moveTarget: VaultItem?
 
@@ -40,12 +42,22 @@ struct VaultView: View {
             .navigationBarHidden(true)
             .alert("新建文件夹", isPresented: $showingNewFolder) {
                 TextField("文件夹名称", text: $newFolderName)
-                Button("取消", role: .cancel) { newFolderName = "" }
+                Button("取消", role: .cancel) {
+                    newFolderName = ""
+                    pendingMoveItem = nil
+                }
                 Button("创建") {
                     if let folder = vault.createFolder(name: newFolderName) {
+                        // 如果是从「移入文件夹」里创建的，直接把这个项目放进去
+                        if let item = pendingMoveItem {
+                            vault.assign(id: item.repoID, to: folder.name)
+                            env.show("已移入 \(folder.name)", kind: .success)
+                        } else {
+                            env.show("已创建文件夹：\(folder.name)", kind: .success)
+                        }
                         Haptics.success()
-                        env.show("已创建文件夹：\(folder.name)", kind: .success)
                     }
+                    pendingMoveItem = nil
                     newFolderName = ""
                 }
             } message: {
@@ -58,6 +70,18 @@ struct VaultView: View {
                 Button("不分组") { move(moveTarget, to: nil) }
                 ForEach(vault.folders) { folder in
                     Button(folder.emoji + " " + folder.name) { move(moveTarget, to: folder.name) }
+                }
+                Divider()
+                Button {
+                    pendingMoveItem = moveTarget
+                    moveTarget = nil
+                    newFolderName = ""
+                    // 稍等弹窗关闭再弹输入框，避免 iOS 16 上两个弹层打架
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        showingNewFolder = true
+                    }
+                } label: {
+                    Label("新建文件夹…", systemImage: "folder.badge.plus")
                 }
                 Button("取消", role: .cancel) { moveTarget = nil }
             }

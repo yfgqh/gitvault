@@ -34,10 +34,15 @@ final class CategoryFeedViewModel: ObservableObject {
     @Published var sortMode: SortMode = .stars
     @Published var activeActivity: ActivityTag?
     @Published var activeLanguage: String?
+    @Published var isLoadingMore = false
+    private var page = 1
 
     private let api: any GitHubAPI
     private var didLoad = false
-    private let fetchLimit = 100
+    /// 每页 100（GitHub 上限），最多翻到第 10 页
+    private let pageSize = 100
+    private let maxPage = 10
+    var canLoadMore: Bool { page < maxPage && items.count < min(totalCount, maxPage * pageSize) }
 
     /// 是否有可展示的缓存内容（用于文案）
     private(set) var loadedFromCache = false
@@ -90,9 +95,12 @@ final class CategoryFeedViewModel: ObservableObject {
     var truncatedHint: String? {
         guard totalCount > 0 else { return nil }
         if activeSub != nil {
-            return "该子分类命中 \(displayed.count) 个（本次抓取前 \(fetchLimit) 名内）"
+            return "该子分类在当前已加载的 \(items.count) 个项目中命中 \(displayed.count) 个"
         }
-        return totalCount > items.count ? "共 \(totalCount) 个，已展示前 \(items.count) 名" : nil
+        if items.count >= 1000 {
+            return "GitHub 搜索最多返回 1000 条，已全部加载"
+        }
+        return totalCount > items.count ? "已加载 \(items.count) / 共 \(totalCount) 个，继续下滑加载更多" : nil
     }
 
     // MARK: 加载
@@ -110,14 +118,10 @@ final class CategoryFeedViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
-            async let fetchedCall = api.fetchCategory(category, limit: fetchLimit)
-            async let totalCall = api.categoryTotal(category)
-
-            let fetched = try await fetchedCall
-            let total = (try? await totalCall) ?? fetched.count
-
-            items = fetched.map(ShowcaseRepo.init(dto:))
-            totalCount = max(total, items.count)
+            let result = try await api.fetchCategoryPage(category, page: 1, perPage: pageSize)
+            items = result.items.map(ShowcaseRepo.init(dto:))
+            totalCount = max(result.totalCount, items.count)
+            page = 1
             loadedFromCache = false
             cacheDate = nil
             if !items.isEmpty {
@@ -133,6 +137,38 @@ final class CategoryFeedViewModel: ObservableObject {
                 items = MockData.repos(in: category)
                 totalCount = max(category.baselineCount, items.count)
             }
+        }
+    }
+
+    /// 下滑加载下一页（最多 10 页 / 1000 条）
+    func loadMore() async {
+        guard canLoadMore, !isLoadingMore, !isLoading else { return }
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+
+        let next = page + 1
+        do {
+            let result = try await api.fetchCategoryPage(category, page: next, perPage: pageSize)
+            let mapped = result.items.map(ShowcaseRepo.init(dto:))
+            guard !mapped.isEmpty else {
+                page = maxPage
+                return
+            }
+            let existing = Set(items.map(\.id))
+            items.append(contentsOf: mapped.filter { !existing.contains($0.id) })
+            page = next
+            totalCount = max(totalCount, items.count)
+            CacheSaver.save(category: category, total: totalCount, repos: items)
+        } catch is CancellationError {
+            return
+        } catch {
+            CrashReporter.log("category \(category.rawValue): loadMore failed \(error.localizedDescription)")
+        }
+    }
+
+    private enum CacheSaver {
+        static func save(category: RepoCategory, total: Int, repos: [ShowcaseRepo]) {
+            CategoryCache.shared.save(category, total: total, repos: repos)
         }
     }
 

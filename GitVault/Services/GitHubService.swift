@@ -15,6 +15,12 @@ enum SearchSort: String {
     case stars, forks, updated
 }
 
+/// 分类分页结果
+struct CategoryPage {
+    var items: [RepositoryDTO]
+    var totalCount: Int
+}
+
 protocol GitHubAPI {
     func searchRepositories(query: String,
                             sort: SearchSort,
@@ -27,6 +33,8 @@ protocol GitHubAPI {
     func currentUser() async throws -> GitHubUserDTO
     /// 按分类抓取项目（内部按代表 topic 逐个查询后合并去重）
     func fetchCategory(_ category: RepoCategory, limit: Int) async throws -> [RepositoryDTO]
+    /// 分类分页：每个代表 topic 取同一页后合并（支持下滑加载更多）
+    func fetchCategoryPage(_ category: RepoCategory, page: Int, perPage: Int) async throws -> CategoryPage
     /// 分类总项目数（取代表 topic 的 total_count）
     func categoryTotal(_ category: RepoCategory) async throws -> Int
 }
@@ -98,6 +106,42 @@ struct GitHubService: GitHubAPI {
             .sorted { $0.stargazersCount > $1.stargazersCount }
             .prefix(limit)
             .map { $0 }
+    }
+
+    /// 分类分页：对每个代表 topic 取同一页再合并。
+    /// GitHub 单查询上限 1000 条，多 topic 合并后总上限更高。
+    func fetchCategoryPage(_ category: RepoCategory,
+                           page: Int,
+                           perPage: Int) async throws -> CategoryPage {
+        var merged: [Int: RepositoryDTO] = [:]
+        var total = 0
+        var lastError: Error?
+
+        for topic in category.searchTopics {
+            let query = "topic:\(topic) stars:>50"
+            do {
+                let result = try await searchRepositories(
+                    query: query,
+                    sort: .stars,
+                    page: page,
+                    perPage: min(perPage, 100)
+                )
+                total += result.totalCount
+                for item in result.items {
+                    merged[item.id] = item
+                }
+            } catch {
+                lastError = error
+            }
+        }
+
+        if merged.isEmpty, let lastError {
+            throw lastError
+        }
+        return CategoryPage(
+            items: merged.values.sorted { $0.stargazersCount > $1.stargazersCount },
+            totalCount: total
+        )
     }
 
     /// 分类总项目数：取第一个代表 topic 的 total_count（近似值，用于「N 个项目」展示）
