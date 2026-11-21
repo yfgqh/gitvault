@@ -12,12 +12,14 @@ import SwiftUI
 struct RootView: View {
     @EnvironmentObject private var auth: AuthStore
     @EnvironmentObject private var env: AppEnvironment
+    @EnvironmentObject private var vault: VaultStore
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     @State private var showSplash = true
     @State private var tab: AppTab = .explore
     /// 已经挂载过的页面（首次进入才构建，之后保活）
     @State private var mounted: Set<AppTab> = [.explore]
+    @StateObject private var releaseWatcher = ReleaseWatcher()
 
     var body: some View {
         ZStack {
@@ -57,6 +59,10 @@ struct RootView: View {
             Task { await env.pro.bootstrap() }
             Task { await env.update.checkIfNeeded() }
             env.allRepos.loadIfNeeded()
+            // 收藏仓库的新版本检查（Pro 能力，6 小时节流）
+            if env.pro.hasFullAccess {
+                await releaseWatcher.checkIfNeeded(vault: vault)
+            }
             try? await Task.sleep(nanoseconds: 1_600_000_000)
             withAnimation(.easeInOut(duration: 0.55)) {
                 showSplash = false

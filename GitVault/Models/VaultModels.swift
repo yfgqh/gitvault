@@ -28,6 +28,10 @@ struct VaultItem: Codable, Identifiable, Hashable {
     var topics: [String]
     /// 个人笔记：为什么收藏它
     var note: String? = nil
+    /// 上次看到的 Release tag（用于判断是否有新版本）
+    var latestReleaseTag: String? = nil
+    /// 是否有未被查看的新 Release
+    var hasNewRelease: Bool? = nil
 
     var id: String { repoID }
 

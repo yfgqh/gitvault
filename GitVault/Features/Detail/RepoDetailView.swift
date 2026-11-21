@@ -69,7 +69,10 @@ struct RepoDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(DS.bgPrimary, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
-        .onAppear { env.isShowingDetail = true }
+        .onAppear {
+            env.isShowingDetail = true
+            vault.clearNewRelease(id: repo.id)
+        }
         .onDisappear { env.isShowingDetail = false }
         .task {
             vm.llm = env.llm

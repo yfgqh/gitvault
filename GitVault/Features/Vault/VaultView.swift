@@ -557,6 +557,17 @@ struct VaultRow: View {
                     if let folder = item.folderName {
                         TagChip(text: folder, systemImage: "folder", tint: DS.textTertiary, compact: true)
                     }
+                    if item.hasNewRelease == true {
+                        HStack(spacing: 3) {
+                            Circle().fill(DS.danger).frame(width: 5, height: 5)
+                            Text(item.latestReleaseTag ?? "新版本")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(DS.danger)
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(DS.danger.opacity(0.12)))
+                    }
                 }
                 Text(item.summary)
                     .font(DS.Typo.captionRegular)

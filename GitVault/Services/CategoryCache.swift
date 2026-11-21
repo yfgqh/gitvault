@@ -148,19 +148,3 @@ final class CategoryCache {
         CrashReporter.logSync("category-cache: loaded [\(summary)]")
     }
 }
-
-// MARK: - 离线基线（真实抓取值，作为首次启动 / 限流时的兜底）
-
-extension RepoCategory {
-    /// 2026-11 实测：`topic:<代表 topic> stars:>50` 的 total_count
-    var baselineCount: Int {
-        switch self {
-        case .ai: return 8_714
-        case .tooling: return 7_152
-        case .frontend: return 13_804
-        case .backend: return 3_123
-        case .mobile: return 7_505
-        case .learning: return 3_995
-        }
-    }
-}

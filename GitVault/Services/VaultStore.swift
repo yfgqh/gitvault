@@ -77,6 +77,26 @@ final class VaultStore: ObservableObject {
         persist()
     }
 
+    // MARK: 版本提醒
+
+    func recordRelease(id: String, tag: String, flagged: Bool) {
+        guard let index = items.firstIndex(where: { $0.repoID == id }) else { return }
+        items[index].latestReleaseTag = tag
+        if flagged { items[index].hasNewRelease = true }
+        persist()
+    }
+
+    func clearNewRelease(id: String) {
+        guard let index = items.firstIndex(where: { $0.repoID == id }) else { return }
+        guard items[index].hasNewRelease == true else { return }
+        items[index].hasNewRelease = false
+        persist()
+    }
+
+    var pendingReleaseCount: Int {
+        items.filter { $0.hasNewRelease == true }.count
+    }
+
     /// 更新个人笔记
     func updateNote(id: String, note: String?) {
         guard let index = items.firstIndex(where: { $0.repoID == id }) else { return }
