@@ -8,6 +8,7 @@
 
 import Foundation
 import SwiftUI
+import Combine
 
 @MainActor
 final class AppEnvironment: ObservableObject {
@@ -31,6 +32,7 @@ final class AppEnvironment: ObservableObject {
     /// 各分类的真实项目总数（GitHub total_count），带本地缓存
     @Published private(set) var categoryCounts: [RepoCategory: Int] = [:]
     private var countsLoadedAt: Date?
+    private var cancellables = Set<AnyCancellable>()
 
     init(api: any GitHubAPI,
          auth: AuthStore,
@@ -45,6 +47,14 @@ final class AppEnvironment: ObservableObject {
         self.pro = pro ?? ProStore()
         self.update = update ?? UpdateChecker()
         loadCachedCounts()
+
+        // UpdateChecker 是独立的 ObservableObject：
+        // 转发它的变更，否则读 env.update.available 的页面不会刷新。
+        self.update.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: 分类统计

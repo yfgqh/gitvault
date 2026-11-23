@@ -35,6 +35,7 @@ struct ProfileView: View {
     @State private var showStarSync = false
     @State private var showRepoHealth = false
     @State private var showOfflineSearch = false
+    @State private var pendingUpdate: UpdateChecker.Available?
 
     /// 我的：主页 / 实验室 / 设置 三层
     private enum Pane { case home, lab, settings }
@@ -106,6 +107,15 @@ struct ProfileView: View {
             .sheet(item: $shareTarget) { target in
                 ShareSheet(items: [target.url])
                     .presentationDetents([.medium, .large])
+            }
+            .sheet(item: $pendingUpdate) { update in
+                ScrollView {
+                    UpdateCard(available: update)
+                        .padding(DS.Space.l)
+                }
+                .background(DS.bgPrimary)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showStarSync) { StarSyncView() }
             .sheet(isPresented: $showRepoHealth) { RepoHealthView() }
@@ -577,7 +587,8 @@ struct ProfileView: View {
                     Task {
                         await env.update.checkIfNeeded(force: true)
                         if let update = env.update.available {
-                            env.show("发现新版本 \(update.tag)", kind: .success)
+                            // 手动检查时直接弹出更新卡，不用去发现页找
+                            pendingUpdate = update
                         } else {
                             env.show("已是最新版本", kind: .info)
                         }

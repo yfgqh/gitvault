@@ -11,7 +11,7 @@ import Combine
 
 @MainActor
 final class UpdateChecker: ObservableObject {
-    struct Available: Equatable {
+    struct Available: Equatable, Identifiable {
         let tag: String
         let name: String
         let notes: String
@@ -20,6 +20,8 @@ final class UpdateChecker: ObservableObject {
         var assetName: String?
         var assetSize: Int?
         var downloadURL: URL?
+
+        var id: String { tag }
 
         var sizeText: String {
             guard let size = assetSize, size > 0 else { return "" }
@@ -91,7 +93,7 @@ final class UpdateChecker: ObservableObject {
                 available = nil
                 return
             }
-            if UserDefaults.standard.string(forKey: dismissedKey) == release.tagName {
+            if !force, UserDefaults.standard.string(forKey: dismissedKey) == release.tagName {
                 available = nil
                 return
             }
