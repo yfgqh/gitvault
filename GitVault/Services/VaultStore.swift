@@ -87,6 +87,20 @@ final class VaultStore: ObservableObject {
         persist()
     }
 
+    /// 用远端 star 全集对齐本地状态：远程取消的会被标为 false，
+    /// 之后的回写阶段就能重新 star 回去。
+    func reconcileGithubStarred(remoteIDs: Set<String>) {
+        var changed = false
+        for index in items.indices {
+            let should = remoteIDs.contains(items[index].repoID)
+            if items[index].githubStarred != should {
+                items[index].githubStarred = should
+                changed = true
+            }
+        }
+        if changed { persist() }
+    }
+
     func markGithubStarred(id: String, starred: Bool) {
         guard let index = items.firstIndex(where: { $0.repoID == id }) else { return }
         guard items[index].githubStarred != starred else { return }

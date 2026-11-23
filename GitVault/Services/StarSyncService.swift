@@ -61,13 +61,20 @@ final class StarSyncService: ObservableObject {
         // ---------- 1. 拉取 ----------
         var remote: [RepositoryDTO] = []
         var page = 1
+        var fullyFetched = false
         while page <= maxPages {
             phase = .fetching(page: page, total: remote.count)
             do {
                 let batch = try await GitHubExtrasService.shared.starredRepositories(page: page, perPage: 100)
-                if batch.isEmpty { break }
+                if batch.isEmpty {
+                    fullyFetched = true
+                    break
+                }
                 remote.append(contentsOf: batch)
-                if batch.count < 100 { break }
+                if batch.count < 100 {
+                    fullyFetched = true
+                    break
+                }
                 page += 1
             } catch {
                 // 没登录或额度用完时，用已拿到的部分继续
@@ -79,8 +86,15 @@ final class StarSyncService: ObservableObject {
             }
         }
 
-        // ---------- 2. 合并 ----------
+        // ---------- 2. 对齐状态 ----------
         phase = .merging
+        // 只有完整拉取才敢对齐：否则会把「没拉到的」误判成未 star
+        if fullyFetched {
+            let remoteIDs = Set(remote.map { ShowcaseRepo(dto: $0).id })
+            vault.reconcileGithubStarred(remoteIDs: remoteIDs)
+        }
+
+        // ---------- 3. 导入缺失 ----------
         let existing = Set(vault.items.map { $0.repoID })
         for dto in remote {
             let repo = ShowcaseRepo(dto: dto)
@@ -97,7 +111,7 @@ final class StarSyncService: ObservableObject {
             result.imported += 1
         }
 
-        // ---------- 3. 回写 ----------
+        // ---------- 4. 回写（含在 GitHub 上被取消的） ----------
         let pending = Array(vault.itemsNeedingStarPush().prefix(pushLimit))
         for (index, item) in pending.enumerated() {
             phase = .pushing(done: index, total: pending.count)

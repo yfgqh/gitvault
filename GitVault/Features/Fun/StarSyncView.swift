@@ -188,7 +188,7 @@ struct StarSyncView: View {
             Text("· 导入时保留你已有的分类、标记与笔记，不会覆盖")
                 .font(.system(size: 10))
                 .foregroundStyle(DS.textTertiary)
-            Text("· 本地收藏但 GitHub 上没 star 的，会自动补上 star")
+            Text("· 你在 GitHub 上取消过 star 的项目，这里会重新 star 回去")
                 .font(.system(size: 10))
                 .foregroundStyle(DS.textTertiary)
             Text("· 单次最多读取 2000 个 star、回写 40 个，避免触发限流")
