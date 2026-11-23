@@ -19,10 +19,10 @@ enum ActivityTag: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .rising: return "飙升中"
-        case .newStar: return "新星"
-        case .classic: return "经典"
-        case .dormant: return "低活跃"
+        case .rising: return NSLocalizedString("飙升中", comment: "")
+        case .newStar: return NSLocalizedString("新星", comment: "")
+        case .classic: return NSLocalizedString("经典", comment: "")
+        case .dormant: return NSLocalizedString("低活跃", comment: "")
         }
     }
 
@@ -56,9 +56,9 @@ enum UsageTag: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .readyToUse: return "可直接用"
-        case .needsLearning: return "需学习"
-        case .referenceOnly: return "仅供参考"
+        case .readyToUse: return NSLocalizedString("可直接用", comment: "")
+        case .needsLearning: return NSLocalizedString("需学习", comment: "")
+        case .referenceOnly: return NSLocalizedString("仅供参考", comment: "")
         }
     }
 
@@ -94,7 +94,7 @@ enum LicenseTag: String, CaseIterable, Identifiable, Codable {
         case .mit: return "MIT"
         case .apache: return "Apache"
         case .gpl: return "GPL"
-        case .none: return "无许可"
+        case .none: return NSLocalizedString("无许可", comment: "")
         }
     }
 
@@ -128,10 +128,10 @@ enum MyMark: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .starred: return "收藏"
-        case .watching: return "观察"
-        case .inUse: return "在用"
-        case .archived: return "归档"
+        case .starred: return NSLocalizedString("收藏", comment: "")
+        case .watching: return NSLocalizedString("观察", comment: "")
+        case .inUse: return NSLocalizedString("在用", comment: "")
+        case .archived: return NSLocalizedString("归档", comment: "")
         }
     }
 

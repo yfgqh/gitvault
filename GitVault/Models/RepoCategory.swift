@@ -47,16 +47,16 @@ enum RepoCategory: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .ai: return "AI 与智能"
-        case .data: return "数据与 AI 工程"
-        case .tooling: return "开发工具链"
-        case .frontend: return "前端与设计"
-        case .backend: return "后端与架构"
-        case .database: return "数据库与存储"
-        case .mobile: return "移动与跨端"
-        case .systems: return "系统与底层"
-        case .security: return "安全与隐私"
-        case .learning: return "学习与资源"
+        case .ai: return NSLocalizedString("AI 与智能", comment: "")
+        case .data: return NSLocalizedString("数据与 AI 工程", comment: "")
+        case .tooling: return NSLocalizedString("开发工具链", comment: "")
+        case .frontend: return NSLocalizedString("前端与设计", comment: "")
+        case .backend: return NSLocalizedString("后端与架构", comment: "")
+        case .database: return NSLocalizedString("数据库与存储", comment: "")
+        case .mobile: return NSLocalizedString("移动与跨端", comment: "")
+        case .systems: return NSLocalizedString("系统与底层", comment: "")
+        case .security: return NSLocalizedString("安全与隐私", comment: "")
+        case .learning: return NSLocalizedString("学习与资源", comment: "")
         }
     }
 
@@ -77,16 +77,16 @@ enum RepoCategory: String, CaseIterable, Identifiable, Codable {
 
     var subtitle: String {
         switch self {
-        case .ai: return "LLM · Agent · 视觉 · RAG"
-        case .data: return "管道 · MLOps · 分析 · 流处理"
-        case .tooling: return "CLI · 插件 · 构建 · CI"
-        case .frontend: return "组件库 · 动效 · 设计系统"
-        case .backend: return "微服务 · 中间件 · 云原生"
-        case .database: return "关系型 · 缓存 · 搜索 · 时序"
-        case .mobile: return "iOS · Android · 鸿蒙"
-        case .systems: return "内核 · 嵌入式 · 运行时"
-        case .security: return "渗透 · 加密 · 供应链"
-        case .learning: return "教程 · 清单 · 面试 · 算法"
+        case .ai: return NSLocalizedString("LLM · Agent · 视觉 · RAG", comment: "")
+        case .data: return NSLocalizedString("管道 · MLOps · 分析 · 流处理", comment: "")
+        case .tooling: return NSLocalizedString("CLI · 插件 · 构建 · CI", comment: "")
+        case .frontend: return NSLocalizedString("组件库 · 动效 · 设计系统", comment: "")
+        case .backend: return NSLocalizedString("微服务 · 中间件 · 云原生", comment: "")
+        case .database: return NSLocalizedString("关系型 · 缓存 · 搜索 · 时序", comment: "")
+        case .mobile: return NSLocalizedString("iOS · Android · 鸿蒙", comment: "")
+        case .systems: return NSLocalizedString("内核 · 嵌入式 · 运行时", comment: "")
+        case .security: return NSLocalizedString("渗透 · 加密 · 供应链", comment: "")
+        case .learning: return NSLocalizedString("教程 · 清单 · 面试 · 算法", comment: "")
         }
     }
 

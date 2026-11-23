@@ -27,6 +27,9 @@ enum AppTab: String, CaseIterable, Identifiable {
         }
     }
 
+    /// 英文环境下走 Localizable.strings；中文环境回退为原文
+    var localizedTitle: String { NSLocalizedString(title, comment: "") }
+
     var symbol: String {
         switch self {
         case .explore: return "sparkles"
@@ -82,7 +85,7 @@ struct GlassTabBar: View {
                     .scaleEffect(isSelected ? 1.12 : 1)
                     .animation(DS.Motion.tab, value: isSelected)
 
-                Text(tab.title)
+                Text(tab.localizedTitle)
                     .font(.system(size: 10, weight: .semibold))
                     .lineLimit(1)
             }

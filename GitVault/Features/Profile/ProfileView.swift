@@ -464,6 +464,45 @@ struct ProfileView: View {
 
     private var aiSection: some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
+            Text("语言")
+                .font(DS.Typo.headline)
+                .foregroundStyle(DS.textPrimary)
+
+            VStack(spacing: 0) {
+                ForEach(AppLanguage.allCases) { item in
+                    Button {
+                        Haptics.selection()
+                        AppLanguage.apply(item)
+                    } label: {
+                        HStack {
+                            Text(item.displayName)
+                                .font(DS.Typo.body)
+                                .foregroundStyle(DS.textPrimary)
+                            Spacer()
+                            if AppLanguage.current == item {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(DS.accent)
+                            }
+                        }
+                        .padding(.horizontal, DS.Space.m)
+                        .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.plain)
+                    if item != AppLanguage.allCases.last {
+                        Divider().padding(.leading, DS.Space.m)
+                    }
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                    .fill(DS.bgSecondary)
+            )
+
+            Text("切换后需要重启 App 才会生效。")
+                .font(.system(size: 10))
+                .foregroundStyle(DS.textTertiary)
+
             Text("AI 摘要")
                 .font(DS.Typo.headline)
                 .foregroundStyle(DS.textPrimary)
