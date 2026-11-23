@@ -33,10 +33,6 @@ final class DetailViewModel: ObservableObject {
     /// README 首图 / 演示站点预览
     @Published var previewImageURL: URL?
     @Published var isTranslating = false
-    /// 用户按需生成的 AI 摘要（点「AI 摘要」才调用模型）
-    @Published var aiSummary: String?
-    @Published var isSummarizing = false
-    @Published var summaryError: String?
 
     @Published var isLoadingDetail = false
     @Published var errorMessage: String?
@@ -55,47 +51,6 @@ final class DetailViewModel: ObservableObject {
         self.repo = repo
         self.api = api
         self.llm = llm
-    }
-
-    // MARK: 按需 AI 摘要
-
-    /// README 已经拿到时，点一下生成中文摘要（不自动调用，省额度）
-    func buildAISummary() async {
-        guard !isSummarizing else { return }
-        guard let markdown = readmeMarkdown, !markdown.isEmpty else {
-            summaryError = "README 还没读取完成，稍后再试"
-            return
-        }
-
-        isSummarizing = true
-        summaryError = nil
-        defer { isSummarizing = false }
-
-        let excerpt = SummaryService.readmeExcerpt(markdown, maxChars: 3000)
-        guard !excerpt.isEmpty else {
-            summaryError = "这个仓库没有可用的 README 正文"
-            return
-        }
-
-        // 原文已是中文：直接用标题 + 首段拼一段摘要，不必走模型
-        if SummaryService.isMostlyChinese(excerpt) {
-            let outline = SummaryService.summarizeReadme(markdown, headingLimit: 4)
-            aiSummary = outline.isEmpty ? String(excerpt.prefix(200)) : outline
-            return
-        }
-
-        guard llm.isConfigured else {
-            summaryError = "AI 未配置，可到「我的 → 设置」填写"
-            return
-        }
-
-        do {
-            let text = try await llm.translate(excerpt)
-            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            aiSummary = trimmed.isEmpty ? String(excerpt.prefix(200)) : trimmed
-        } catch {
-            summaryError = error.localizedDescription
-        }
     }
 
     // MARK: 展示内容

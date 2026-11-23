@@ -17,18 +17,15 @@ struct RepoDetailView: View {
     @EnvironmentObject private var vault: VaultStore
     @Environment(\.openURL) private var openURL
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
 
     @StateObject private var vm: DetailViewModel
     @State private var showOriginal = false
+    @State private var readmeExpanded = false
     @State private var showCode = false
     @State private var showGraph = false
     @State private var showPro = false
     @State private var showReadmeFull = false
     @State private var showAuthor = false
-    /// README 原文渲染高度（默认 500pt，展开后最多 6000pt）
-    @State private var readmeHeight: CGFloat = 500
-    @State private var readmeExpanded = false
     @State private var showDownloadOptions = false
     @State private var exportedURL: URL?
     @State private var isStarred = false
@@ -289,190 +286,92 @@ struct RepoDetailView: View {
 
     private var readmeCard: some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
-            header
-
-            // AI 摘要：点按钮才生成，结果显示在原文上方
-            if let error = vm.summaryError {
-                Text(error)
-                    .font(.system(size: 10))
-                    .foregroundStyle(DS.warning)
-            } else if let summary = vm.aiSummary {
-                summaryBlock(summary)
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "text.alignleft")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(DS.accent)
+                    Text("README 摘要")
+                        .font(DS.Typo.headline)
+                        .foregroundStyle(DS.textPrimary)
+                    TagChip(text: vm.readmeSource, tint: DS.accentAlt, compact: true)
+                }
+                Spacer()
+                if vm.showingTranslation {
+                    Button {
+                        Haptics.tap()
+                        withAnimation(DS.Motion.snappy) { showOriginal.toggle() }
+                    } label: {
+                        Text(showOriginal ? "看译文" : "看原文")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(DS.accent)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(DS.accent.opacity(0.12)))
+                    }
+                    .buttonStyle(.springPressSilent)
+                }
+                Button {
+                    Haptics.tap()
+                    withAnimation(DS.Motion.snappy) { readmeExpanded.toggle() }
+                } label: {
+                    Image(systemName: readmeExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(DS.textTertiary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(readmeExpanded ? "收起摘要" : "展开摘要")
             }
 
-            if let markdown = vm.readmeMarkdown, !markdown.isEmpty {
-                HTMLView(html: readmeHTML(markdown), contentHeight: $readmeHeight)
-                    .frame(height: min(readmeHeight, readmeExpanded ? 6000 : 500))
-                    .frame(maxWidth: .infinity)
-                    .clipped()
-                    .background(
-                        RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                            .fill(DS.bgSecondary)
-                    )
-                    .overlay(alignment: .bottom) {
-                        if !readmeExpanded, readmeHeight > 520 {
-                            LinearGradient(colors: [DS.bgSecondary.opacity(0), DS.bgSecondary],
-                                           startPoint: .top, endPoint: .bottom)
-                                .frame(height: 44)
-                                .allowsHitTesting(false)
-                        }
-                    }
-                    .onTapGesture {
+            Text(currentReadmeText)
+                .font(DS.Typo.bodySmall)
+                .foregroundStyle(DS.textSecondary)
+                .lineLimit(readmeExpanded ? nil : 8)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 6) {
+                if vm.isTranslating || vm.isLoadingReadme {
+                    ProgressView().scaleEffect(0.55).tint(DS.accent)
+                }
+                Text(vm.readmeHint)
+                    .font(.system(size: 10))
+                    .foregroundStyle(DS.textTertiary)
+                Spacer()
+                if vm.readmeMarkdown != nil {
+                    Button {
                         Haptics.tap()
                         showReadmeFull = true
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "doc.richtext")
+                                .font(.system(size: 9, weight: .bold))
+                            Text("查看完整 README")
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                        .foregroundStyle(DS.accent)
                     }
-            } else {
-                placeholder
-            }
+                    .buttonStyle(.springPressSilent)
+                }
 
-            footer
+                Button {
+                    Haptics.tap()
+                    Task { await vm.loadReadmeIfNeeded(force: true) }
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 9, weight: .bold))
+                        Text("重新读取")
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .foregroundStyle(DS.accent)
+                }
+                .buttonStyle(.springPressSilent)
+            }
         }
         .padding(DS.Space.m)
         .glassSurface()
     }
 
-    private var header: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "text.alignleft")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(DS.accent)
-            Text("README")
-                .font(DS.Typo.headline)
-                .foregroundStyle(DS.textPrimary)
-            TagChip(text: vm.readmeMarkdown == nil ? vm.readmeSource : "原文", tint: DS.accentAlt, compact: true)
-
-            Spacer(minLength: 0)
-
-            Button {
-                Haptics.tap()
-                Task { await vm.buildAISummary() }
-            } label: {
-                HStack(spacing: 3) {
-                    if vm.isSummarizing {
-                        ProgressView().scaleEffect(0.5).tint(DS.accent)
-                    } else {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 9, weight: .bold))
-                    }
-                    Text(vm.aiSummary == nil ? "AI 摘要" : "重新摘要")
-                        .font(.system(size: 10, weight: .semibold))
-                }
-                .foregroundStyle(DS.accent)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(DS.accent.opacity(0.12)))
-            }
-            .buttonStyle(.springPressSilent)
-            .disabled(vm.isSummarizing)
-        }
-    }
-
-    private func summaryBlock(_ text: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 9))
-                Text("AI 摘要")
-                    .font(.system(size: 10, weight: .semibold))
-                Spacer(minLength: 0)
-                Button {
-                    Haptics.tap()
-                    withAnimation(DS.Motion.snappy) { vm.aiSummary = nil }
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 8, weight: .bold))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(DS.textTertiary)
-            }
-            .foregroundStyle(DS.accentAlt)
-
-            Text(text)
-                .font(DS.Typo.bodySmall)
-                .foregroundStyle(DS.textSecondary)
-                .lineLimit(10)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(DS.Space.s)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                .fill(DS.accent.opacity(0.07))
-        )
-    }
-
-    private var placeholder: some View {
-        HStack(spacing: 6) {
-            if vm.isLoadingReadme {
-                ProgressView().scaleEffect(0.6).tint(DS.accent)
-                Text("正在读取 README…")
-            } else {
-                Image(systemName: "doc.text")
-                Text("这个仓库没有 README")
-            }
-        }
-        .font(.system(size: 11))
-        .foregroundStyle(DS.textTertiary)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, DS.Space.m)
-    }
-
-    private var footer: some View {
-        HStack(spacing: 6) {
-            if vm.readmeMarkdown != nil {
-                Button {
-                    Haptics.tap()
-                    withAnimation(DS.Motion.snappy) { readmeExpanded.toggle() }
-                } label: {
-                    HStack(spacing: 3) {
-                        Image(systemName: readmeExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 9, weight: .bold))
-                        Text(readmeExpanded ? "收起" : "展开全文")
-                            .font(.system(size: 10, weight: .medium))
-                    }
-                    .foregroundStyle(DS.accent)
-                }
-                .buttonStyle(.springPressSilent)
-
-                Button {
-                    Haptics.tap()
-                    showReadmeFull = true
-                } label: {
-                    HStack(spacing: 3) {
-                        Image(systemName: "arrow.up.left.and.arrow.down.right")
-                            .font(.system(size: 9, weight: .bold))
-                        Text("全屏")
-                            .font(.system(size: 10, weight: .medium))
-                    }
-                    .foregroundStyle(DS.accent)
-                }
-                .buttonStyle(.springPressSilent)
-            }
-
-            Spacer(minLength: 0)
-
-            Button {
-                Haptics.tap()
-                Task { await vm.loadReadmeIfNeeded(force: true); vm.aiSummary = nil }
-            } label: {
-                HStack(spacing: 3) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 9, weight: .bold))
-                    Text("重新读取")
-                        .font(.system(size: 10, weight: .medium))
-                }
-                .foregroundStyle(DS.accent)
-            }
-            .buttonStyle(.springPressSilent)
-        }
-    }
-
-    private func readmeHTML(_ markdown: String) -> String {
-        let base = "https://raw.githubusercontent.com/\(vm.repo.owner)/\(vm.repo.name)/HEAD/"
-        return MarkdownHTML.render(markdown: String(markdown.prefix(120_000)),
-                                   baseURL: URL(string: base),
-                                   isDark: colorScheme == .dark)
-    }
     private var currentReadmeText: String {
         if vm.showingTranslation, showOriginal {
             return vm.readmeOriginal ?? vm.readmeDisplayText

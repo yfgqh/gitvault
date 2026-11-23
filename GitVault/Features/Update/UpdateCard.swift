@@ -14,6 +14,8 @@ struct UpdateCard: View {
     @Environment(\.openURL) private var openURL
     @StateObject private var installer = UpdateInstaller()
     @State private var exportedURL: URL?
+    @State private var showFolderPicker = false
+    @State private var pickedFolderName: String?
     @State private var showNotes = false
 
     private var currentVersion: String {
@@ -46,6 +48,12 @@ struct UpdateCard: View {
             RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
                 .strokeBorder(DS.accent.opacity(0.35), lineWidth: 1)
         )
+        .sheet(isPresented: $showFolderPicker) {
+            FolderPicker { url in
+                showFolderPicker = false
+                beginDownload(to: url)
+            }
+        }
         .sheet(item: Binding(
             get: { exportedURL.map { ExportTarget(url: $0) } },
             set: { exportedURL = $0?.url }
@@ -54,7 +62,10 @@ struct UpdateCard: View {
         }
         .onChange(of: installer.phase) { phase in
             if case .finished(let url) = phase {
-                exportedURL = url
+                // 落到沙盒（用户目录不可写时的兜底）才需要再弹一次导出
+                if url.path.contains("/Documents/") {
+                    exportedURL = url
+                }
                 Haptics.success()
             }
             if case .failed(let message) = phase {
@@ -162,7 +173,7 @@ struct UpdateCard: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 12))
                     .foregroundStyle(DS.success)
-                Text("已下载到「文件/GitVault/Updates」")
+                Text(pickedFolderName.map { "已保存到「\($0)」" } ?? "已保存")
                     .font(.system(size: 10))
                     .foregroundStyle(DS.textSecondary)
                 Spacer()
@@ -212,7 +223,7 @@ struct UpdateCard: View {
                     .buttonStyle(.plain)
                 }
 
-                Text("下载后可用 TrollStore 或自签工具安装")
+                Text("先选择保存位置，下载后用 TrollStore 或自签工具安装")
                     .font(.system(size: 9))
                     .foregroundStyle(DS.textTertiary.opacity(0.8))
             }
@@ -231,11 +242,20 @@ struct UpdateCard: View {
             env.show("私有仓库需要先登录 GitHub 才能下载", kind: .warning)
             return
         }
-        guard let url = available.downloadURL else {
+        guard available.downloadURL != nil else {
             env.show("这个版本没有附带 IPA，去发布页看看", kind: .warning)
             if let page = available.url { openURL(page) }
             return
         }
-        installer.download(from: url, filename: available.assetName ?? "GitVault-\(available.tag).ipa")
+        // 先让用户选保存位置，再开始下载
+        showFolderPicker = true
+    }
+
+    private func beginDownload(to directory: URL) {
+        guard let url = available.downloadURL else { return }
+        pickedFolderName = directory.lastPathComponent
+        installer.download(from: url,
+                           filename: available.assetName ?? "GitVault-\(available.tag).ipa",
+                           to: directory)
     }
 }
