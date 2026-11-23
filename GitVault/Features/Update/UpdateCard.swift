@@ -131,7 +131,7 @@ struct UpdateCard: View {
                     Haptics.tap()
                     withAnimation(DS.Motion.snappy) { showNotes.toggle() }
                 } label: {
-                    Text(showNotes ? "收起" : "展开全部 \(noteLines.count) 行")
+                    Text(showNotes ? NSLocalizedString("收起", comment: "") : String(format: NSLocalizedString("展开全部 %d 行", comment: ""), noteLines.count))
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(DS.accent)
                 }
@@ -157,7 +157,7 @@ struct UpdateCard: View {
                     .progressViewStyle(.linear)
                     .tint(DS.accent)
                 HStack {
-                    Text("正在下载 \(Int(progress * 100))%")
+                    Text(String(format: NSLocalizedString("正在下载 %d%%", comment: ""), Int(progress * 100)))
                         .font(.system(size: 10))
                         .foregroundStyle(DS.textTertiary)
                     Spacer()
@@ -173,7 +173,7 @@ struct UpdateCard: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 12))
                     .foregroundStyle(DS.success)
-                Text(pickedFolderName.map { "已保存到「\($0)」" } ?? "已保存")
+                Text(pickedFolderName.map { String(format: NSLocalizedString("已保存到「%@」", comment: ""), $0) } ?? NSLocalizedString("已保存", comment: ""))
                     .font(.system(size: 10))
                     .foregroundStyle(DS.textSecondary)
                 Spacer()
@@ -232,8 +232,8 @@ struct UpdateCard: View {
 
     private var downloadTitle: String {
         let size = available.sizeText
-        if size.isEmpty { return "下载更新" }
-        return "下载更新（\(size)）"
+        if size.isEmpty { return NSLocalizedString("下载更新", comment: "") }
+        return String(format: NSLocalizedString("下载更新（%@）", comment: ""), size)
     }
 
     private func startDownload() {

@@ -13,10 +13,10 @@ struct VaultHealthIssue: Identifiable {
 
         var title: String {
             switch self {
-            case .stale: return "半年未更新"
-            case .backlog: return "issue 积压"
-            case .noLicense: return "缺少许可证"
-            case .archivedHint: return "可能已停更"
+            case .stale: return NSLocalizedString("半年未更新", comment: "")
+            case .backlog: return NSLocalizedString("issue 积压", comment: "")
+            case .noLicense: return NSLocalizedString("缺少许可证", comment: "")
+            case .archivedHint: return NSLocalizedString("可能已停更", comment: "")
             }
         }
         var tint: Color {
@@ -56,7 +56,7 @@ enum VaultHealthScanner {
                         id: "\(item.repoID)-archived",
                         item: item,
                         kind: .archivedHint,
-                        detail: "已 \(days / 30) 个月没有推送，可能已停止维护"
+                        detail: String(format: NSLocalizedString("已 %d 个月没有推送，可能已停止维护", comment: ""), days / 30)
                     ))
                     continue
                 }
@@ -65,7 +65,7 @@ enum VaultHealthScanner {
                         id: "\(item.repoID)-stale",
                         item: item,
                         kind: .stale,
-                        detail: "最近一次推送在 \(days) 天前"
+                        detail: String(format: NSLocalizedString("最近一次推送在 %d 天前", comment: ""), days)
                     ))
                 }
             }
@@ -176,7 +176,7 @@ struct VaultHealthView: View {
             .frame(width: 64, height: 64)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text("健康度 \(Int(healthRatio * 100)) 分")
+                Text(String(format: NSLocalizedString("健康度 %d 分", comment: ""), Int(healthRatio * 100)))
                     .font(DS.Typo.headline)
                     .foregroundStyle(DS.textPrimary)
                 Text("共 \(vault.items.count) 个收藏，发现 \(VaultHealthScanner.scan(vault.items).count) 处可优化项")

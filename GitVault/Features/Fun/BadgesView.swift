@@ -64,7 +64,7 @@ struct BadgesView: View {
             .frame(width: 62, height: 62)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(unlockedCount == 0 ? "还没有解锁徽章" : "已解锁 \(unlockedCount) 枚徽章")
+                Text(unlockedCount == 0 ? "还没有解锁徽章" : String(format: NSLocalizedString("已解锁 %d 枚徽章", comment: ""), unlockedCount))
                     .font(DS.Typo.headline)
                     .foregroundStyle(DS.textPrimary)
                 Text("收藏越多、主题越广，能解锁的徽章越多")

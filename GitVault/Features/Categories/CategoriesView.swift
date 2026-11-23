@@ -124,7 +124,7 @@ struct CategoryFeedView: View {
                     .font(DS.Typo.title)
                     .foregroundStyle(.white)
                 Text(vm.totalCount > 0
-                     ? "\(category.subtitle) · 共 \(ShowcaseRepo.compact(vm.totalCount)) 个"
+                     ? category.subtitle + " · " + String(format: NSLocalizedString("共 %@ 个", comment: ""), ShowcaseRepo.compact(vm.totalCount))
                      : category.subtitle)
                     .font(DS.Typo.caption)
                     .foregroundStyle(.white.opacity(0.8))

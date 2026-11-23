@@ -88,7 +88,7 @@ final class RepoHealthMonitor: ObservableObject {
                                                name: item.name,
                                                owner: item.owner,
                                                severity: 3,
-                                               reason: "仓库已归档，作者不再维护"))
+                                               reason: NSLocalizedString("仓库已归档，作者不再维护", comment: "")))
                 continue
             }
 
@@ -100,7 +100,7 @@ final class RepoHealthMonitor: ObservableObject {
                                                    name: item.name,
                                                    owner: item.owner,
                                                    severity: 3,
-                                                   reason: "已 \(days / 30) 个月没有提交"))
+                                                   reason: String(format: NSLocalizedString("已 %d 个月没有提交", comment: ""), days / 30)))
                     continue
                 }
                 if days >= 180 {
@@ -109,7 +109,7 @@ final class RepoHealthMonitor: ObservableObject {
                                                    name: item.name,
                                                    owner: item.owner,
                                                    severity: 2,
-                                                   reason: "最近一次提交在 \(days) 天前"))
+                                                   reason: String(format: NSLocalizedString("最近一次提交在 %d 天前", comment: ""), days)))
                 }
             }
 
@@ -119,7 +119,7 @@ final class RepoHealthMonitor: ObservableObject {
                                                name: item.name,
                                                owner: item.owner,
                                                severity: 1,
-                                               reason: "\(dto.openIssuesCount) 个 issue 未关闭"))
+                                               reason: String(format: NSLocalizedString("%d 个 issue 未关闭", comment: ""), dto.openIssuesCount)))
             }
         }
 
@@ -152,8 +152,8 @@ final class RepoHealthMonitor: ObservableObject {
         guard granted else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "收藏项目健康周报"
-        content.body = "\(count) 个项目出现停更或归档信号，建议检查是否仍在使用。"
+        content.title = NSLocalizedString("收藏项目健康周报", comment: "")
+        content.body = String(format: NSLocalizedString("%d 个项目出现停更或归档信号，建议检查是否仍在使用。", comment: ""), count)
         content.sound = .default
         let request = UNNotificationRequest(identifier: "gv.health.weekly",
                                             content: content,

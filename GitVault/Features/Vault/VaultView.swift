@@ -64,9 +64,9 @@ struct VaultView: View {
                         // 如果是从「移入文件夹」里创建的，直接把这个项目放进去
                         if let item = pendingMoveItem {
                             vault.assign(id: item.repoID, to: folder.name)
-                            env.show("已移入 \(folder.name)", kind: .success)
+                            env.show(String(format: NSLocalizedString("已移入 %@", comment: ""), folder.name), kind: .success)
                         } else {
-                            env.show("已创建文件夹：\(folder.name)", kind: .success)
+                            env.show(String(format: NSLocalizedString("已创建文件夹：%@", comment: ""), folder.name), kind: .success)
                         }
                         Haptics.success()
                     }
@@ -318,7 +318,7 @@ struct VaultView: View {
                 Button(role: .destructive) {
                     vault.remove(id: item.repoID)
                     Haptics.warning()
-                    env.show("已删除：\(item.name)", kind: .info)
+                    env.show(String(format: NSLocalizedString("已删除：%@", comment: ""), item.name), kind: .info)
                 } label: {
                     Label("删除", systemImage: "trash")
                 }
@@ -361,7 +361,7 @@ struct VaultView: View {
                         vault.setMark(id: item.repoID, to: mark)
                         Haptics.tap()
                     } label: {
-                        Label("标为\(mark.title)", systemImage: mark.symbol)
+                        Label(String(format: NSLocalizedString("标为 %@", comment: ""), mark.title), systemImage: mark.symbol)
                     }
                 }
                 Button {
@@ -411,7 +411,7 @@ struct VaultView: View {
         }
         batchProgress = nil
         Haptics.success()
-        env.show("已批量星标 \(done) 个仓库", kind: .success)
+        env.show(String(format: NSLocalizedString("已批量星标 %d 个仓库", comment: ""), done), kind: .success)
     }
 
     private func batchFork() async {
@@ -438,7 +438,7 @@ struct VaultView: View {
         }
         batchProgress = nil
         Haptics.success()
-        env.show("已 Fork \(done) 个仓库（上限 10 个/次）", kind: .success)
+        env.show(String(format: NSLocalizedString("已 Fork %d 个仓库（上限 10 个/次）", comment: ""), done), kind: .success)
     }
 
     private func folderRow(_ folder: VaultFolderItem) -> some View {

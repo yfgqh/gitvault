@@ -55,7 +55,7 @@ struct OfflineSearchView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Text("\(index.docs.count) 个已缓存")
+                    Text(String(format: NSLocalizedString("%d 个已缓存", comment: ""), index.docs.count))
                         .font(.system(size: 10))
                         .foregroundStyle(DS.textTertiary)
                 }

@@ -24,10 +24,10 @@ struct RepoHealth {
         case excellent, good, fair, risky
         var title: String {
             switch self {
-            case .excellent: return "状态优秀"
-            case .good: return "稳定可用"
-            case .fair: return "一般活跃"
-            case .risky: return "谨慎选用"
+            case .excellent: return NSLocalizedString("状态优秀", comment: "")
+            case .good: return NSLocalizedString("稳定可用", comment: "")
+            case .fair: return NSLocalizedString("一般活跃", comment: "")
+            case .risky: return NSLocalizedString("谨慎选用", comment: "")
             }
         }
         var tint: Color {
@@ -90,7 +90,7 @@ enum RepoHealthCalculator {
         var verdict: String
         switch level {
         case .excellent:
-            verdict = "近期有提交、社区活跃、文档齐全，可以放心用在生产环境。"
+            verdict = NSLocalizedString("近期有提交、社区活跃、文档齐全，可以放心用在生产环境。", comment: "")
         case .good:
             verdict = "维护正常，文档基本够用；接入前建议读一遍 issue 区。"
         case .fair:
@@ -137,28 +137,28 @@ enum Gamification {
         let streak = longestStreak(days)
 
         return [
-            Achievement(id: "collect10", title: "初识", detail: "收藏 10 个项目",
+            Achievement(id: "collect10", title: NSLocalizedString("初识", comment: ""), detail: NSLocalizedString("收藏 10 个项目", comment: ""),
                         symbol: "bookmark", tint: DS.accent,
                         unlocked: count >= 10, progressText: "\(min(count, 10))/10"),
-            Achievement(id: "collect50", title: "收藏家", detail: "收藏 50 个项目",
+            Achievement(id: "collect50", title: NSLocalizedString("收藏家", comment: ""), detail: NSLocalizedString("收藏 50 个项目", comment: ""),
                         symbol: "bookmark.fill", tint: DS.accentAlt,
                         unlocked: count >= 50, progressText: "\(min(count, 50))/50"),
-            Achievement(id: "collect100", title: "图书馆", detail: "收藏 100 个项目",
+            Achievement(id: "collect100", title: NSLocalizedString("图书馆", comment: ""), detail: NSLocalizedString("收藏 100 个项目", comment: ""),
                         symbol: "books.vertical.fill", tint: DS.warning,
                         unlocked: count >= 100, progressText: "\(min(count, 100))/100"),
-            Achievement(id: "collect300", title: "档案馆", detail: "收藏 300 个项目",
+            Achievement(id: "collect300", title: NSLocalizedString("档案馆", comment: ""), detail: NSLocalizedString("收藏 300 个项目", comment: ""),
                         symbol: "archivebox.fill", tint: DS.danger,
                         unlocked: count >= 300, progressText: "\(min(count, 300))/300"),
-            Achievement(id: "cats3", title: "跨界", detail: "覆盖 3 个主题场景",
+            Achievement(id: "cats3", title: NSLocalizedString("跨界", comment: ""), detail: NSLocalizedString("覆盖 3 个主题场景", comment: ""),
                         symbol: "square.grid.2x2", tint: DS.accent,
                         unlocked: categories.count >= 3, progressText: "\(min(categories.count, 3))/3"),
-            Achievement(id: "cats6", title: "全景视角", detail: "覆盖全部 6 个主题",
+            Achievement(id: "cats6", title: NSLocalizedString("全景视角", comment: ""), detail: NSLocalizedString("覆盖全部 6 个主题", comment: ""),
                         symbol: "circle.hexagongrid.fill", tint: DS.accentAlt,
                         unlocked: categories.count >= 6, progressText: "\(min(categories.count, 6))/6"),
-            Achievement(id: "lang3", title: "多语言", detail: "涉及 3 种编程语言",
+            Achievement(id: "lang3", title: NSLocalizedString("多语言", comment: ""), detail: NSLocalizedString("涉及 3 种编程语言", comment: ""),
                         symbol: "chevron.left.forwardslash.chevron.right", tint: DS.success,
                         unlocked: languages.count >= 3, progressText: "\(min(languages.count, 3))/3"),
-            Achievement(id: "streak7", title: "七日不断", detail: "连续 7 天有收藏",
+            Achievement(id: "streak7", title: NSLocalizedString("七日不断", comment: ""), detail: NSLocalizedString("连续 7 天有收藏", comment: ""),
                         symbol: "flame.fill", tint: DS.warning,
                         unlocked: streak >= 7, progressText: "\(min(streak, 7))/7")
         ]
@@ -193,62 +193,62 @@ enum Gamification {
 
         switch top {
         case .ai:
-            return Persona(title: "AI 观察员",
-                           subtitle: "你在追踪模型、Agent 与推理侧的最新动向" + (second.map { "，也会留意\($0.title)" } ?? ""),
+            return Persona(title: NSLocalizedString("AI 观察员", comment: ""),
+                           subtitle: NSLocalizedString("你在追踪模型、Agent 与推理侧的最新动向", comment: ""),
                            symbol: "brain.head.profile",
                            tint: DS.accent,
                            topCategories: Array(sorted.prefix(3)).map { $0.key })
         case .tooling:
-            return Persona(title: "工具链炼金师",
-                           subtitle: "你对效率有近乎偏执的追求，收藏里一半是能省时间的工具",
+            return Persona(title: NSLocalizedString("工具链炼金师", comment: ""),
+                           subtitle: NSLocalizedString("你对效率有近乎偏执的追求，收藏里一半是能省时间的工具", comment: ""),
                            symbol: "wrench.and.screwdriver.fill",
                            tint: DS.accentAlt,
                            topCategories: Array(sorted.prefix(3)).map { $0.key })
         case .frontend:
-            return Persona(title: "界面美学派",
-                           subtitle: "你在意动效、密度和手感，会为了一个交互细节翻完整个仓库",
+            return Persona(title: NSLocalizedString("界面美学派", comment: ""),
+                           subtitle: NSLocalizedString("你在意动效、密度和手感，会为了一个交互细节翻完整个仓库", comment: ""),
                            symbol: "paintbrush.pointed.fill",
                            tint: DS.warning,
                            topCategories: Array(sorted.prefix(3)).map { $0.key })
         case .backend:
-            return Persona(title: "基础设施收集者",
-                           subtitle: "数据库、中间件、云原生——你收藏的是系统的骨头",
+            return Persona(title: NSLocalizedString("基础设施收集者", comment: ""),
+                           subtitle: NSLocalizedString("数据库、中间件、云原生——你收藏的是系统的骨头", comment: ""),
                            symbol: "server.rack",
                            tint: DS.success,
                            topCategories: Array(sorted.prefix(3)).map { $0.key })
         case .mobile:
-            return Persona(title: "端上体验官",
-                           subtitle: "你关注 iOS、Android 与跨端方案，习惯从一个个 App 里找灵感",
+            return Persona(title: NSLocalizedString("端上体验官", comment: ""),
+                           subtitle: NSLocalizedString("你关注 iOS、Android 与跨端方案，习惯从一个个 App 里找灵感", comment: ""),
                            symbol: "iphone.gen3",
                            tint: DS.accent,
                            topCategories: Array(sorted.prefix(3)).map { $0.key })
         case .data:
-            return Persona(title: "数据炼金师",
-                           subtitle: "管道、指标、特征——你擅长把原始数据变成可用的结论",
+            return Persona(title: NSLocalizedString("数据炼金师", comment: ""),
+                           subtitle: NSLocalizedString("管道、指标、特征——你擅长把原始数据变成可用的结论", comment: ""),
                            symbol: "chart.bar.xaxis",
                            tint: DS.accent,
                            topCategories: Array(sorted.prefix(3)).map { $0.key })
         case .database:
-            return Persona(title: "存储守门人",
-                           subtitle: "你对索引、事务和一致性有执念，选型时会先看存储层",
+            return Persona(title: NSLocalizedString("存储守门人", comment: ""),
+                           subtitle: NSLocalizedString("你对索引、事务和一致性有执念，选型时会先看存储层", comment: ""),
                            symbol: "cylinder.split.1x2",
                            tint: DS.success,
                            topCategories: Array(sorted.prefix(3)).map { $0.key })
         case .systems:
-            return Persona(title: "底层潜水员",
-                           subtitle: "内核、运行时、编译器——你愿意为了搞清楚机制读汇编",
+            return Persona(title: NSLocalizedString("底层潜水员", comment: ""),
+                           subtitle: NSLocalizedString("内核、运行时、编译器——你愿意为了搞清楚机制读汇编", comment: ""),
                            symbol: "cpu",
                            tint: DS.textSecondary,
                            topCategories: Array(sorted.prefix(3)).map { $0.key })
         case .security:
-            return Persona(title: "安全哨兵",
-                           subtitle: "你在意攻击面、供应链与隐私边界，看到权限申请会多看一眼",
+            return Persona(title: NSLocalizedString("安全哨兵", comment: ""),
+                           subtitle: NSLocalizedString("你在意攻击面、供应链与隐私边界，看到权限申请会多看一眼", comment: ""),
                            symbol: "lock.shield.fill",
                            tint: DS.danger,
                            topCategories: Array(sorted.prefix(3)).map { $0.key })
         case .learning:
-            return Persona(title: "知识猎人",
-                           subtitle: "清单、教程、面试题——你更在意把知识搬进自己的脑子",
+            return Persona(title: NSLocalizedString("知识猎人", comment: ""),
+                           subtitle: NSLocalizedString("清单、教程、面试题——你更在意把知识搬进自己的脑子", comment: ""),
                            symbol: "book.closed.fill",
                            tint: DS.accentAlt,
                            topCategories: Array(sorted.prefix(3)).map { $0.key })
@@ -312,7 +312,7 @@ struct WeeklyStats {
 
     var headline: String {
         if newCount == 0 { return "本周还没有新增收藏" }
-        return "本周新增 \(newCount) 个项目"
+        return String(format: NSLocalizedString("本周新增 %d 个项目", comment: ""), newCount)
     }
 }
 
@@ -324,7 +324,7 @@ struct Persona {
     let topCategories: [RepoCategory]
 
     static let empty = Persona(
-        title: "尚未成形",
+        title: NSLocalizedString("尚未成形", comment: ""),
         subtitle: "先收藏几个项目，人格会随你的选择慢慢长出来",
         symbol: "person.crop.circle.dashed",
         tint: DS.textTertiary,

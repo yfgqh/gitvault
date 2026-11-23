@@ -44,7 +44,7 @@ struct AuthorView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: DS.Space.m) {
                     if vm.isLoading {
-                        ProgressView("正在读取 \(login) 的仓库…")
+                        ProgressView(String(format: NSLocalizedString("正在读取 %@ 的仓库…", comment: ""), login))
                             .tint(DS.accent)
                             .frame(maxWidth: .infinity)
                             .padding(.top, DS.Space.l)

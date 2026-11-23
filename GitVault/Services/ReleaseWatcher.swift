@@ -94,7 +94,7 @@ final class ReleaseWatcher: ObservableObject {
 
         let content = UNMutableNotificationContent()
         content.title = "收藏的仓库有新版本"
-        content.body = "\(count) 个你收藏的仓库刚刚发布了新的 Release，去收藏页看看。"
+        content.body = String(format: NSLocalizedString("%d 个你收藏的仓库刚刚发布了新的 Release，去收藏页看看。", comment: ""), count)
         content.sound = .default
 
         let request = UNNotificationRequest(

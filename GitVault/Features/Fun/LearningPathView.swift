@@ -113,7 +113,7 @@ struct LearningPathView: View {
                 Text(category.title)
                     .font(DS.Typo.cardTitle)
                     .foregroundStyle(DS.textPrimary)
-                Text("按难度分三档，共 \(vm.items.count) 个候选")
+                Text(String(format: NSLocalizedString("按难度分三档，共 %d 个候选", comment: ""), vm.items.count))
                     .font(.system(size: 11))
                     .foregroundStyle(DS.textTertiary)
             }

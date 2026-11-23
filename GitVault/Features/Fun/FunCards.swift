@@ -29,7 +29,7 @@ struct TodayArchiveCard: View {
                         Image(systemName: "clock.arrow.circlepath")
                             .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(DS.accent)
-                        Text(daysAgo <= 0 ? "今天收藏的" : "\(daysAgo) 天前收藏的")
+                        Text(daysAgo <= 0 ? NSLocalizedString("今天收藏的", comment: "") : String(format: NSLocalizedString("%d 天前收藏的", comment: ""), daysAgo))
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(DS.accent)
                     }
@@ -156,7 +156,7 @@ struct UpdateBanner: View {
                 .foregroundStyle(DS.accent)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text("发现新版本 \(available.tag)")
+                Text(String(format: NSLocalizedString("发现新版本 %@", comment: ""), available.tag))
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(DS.textPrimary)
                 Text("点此查看更新说明")

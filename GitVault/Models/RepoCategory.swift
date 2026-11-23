@@ -187,45 +187,45 @@ enum RepoCategory: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .ai:
             return [
-                RepoSubcategory(id: "ai.llm", title: "大模型", topics: ["llm", "gpt", "transformer"], languages: []),
+                RepoSubcategory(id: "ai.llm", title: NSLocalizedString("大模型", comment: ""), topics: ["llm", "gpt", "transformer"], languages: []),
                 RepoSubcategory(id: "ai.agent", title: "Agent", topics: ["agent", "agents", "autonomous-agents"], languages: []),
-                RepoSubcategory(id: "ai.cv", title: "视觉生成", topics: ["stable-diffusion", "image-generation", "computer-vision"], languages: []),
-                RepoSubcategory(id: "ai.rag", title: "RAG 检索", topics: ["rag", "vector-database", "embedding"], languages: [])
+                RepoSubcategory(id: "ai.cv", title: NSLocalizedString("视觉生成", comment: ""), topics: ["stable-diffusion", "image-generation", "computer-vision"], languages: []),
+                RepoSubcategory(id: "ai.rag", title: NSLocalizedString("RAG 检索", comment: ""), topics: ["rag", "vector-database", "embedding"], languages: [])
             ]
         case .data:
             return [
-                RepoSubcategory(id: "data.pipeline", title: "数据管道", topics: ["etl", "airflow", "dbt"], languages: []),
+                RepoSubcategory(id: "data.pipeline", title: NSLocalizedString("数据管道", comment: ""), topics: ["etl", "airflow", "dbt"], languages: []),
                 RepoSubcategory(id: "data.mlops", title: "MLOps", topics: ["mlops", "feature-store", "model-serving"], languages: []),
-                RepoSubcategory(id: "data.stream", title: "流处理", topics: ["kafka", "flink", "stream-processing"], languages: []),
-                RepoSubcategory(id: "data.bi", title: "分析看板", topics: ["analytics", "business-intelligence", "dashboard"], languages: [])
+                RepoSubcategory(id: "data.stream", title: NSLocalizedString("流处理", comment: ""), topics: ["kafka", "flink", "stream-processing"], languages: []),
+                RepoSubcategory(id: "data.bi", title: NSLocalizedString("分析看板", comment: ""), topics: ["analytics", "business-intelligence", "dashboard"], languages: [])
             ]
         case .tooling:
             return [
-                RepoSubcategory(id: "tool.cli", title: "命令行", topics: ["cli", "command-line", "terminal"], languages: ["go", "rust", "shell"]),
-                RepoSubcategory(id: "tool.editor", title: "编辑器插件", topics: ["vscode-extension", "neovim", "jetbrains-plugin"], languages: []),
-                RepoSubcategory(id: "tool.build", title: "构建打包", topics: ["build-tool", "bundler", "monorepo"], languages: []),
+                RepoSubcategory(id: "tool.cli", title: NSLocalizedString("命令行", comment: ""), topics: ["cli", "command-line", "terminal"], languages: ["go", "rust", "shell"]),
+                RepoSubcategory(id: "tool.editor", title: NSLocalizedString("编辑器插件", comment: ""), topics: ["vscode-extension", "neovim", "jetbrains-plugin"], languages: []),
+                RepoSubcategory(id: "tool.build", title: NSLocalizedString("构建打包", comment: ""), topics: ["build-tool", "bundler", "monorepo"], languages: []),
                 RepoSubcategory(id: "tool.devops", title: "DevOps", topics: ["devops", "docker", "github-actions"], languages: [])
             ]
         case .frontend:
             return [
-                RepoSubcategory(id: "fe.ui", title: "组件库", topics: ["ui-components", "component-library", "design-system"], languages: []),
-                RepoSubcategory(id: "fe.motion", title: "动效", topics: ["animation", "motion", "gsap"], languages: []),
-                RepoSubcategory(id: "fe.framework", title: "跨端框架", topics: ["react", "vue", "svelte"], languages: []),
-                RepoSubcategory(id: "fe.style", title: "样式方案", topics: ["css", "tailwindcss", "styling"], languages: [])
+                RepoSubcategory(id: "fe.ui", title: NSLocalizedString("组件库", comment: ""), topics: ["ui-components", "component-library", "design-system"], languages: []),
+                RepoSubcategory(id: "fe.motion", title: NSLocalizedString("动效", comment: ""), topics: ["animation", "motion", "gsap"], languages: []),
+                RepoSubcategory(id: "fe.framework", title: NSLocalizedString("跨端框架", comment: ""), topics: ["react", "vue", "svelte"], languages: []),
+                RepoSubcategory(id: "fe.style", title: NSLocalizedString("样式方案", comment: ""), topics: ["css", "tailwindcss", "styling"], languages: [])
             ]
         case .backend:
             return [
-                RepoSubcategory(id: "be.micro", title: "微服务", topics: ["microservices", "grpc", "api-gateway"], languages: []),
-                RepoSubcategory(id: "be.mq", title: "消息队列", topics: ["kafka", "message-queue", "rabbitmq"], languages: []),
-                RepoSubcategory(id: "be.cloud", title: "云原生", topics: ["kubernetes", "serverless", "cloud-native"], languages: []),
-                RepoSubcategory(id: "be.framework", title: "服务框架", topics: ["web-framework", "backend", "rest-api"], languages: [])
+                RepoSubcategory(id: "be.micro", title: NSLocalizedString("微服务", comment: ""), topics: ["microservices", "grpc", "api-gateway"], languages: []),
+                RepoSubcategory(id: "be.mq", title: NSLocalizedString("消息队列", comment: ""), topics: ["kafka", "message-queue", "rabbitmq"], languages: []),
+                RepoSubcategory(id: "be.cloud", title: NSLocalizedString("云原生", comment: ""), topics: ["kubernetes", "serverless", "cloud-native"], languages: []),
+                RepoSubcategory(id: "be.framework", title: NSLocalizedString("服务框架", comment: ""), topics: ["web-framework", "backend", "rest-api"], languages: [])
             ]
         case .database:
             return [
-                RepoSubcategory(id: "db.sql", title: "关系型", topics: ["postgresql", "mysql", "sql"], languages: []),
-                RepoSubcategory(id: "db.kv", title: "键值与缓存", topics: ["redis", "key-value", "memcached"], languages: []),
-                RepoSubcategory(id: "db.search", title: "搜索引擎", topics: ["search-engine", "elasticsearch", "full-text-search"], languages: []),
-                RepoSubcategory(id: "db.ts", title: "时序与列存", topics: ["timeseries", "clickhouse", "olap"], languages: [])
+                RepoSubcategory(id: "db.sql", title: NSLocalizedString("关系型", comment: ""), topics: ["postgresql", "mysql", "sql"], languages: []),
+                RepoSubcategory(id: "db.kv", title: NSLocalizedString("键值与缓存", comment: ""), topics: ["redis", "key-value", "memcached"], languages: []),
+                RepoSubcategory(id: "db.search", title: NSLocalizedString("搜索引擎", comment: ""), topics: ["search-engine", "elasticsearch", "full-text-search"], languages: []),
+                RepoSubcategory(id: "db.ts", title: NSLocalizedString("时序与列存", comment: ""), topics: ["timeseries", "clickhouse", "olap"], languages: [])
             ]
         case .mobile:
             return [
@@ -233,28 +233,28 @@ enum RepoCategory: String, CaseIterable, Identifiable, Codable {
                 RepoSubcategory(id: "mob.android", title: "Android", topics: ["android", "jetpack-compose"], languages: ["kotlin", "java"]),
                 RepoSubcategory(id: "mob.flutter", title: "Flutter", topics: ["flutter"], languages: ["dart"]),
                 RepoSubcategory(id: "mob.rn", title: "React Native", topics: ["react-native"], languages: []),
-                RepoSubcategory(id: "mob.harmony", title: "鸿蒙", topics: ["harmonyos", "arkts"], languages: [])
+                RepoSubcategory(id: "mob.harmony", title: NSLocalizedString("鸿蒙", comment: ""), topics: ["harmonyos", "arkts"], languages: [])
             ]
         case .systems:
             return [
-                RepoSubcategory(id: "sys.kernel", title: "内核与驱动", topics: ["kernel", "driver", "ebpf"], languages: ["c", "c++", "rust"]),
-                RepoSubcategory(id: "sys.embedded", title: "嵌入式", topics: ["embedded", "firmware", "rtos"], languages: []),
-                RepoSubcategory(id: "sys.runtime", title: "运行时", topics: ["wasm", "virtual-machine", "interpreter"], languages: []),
-                RepoSubcategory(id: "sys.perf", title: "性能与调试", topics: ["profiling", "debugging", "benchmark"], languages: [])
+                RepoSubcategory(id: "sys.kernel", title: NSLocalizedString("内核与驱动", comment: ""), topics: ["kernel", "driver", "ebpf"], languages: ["c", "c++", "rust"]),
+                RepoSubcategory(id: "sys.embedded", title: NSLocalizedString("嵌入式", comment: ""), topics: ["embedded", "firmware", "rtos"], languages: []),
+                RepoSubcategory(id: "sys.runtime", title: NSLocalizedString("运行时", comment: ""), topics: ["wasm", "virtual-machine", "interpreter"], languages: []),
+                RepoSubcategory(id: "sys.perf", title: NSLocalizedString("性能与调试", comment: ""), topics: ["profiling", "debugging", "benchmark"], languages: [])
             ]
         case .security:
             return [
-                RepoSubcategory(id: "sec.pentest", title: "渗透测试", topics: ["pentest", "exploit", "vulnerability"], languages: []),
-                RepoSubcategory(id: "sec.crypto", title: "加密与隐私", topics: ["cryptography", "encryption", "privacy"], languages: []),
-                RepoSubcategory(id: "sec.chain", title: "供应链安全", topics: ["sbom", "supply-chain", "vulnerability-scanner"], languages: []),
-                RepoSubcategory(id: "sec.tools", title: "安全工具", topics: ["security-tools", "ctf", "forensics"], languages: [])
+                RepoSubcategory(id: "sec.pentest", title: NSLocalizedString("渗透测试", comment: ""), topics: ["pentest", "exploit", "vulnerability"], languages: []),
+                RepoSubcategory(id: "sec.crypto", title: NSLocalizedString("加密与隐私", comment: ""), topics: ["cryptography", "encryption", "privacy"], languages: []),
+                RepoSubcategory(id: "sec.chain", title: NSLocalizedString("供应链安全", comment: ""), topics: ["sbom", "supply-chain", "vulnerability-scanner"], languages: []),
+                RepoSubcategory(id: "sec.tools", title: NSLocalizedString("安全工具", comment: ""), topics: ["security-tools", "ctf", "forensics"], languages: [])
             ]
         case .learning:
             return [
-                RepoSubcategory(id: "learn.list", title: "Awesome 清单", topics: ["awesome-list", "awesome"], languages: []),
-                RepoSubcategory(id: "learn.tutorial", title: "教程", topics: ["tutorial", "course", "guide"], languages: []),
-                RepoSubcategory(id: "learn.interview", title: "面试算法", topics: ["interview", "leetcode", "algorithms"], languages: []),
-                RepoSubcategory(id: "learn.book", title: "书籍", topics: ["books", "ebook", "free-programming-books"], languages: [])
+                RepoSubcategory(id: "learn.list", title: NSLocalizedString("Awesome 清单", comment: ""), topics: ["awesome-list", "awesome"], languages: []),
+                RepoSubcategory(id: "learn.tutorial", title: NSLocalizedString("教程", comment: ""), topics: ["tutorial", "course", "guide"], languages: []),
+                RepoSubcategory(id: "learn.interview", title: NSLocalizedString("面试算法", comment: ""), topics: ["interview", "leetcode", "algorithms"], languages: []),
+                RepoSubcategory(id: "learn.book", title: NSLocalizedString("书籍", comment: ""), topics: ["books", "ebook", "free-programming-books"], languages: [])
             ]
         }
     }

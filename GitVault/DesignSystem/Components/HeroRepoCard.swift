@@ -129,7 +129,7 @@ struct HeroRepoCard: View {
                 .overlay { HeartBurst(active: heartBurst) }
         }
         .buttonStyle(.springPressSilent)
-        .accessibilityLabel(isSaved ? "取消收藏 \(repo.name)" : "收藏 \(repo.name)")
+        .accessibilityLabel(isSaved ? String(format: NSLocalizedString("取消收藏 %@", comment: ""), repo.name) : String(format: NSLocalizedString("收藏 %@", comment: ""), repo.name))
     }
 }
 

@@ -94,11 +94,11 @@ struct StarSyncView: View {
     private var actionArea: some View {
         switch sync.phase {
         case .fetching(let page, let total):
-            progressBox("正在读取 GitHub star：第 \(page) 页，已取 \(total) 个")
+            progressBox(String(format: NSLocalizedString("正在读取 GitHub star：第 %d 页，已取 %d 个", comment: ""), page, total))
         case .merging:
-            progressBox("正在合并到本地收藏…")
+            progressBox(NSLocalizedString("正在合并到本地收藏…", comment: ""))
         case .pushing(let done, let total):
-            progressBox("正在回写 star：\(done)/\(total)")
+            progressBox(String(format: NSLocalizedString("正在回写 star：%d/%d", comment: ""), done, total))
         case .finished(let result):
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
@@ -108,7 +108,7 @@ struct StarSyncView: View {
                         .font(DS.Typo.headline)
                         .foregroundStyle(DS.textPrimary)
                 }
-                Text("导入 \(result.imported) 个 · 回写 \(result.pushed) 个 · 已存在 \(result.skipped) 个 · 失败 \(result.failed) 个")
+                Text(String(format: NSLocalizedString("导入 %d 个 · 回写 %d 个 · 已存在 %d 个 · 失败 %d 个", comment: ""), result.imported, result.pushed, result.skipped, result.failed))
                     .font(.system(size: 11))
                     .foregroundStyle(DS.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)

@@ -95,7 +95,7 @@ struct RepoDetailView: View {
         }
         .onChange(of: downloader.state) { newValue in
             if case .finished(let url) = newValue {
-                env.show("已保存：\(url.lastPathComponent)", kind: .success)
+                env.show(String(format: NSLocalizedString("已保存：%@", comment: ""), url.lastPathComponent), kind: .success)
                 // 下载完成即提供「保存到文件」的选择
                 exportedURL = url
             }
@@ -249,7 +249,7 @@ struct RepoDetailView: View {
             if vm.languages.isEmpty {
                 HStack(spacing: 6) {
                     LanguageDot(color: LanguagePalette.color(for: vm.repo.language))
-                    Text("主语言 \(vm.repo.language)")
+                    Text(String(format: NSLocalizedString("主语言 %@", comment: ""), vm.repo.language))
                         .font(DS.Typo.caption)
                         .foregroundStyle(DS.textSecondary)
                     Spacer()
@@ -475,11 +475,11 @@ struct RepoDetailView: View {
                 } else {
                     try await GitHubExtrasService.shared.star(owner: vm.repo.owner, repo: vm.repo.name)
                     isStarred = true
-                    env.show("已星标 \(vm.repo.fullName)", kind: .success)
+                    env.show(String(format: NSLocalizedString("已星标 %@", comment: ""), vm.repo.fullName), kind: .success)
                 }
                 Haptics.success()
             } catch {
-                env.show("操作失败：\(error.localizedDescription)", kind: .warning)
+                env.show(String(format: NSLocalizedString("操作失败：%@", comment: ""), error.localizedDescription), kind: .warning)
             }
         }
     }
@@ -504,7 +504,7 @@ struct RepoDetailView: View {
                     owner: target.owner.login,
                     repo: target.name
                 )
-                env.show("已 Fork 到 \(forked.fullName)", kind: .success)
+                env.show(String(format: NSLocalizedString("已 Fork 到 %@", comment: ""), forked.fullName), kind: .success)
                 Haptics.success()
             } catch GitHubError.unauthorized {
                 env.show("Fork 失败：登录已失效，请重新登录", kind: .warning)
@@ -700,14 +700,14 @@ struct RepoDetailView: View {
             vault.remove(id: repo.id)
             vm.isSaved = false
             vm.mark = nil
-            env.show("已取消收藏：\(repo.name)")
+            env.show(String(format: NSLocalizedString("已取消收藏：%@", comment: ""), repo.name))
             Haptics.tap()
         } else {
             vault.toggle(vm.repo, mark: .starred)
             vm.isSaved = true
             vm.mark = .starred
             Haptics.success()
-            env.show("已收藏：\(repo.name)", kind: .success)
+            env.show(String(format: NSLocalizedString("已收藏：%@", comment: ""), repo.name), kind: .success)
         }
     }
 
@@ -718,7 +718,7 @@ struct RepoDetailView: View {
             vm.isSaved = false
             vm.mark = nil
             Haptics.warning()
-            env.show("已取消「\(mark.title)」", kind: .info)
+            env.show(String(format: NSLocalizedString("已取消「%@」", comment: ""), mark.title), kind: .info)
             return
         }
 
@@ -730,7 +730,7 @@ struct RepoDetailView: View {
         }
         vm.mark = mark
         Haptics.medium()
-        env.show("已标记为「\(mark.title)」", kind: .success)
+        env.show(String(format: NSLocalizedString("已标记为「%@」", comment: ""), mark.title), kind: .success)
     }
 }
 

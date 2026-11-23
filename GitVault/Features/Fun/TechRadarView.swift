@@ -123,7 +123,7 @@ struct TechRadarView: View {
 
     private var headline: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("近 6 个月新增的 \(recentRepos.count) 个项目")
+            Text(String(format: NSLocalizedString("近 6 个月新增的 %d 个项目", comment: ""), recentRepos.count))
                 .font(DS.Typo.headline)
                 .foregroundStyle(DS.textPrimary)
             Text("按主题与语言统计，样本来自本地缓存的全量库")

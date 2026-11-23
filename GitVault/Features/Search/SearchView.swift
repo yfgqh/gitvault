@@ -162,7 +162,7 @@ struct SearchView: View {
             .padding(.top, DS.Space.l)
         } else if vm.results.isEmpty {
             EmptyStateView(symbol: "magnifyingglass",
-                           title: "没有找到「\(vm.query)」",
+                           title: String(format: NSLocalizedString("没有找到「%@」", comment: ""), vm.query),
                            message: "换个关键词，或去掉筛选条件再试试")
             .padding(.top, DS.Space.l)
         } else {
@@ -173,7 +173,7 @@ struct SearchView: View {
     private var resultList: some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
             HStack {
-                Text("找到 \(ShowcaseRepo.compact(vm.totalCount)) 个结果")
+                Text(String(format: NSLocalizedString("找到 %@ 个结果", comment: ""), ShowcaseRepo.compact(vm.totalCount)))
                     .font(DS.Typo.caption)
                     .foregroundStyle(DS.textTertiary)
                 Spacer()

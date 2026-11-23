@@ -177,7 +177,7 @@ final class ProStore: ObservableObject {
 
     var statusTitle: String {
         if isPro { return "Pro 已解锁" }
-        if trialActive { return "Pro 试用中 · 剩 \(trialDaysLeft) 天" }
+        if trialActive { return String(format: NSLocalizedString("Pro 试用中 · 剩 %d 天", comment: ""), trialDaysLeft) }
         return "免费版"
     }
 }

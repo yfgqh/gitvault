@@ -61,7 +61,7 @@ struct RepoHealthView: View {
                 Image(systemName: "waveform.path.ecg")
                     .font(.system(size: 18))
                     .foregroundStyle(monitor.highRiskCount > 0 ? DS.warning : DS.success)
-                Text(monitor.highRiskCount > 0 ? "\(monitor.highRiskCount) 个高危项目" : "暂无高危项目")
+                Text(monitor.highRiskCount > 0 ? String(format: NSLocalizedString("%d 个高危项目", comment: ""), monitor.highRiskCount) : NSLocalizedString("暂无高危项目", comment: ""))
                     .font(DS.Typo.cardTitle)
                     .foregroundStyle(DS.textPrimary)
                 Spacer(minLength: 0)

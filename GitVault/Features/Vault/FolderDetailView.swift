@@ -45,7 +45,7 @@ struct FolderDetailView: View {
                             .contextMenu {
                                 Button {
                                     vault.assign(id: item.repoID, to: nil)
-                                    env.show("已移出 \(folder.name)", kind: .success)
+                                    env.show(String(format: NSLocalizedString("已移出 %@", comment: ""), folder.name), kind: .success)
                                 } label: {
                                     Label("移出文件夹", systemImage: "folder.badge.minus")
                                 }

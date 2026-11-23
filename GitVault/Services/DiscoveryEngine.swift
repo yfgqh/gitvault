@@ -113,10 +113,10 @@ enum DiscoveryEngine {
         // 推荐理由：最多两条，按信息量排序
         var tags: [String] = []
         if ageDays <= 180, repo.stars >= 300 {
-            tags.append("新项目 · \(Int(ageDays / 30)) 个月")
+            tags.append(String(format: NSLocalizedString("新项目 · %d 个月", comment: ""), Int(ageDays / 30)))
         }
         if starsPerDay >= 5 {
-            tags.append("日增 \(Int(starsPerDay)) 星")
+            tags.append(String(format: NSLocalizedString("日增 %d 星", comment: ""), Int(starsPerDay)))
         }
         if (200...3000).contains(repo.stars), quality >= 15 {
             tags.append("隐藏宝石")

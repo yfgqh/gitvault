@@ -67,7 +67,7 @@ final class DetailViewModel: ObservableObject {
     }
 
     var readmeHint: String {
-        if isTranslating { return "原文为英文，正在用 AI 翻译…" }
+        if isTranslating { return NSLocalizedString("原文为英文，正在用 AI 翻译…", comment: "") }
         if showingTranslation { return "已由 \(llm.displayName) 译为中文" }
         if isLoadingReadme { return "正在读取 README 原文…" }
         return "README 原文摘录"
@@ -163,7 +163,7 @@ final class DetailViewModel: ObservableObject {
 
         // 已是中文就不翻译
         guard !SummaryService.isMostlyChinese(excerpt) else {
-            readmeSource = "原文（中文）"
+            readmeSource = NSLocalizedString("原文（中文）", comment: "")
             return
         }
         guard llm.isConfigured else { return }

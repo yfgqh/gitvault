@@ -207,7 +207,7 @@ struct ExploreView: View {
                 HStack(spacing: 5) {
                     Image(systemName: "hand.draw")
                         .font(.system(size: 10, weight: .semibold))
-                    Text("左右滑动查看全部 \(vm.feed.featured.count) 个精选")
+                    Text(String(format: NSLocalizedString("左右滑动查看全部 %d 个精选", comment: ""), vm.feed.featured.count))
                         .font(.system(size: 11))
                 }
                 .foregroundStyle(DS.textTertiary)
@@ -368,7 +368,7 @@ struct ExploreView: View {
 
     private func toggleSave(_ repo: ShowcaseRepo) {
         let saved = vault.toggle(repo)
-        env.show(saved ? "已加入收藏：\(repo.name)" : "已从收藏移除：\(repo.name)",
+        env.show(saved ? String(format: NSLocalizedString("已加入收藏：%@", comment: ""), repo.name) : String(format: NSLocalizedString("已从收藏移除：%@", comment: ""), repo.name),
                  kind: saved ? .success : .info)
         if saved { Haptics.success() }
     }

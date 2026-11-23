@@ -746,7 +746,7 @@ struct AuthSheetView: View {
                 Text("连接 GitHub")
                     .font(DS.Typo.cardTitle)
                     .foregroundStyle(DS.textPrimary)
-                Text(auth.isSignedIn ? "已登录：\(auth.displayName)" : "登录后接口额度提升到 5000 次/小时")
+                Text(auth.isSignedIn ? String(format: NSLocalizedString("已登录：%@", comment: ""), auth.displayName) : "登录后接口额度提升到 5000 次/小时")
                     .font(DS.Typo.caption)
                     .foregroundStyle(DS.textTertiary)
             }
@@ -854,7 +854,7 @@ struct AuthSheetView: View {
                     .foregroundStyle(DS.textSecondary)
             }
         case .signedIn:
-            Label("已登录：\(auth.displayName)", systemImage: "checkmark.seal.fill")
+            Label(String(format: NSLocalizedString("已登录：%@", comment: ""), auth.displayName), systemImage: "checkmark.seal.fill")
                 .font(DS.Typo.bodySmall)
                 .foregroundStyle(DS.success)
         case .failed(let message):
@@ -979,7 +979,7 @@ struct AuthSheetView: View {
                         let ok = await auth.signIn(withToken: tokenInput)
                         isSubmitting = false
                         if ok {
-                            env.show("登录成功：\(auth.displayName)", kind: .success)
+                            env.show(String(format: NSLocalizedString("登录成功：%@", comment: ""), auth.displayName), kind: .success)
                             dismiss()
                         }
                     }
@@ -1207,7 +1207,7 @@ struct AboutSheetView: View {
     private var version: String {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.6.0"
 
-        return "版本 \(v)"
+        return String(format: NSLocalizedString("版本 %@", comment: ""), v)
     }
 
     private struct AboutHighlight: Identifiable {
