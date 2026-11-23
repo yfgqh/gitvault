@@ -9,14 +9,17 @@
 import Foundation
 import Combine
 
+/// 下载阶段（放在文件级，供非隔离的 URLSession 代理引用）
+enum UpdatePhase: Equatable {
+    case idle
+    case downloading(Double)
+    case finished(URL)
+    case failed(String)
+}
+
 @MainActor
 final class UpdateInstaller: ObservableObject {
-    enum Phase: Equatable {
-        case idle
-        case downloading(Double)
-        case finished(URL)
-        case failed(String)
-    }
+    typealias Phase = UpdatePhase
 
     @Published private(set) var phase: Phase = .idle
 
@@ -87,7 +90,7 @@ final class UpdateInstaller: ObservableObject {
 
     // MARK: 目录
 
-    static var downloadDirectory: URL {
+    nonisolated static var downloadDirectory: URL {
         let base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let dir = base.appendingPathComponent("Updates", isDirectory: true)
         if !FileManager.default.fileExists(atPath: dir.path) {
@@ -102,12 +105,12 @@ final class UpdateInstaller: ObservableObject {
 private final class DownloadDelegate: NSObject, URLSessionDownloadDelegate {
     private let destinationName: String
     private let onProgress: (Double) -> Void
-    private let onFinish: (UpdateInstaller.Phase) -> Void
+    private let onFinish: (UpdatePhase) -> Void
     private var lastTick: Date = .distantPast
 
     init(destinationName: String,
          onProgress: @escaping (Double) -> Void,
-         onFinish: @escaping (UpdateInstaller.Phase) -> Void) {
+         onFinish: @escaping (UpdatePhase) -> Void) {
         self.destinationName = destinationName
         self.onProgress = onProgress
         self.onFinish = onFinish
