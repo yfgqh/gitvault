@@ -32,6 +32,8 @@ struct VaultItem: Codable, Identifiable, Hashable {
     var latestReleaseTag: String? = nil
     /// 是否有未被查看的新 Release
     var hasNewRelease: Bool? = nil
+    /// 是否已同步到 GitHub 的 star（nil 表示未知）
+    var githubStarred: Bool? = nil
 
     var id: String { repoID }
 

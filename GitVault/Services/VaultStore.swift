@@ -77,6 +77,32 @@ final class VaultStore: ObservableObject {
         persist()
     }
 
+    // MARK: Star 同步
+
+    /// 导入 star 时使用：已存在则跳过（保留用户分类与笔记）
+    func insertIfMissing(_ item: VaultItem) {
+        guard !items.contains(where: { $0.repoID == item.repoID }) else { return }
+        items.append(item)
+        reindex()
+        persist()
+    }
+
+    func markGithubStarred(id: String, starred: Bool) {
+        guard let index = items.firstIndex(where: { $0.repoID == id }) else { return }
+        guard items[index].githubStarred != starred else { return }
+        items[index].githubStarred = starred
+        persist()
+    }
+
+    /// 需要回写到 GitHub 的项目：明确未 star 的，或状态未知的
+    func itemsNeedingStarPush() -> [VaultItem] {
+        items.filter { $0.mark != .archived && $0.githubStarred != true }
+    }
+
+    var githubStarredCount: Int {
+        items.filter { $0.githubStarred == true }.count
+    }
+
     // MARK: 版本提醒
 
     func recordRelease(id: String, tag: String, flagged: Bool) {

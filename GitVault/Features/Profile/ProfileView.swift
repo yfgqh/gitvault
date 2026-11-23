@@ -32,6 +32,9 @@ struct ProfileView: View {
     @State private var shareTarget: ExportTarget?
     @State private var cacheSizeText = "—"
     @State private var showLanguageDialog = false
+    @State private var showStarSync = false
+    @State private var showRepoHealth = false
+    @State private var showOfflineSearch = false
 
     /// 我的：主页 / 实验室 / 设置 三层
     private enum Pane { case home, lab, settings }
@@ -104,6 +107,9 @@ struct ProfileView: View {
                 ShareSheet(items: [target.url])
                     .presentationDetents([.medium, .large])
             }
+            .sheet(isPresented: $showStarSync) { StarSyncView() }
+            .sheet(isPresented: $showRepoHealth) { RepoHealthView() }
+            .sheet(isPresented: $showOfflineSearch) { OfflineSearchView() }
             .sheet(isPresented: $showPro) {
                 ProUnlockView()
                     .environmentObject(env)
@@ -339,6 +345,14 @@ struct ProfileView: View {
                     SettingsRow(symbol: "graduationcap", title: "学习路径", detail: "按难度分档") {
                         showLearning = true
                     }
+                    Divider().padding(.leading, 52)
+                    SettingsRow(symbol: "star.circle", title: "Star 同步", detail: "GitHub ↔ 本地") {
+                        showStarSync = true
+                    }
+                    Divider().padding(.leading, 52)
+                    SettingsRow(symbol: "waveform.path.ecg", title: "仓库健康", detail: "停更 / 归档") {
+                        showRepoHealth = true
+                    }
                 }
                 .background(
                     RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
@@ -363,6 +377,10 @@ struct ProfileView: View {
                     Divider().padding(.leading, 52)
                     SettingsRow(symbol: "circle.hexagongrid", title: "收藏地图", detail: "\(vault.items.count) 个") {
                         showMap = true
+                    }
+                    Divider().padding(.leading, 52)
+                    SettingsRow(symbol: "magnifyingglass.circle", title: "离线搜索", detail: "无网可用") {
+                        showOfflineSearch = true
                     }
                     Divider().padding(.leading, 52)
                     SettingsRow(symbol: "square.and.arrow.up.on.square", title: "分享收藏夹", detail: "导出 HTML") {

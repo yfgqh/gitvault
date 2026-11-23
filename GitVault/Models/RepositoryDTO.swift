@@ -27,6 +27,7 @@ struct RepositoryDTO: Decodable, Sendable, Identifiable {
     let updatedAt: Date?
     let pushedAt: Date?
     let defaultBranch: String?
+    let archived: Bool?
 
     struct Owner: Decodable, Sendable {
         let login: String
@@ -57,6 +58,7 @@ struct RepositoryDTO: Decodable, Sendable, Identifiable {
         case updatedAt = "updated_at"
         case pushedAt = "pushed_at"
         case defaultBranch = "default_branch"
+        case archived
     }
 
     init(from decoder: Decoder) throws {
@@ -78,6 +80,7 @@ struct RepositoryDTO: Decodable, Sendable, Identifiable {
         updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt)
         pushedAt = try c.decodeIfPresent(Date.self, forKey: .pushedAt)
         defaultBranch = try c.decodeIfPresent(String.self, forKey: .defaultBranch)
+        archived = try c.decodeIfPresent(Bool.self, forKey: .archived)
     }
 }
 

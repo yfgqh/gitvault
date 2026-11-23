@@ -20,6 +20,7 @@ struct RootView: View {
     /// 已经挂载过的页面（首次进入才构建，之后保活）
     @State private var mounted: Set<AppTab> = [.explore]
     @StateObject private var releaseWatcher = ReleaseWatcher()
+    @StateObject private var healthMonitor = RepoHealthMonitor()
 
     var body: some View {
         ZStack {
@@ -60,8 +61,10 @@ struct RootView: View {
             Task { await env.update.checkIfNeeded() }
             env.allRepos.loadIfNeeded()
             // 收藏仓库的新版本检查（Pro 能力，6 小时节流）
+            OfflineIndex.shared.loadIfNeeded()
             if env.pro.hasFullAccess {
                 await releaseWatcher.checkIfNeeded(vault: vault)
+                await healthMonitor.scanIfNeeded(vault: vault)
             }
             try? await Task.sleep(nanoseconds: 1_600_000_000)
             withAnimation(.easeInOut(duration: 0.55)) {

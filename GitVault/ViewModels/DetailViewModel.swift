@@ -148,6 +148,9 @@ final class DetailViewModel: ObservableObject {
         }
 
         readmeMarkdown = markdown
+        // 落进离线索引：之后没网也能搜到这个仓库的 README
+        OfflineIndex.shared.upsert(from: repo)
+        OfflineIndex.shared.upsertReadme(id: repo.id, markdown: markdown)
         previewImageURL = SummaryService.firstImageURL(in: markdown)
         let excerpt = SummaryService.readmeExcerpt(markdown, maxChars: 2000)
         guard !excerpt.isEmpty else {

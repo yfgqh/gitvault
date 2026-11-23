@@ -191,6 +191,22 @@ struct GitHubExtrasService {
         )
     }
 
+    // MARK: Star 同步
+
+    /// 拉取当前用户 starred（分页，100/页）
+    func starredRepositories(page: Int = 1, perPage: Int = 100) async throws -> [RepositoryDTO] {
+        try await send(
+            "GET",
+            path: "/user/starred",
+            query: [
+                URLQueryItem(name: "per_page", value: "\(perPage)"),
+                URLQueryItem(name: "page", value: "\(page)"),
+                URLQueryItem(name: "sort", value: "created")
+            ],
+            as: [RepositoryDTO].self
+        )
+    }
+
     // MARK: 作者
 
     /// 某个作者的高星仓库（搜索 user:login 按 star 排序）
