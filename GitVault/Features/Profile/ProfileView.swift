@@ -31,6 +31,7 @@ struct ProfileView: View {
     @State private var showLearning = false
     @State private var shareTarget: ExportTarget?
     @State private var cacheSizeText = "—"
+    @State private var showLanguageDialog = false
 
     /// 我的：主页 / 实验室 / 设置 三层
     private enum Pane { case home, lab, settings }
@@ -58,6 +59,7 @@ struct ProfileView: View {
                     } else {
                         paneHeader(title: "设置", subtitle: "外观、AI 与数据")
                         appearanceSection.screenPadding()
+                        languageSection.screenPadding()
                         aiSection.screenPadding()
                         dataSection.screenPadding()
                     }
@@ -107,6 +109,17 @@ struct ProfileView: View {
                     .environmentObject(env)
             }
             .onAppear { updateCacheSize() }
+            .confirmationDialog("语言", isPresented: $showLanguageDialog, titleVisibility: .visible) {
+                ForEach(AppLanguage.allCases) { item in
+                    Button(item.displayName) {
+                        Haptics.selection()
+                        AppLanguage.apply(item)
+                    }
+                }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("切换后需要重启 App 才会生效。")
+            }
         }
     }
 
@@ -460,38 +473,20 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: AI
+    // MARK: 语言
 
-    private var aiSection: some View {
+    private var languageSection: some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
             Text("语言")
                 .font(DS.Typo.headline)
                 .foregroundStyle(DS.textPrimary)
 
             VStack(spacing: 0) {
-                ForEach(AppLanguage.allCases) { item in
-                    Button {
-                        Haptics.selection()
-                        AppLanguage.apply(item)
-                    } label: {
-                        HStack {
-                            Text(item.displayName)
-                                .font(DS.Typo.body)
-                                .foregroundStyle(DS.textPrimary)
-                            Spacer()
-                            if AppLanguage.current == item {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundStyle(DS.accent)
-                            }
-                        }
-                        .padding(.horizontal, DS.Space.m)
-                        .padding(.vertical, 12)
-                    }
-                    .buttonStyle(.plain)
-                    if item != AppLanguage.allCases.last {
-                        Divider().padding(.leading, DS.Space.m)
-                    }
+                SettingsRow(symbol: "globe",
+                            title: "语言",
+                            detail: AppLanguage.current.displayName) {
+                    Haptics.tap()
+                    showLanguageDialog = true
                 }
             }
             .background(
@@ -499,11 +494,18 @@ struct ProfileView: View {
                     .fill(DS.bgSecondary)
             )
 
-            Text("切换后需要重启 App 才会生效。")
+            Text("默认跟随系统；切换后需要重启 App 才会生效。")
                 .font(.system(size: 10))
                 .foregroundStyle(DS.textTertiary)
+        }
+    }
 
+    // MARK: AI
+
+    private var aiSection: some View {
+        VStack(alignment: .leading, spacing: DS.Space.s) {
             Text("AI 摘要")
+
                 .font(DS.Typo.headline)
                 .foregroundStyle(DS.textPrimary)
 
@@ -587,8 +589,7 @@ struct ProfileView: View {
 
     private var versionText: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.2.0"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "3"
-        return "v\(version) (\(build))"
+        return "v\(version)"
     }
 
     private func updateCacheSize() {
@@ -1176,8 +1177,8 @@ struct AboutSheetView: View {
 
     private var version: String {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.6.0"
-        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "7"
-        return "版本 \(v) (\(b))"
+
+        return "版本 \(v)"
     }
 
     private struct AboutHighlight: Identifiable {

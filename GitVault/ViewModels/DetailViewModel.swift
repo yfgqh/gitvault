@@ -102,9 +102,16 @@ final class DetailViewModel: ObservableObject {
     }
 
     private func loadSimilar() async {
-        guard let topic = repo.topics.first, !topic.isEmpty else { return }
+        // topic 优先；没有 topic 时退化为语言检索，避免整块空白
+        var query: String?
+        if let topic = repo.topics.first, !topic.isEmpty {
+            query = "topic:\(topic) stars:>300"
+        } else if !repo.language.isEmpty, repo.language != "未知" {
+            query = "language:\"\(repo.language)\" stars:>1000"
+        }
+        guard let query else { return }
         guard let page = try? await api.searchRepositories(
-            query: "topic:\(topic) stars:>300",
+            query: query,
             sort: .stars,
             page: 1,
             perPage: 12

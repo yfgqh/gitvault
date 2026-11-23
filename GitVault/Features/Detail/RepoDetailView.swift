@@ -589,17 +589,28 @@ struct RepoDetailView: View {
 
     // MARK: 相似项目（destination 已由根 NavigationStack 注册）
 
+    /// 优先用远端搜索结果；没有结果时用本地全量库里的同类项目兜底，
+    /// 避免「从发现页进来时相似项目整块消失」。
+    private var similarItems: [ShowcaseRepo] {
+        if !vm.similar.isEmpty { return vm.similar }
+        return Array(env.allRepos.items(in: vm.repo.category)
+            .filter { $0.id != vm.repo.id }
+            .sorted { $0.stars > $1.stars }
+            .prefix(6))
+    }
+
     @ViewBuilder
     private var similarSection: some View {
-        if !vm.similar.isEmpty {
+        let items = similarItems
+        if !items.isEmpty {
             VStack(alignment: .leading, spacing: DS.Space.m) {
-                SectionHeader(title: "相似项目", subtitle: "同 topic 的高星仓库",
+                SectionHeader(title: "相似项目", subtitle: "同主题的高星仓库",
                               actionTitle: nil, onAction: nil)
                     .screenPadding()
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: DS.Space.m) {
-                        ForEach(vm.similar) { item in
+                        ForEach(items) { item in
                             NavigationLink(value: item) {
                                 RepoMiniCard(repo: item)
                             }
