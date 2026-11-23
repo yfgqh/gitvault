@@ -344,7 +344,7 @@ struct ProfileView: View {
                     }
                     Divider().padding(.leading, 52)
                     SettingsRow(symbol: "stethoscope", title: "收藏库体检",
-                                detail: "\(VaultHealthScanner.scan(vault.items).count) 处待处理") {
+                                detail: String(format: NSLocalizedString("%d 处待处理", comment: ""), VaultHealthScanner.scan(vault.items).count)) {
                         showHealth = true
                     }
                     Divider().padding(.leading, 52)
@@ -385,7 +385,7 @@ struct ProfileView: View {
                         showWeekly = true
                     }
                     Divider().padding(.leading, 52)
-                    SettingsRow(symbol: "circle.hexagongrid", title: "收藏地图", detail: "\(vault.items.count) 个") {
+                    SettingsRow(symbol: "circle.hexagongrid", title: "收藏地图", detail: String(format: NSLocalizedString("%d 个", comment: ""), vault.items.count)) {
                         showMap = true
                     }
                     Divider().padding(.leading, 52)
@@ -628,10 +628,10 @@ struct ProfileView: View {
 
     private func export(_ format: VaultStore.ExportFormat) {
         do {
-            exportFile = ExportFile(url: try vault.export(format), title: "导出 \(format.displayName)")
+            exportFile = ExportFile(url: try vault.export(format), title: String(format: NSLocalizedString("导出 %@", comment: ""), format.displayName))
             Haptics.success()
         } catch {
-            env.show("导出失败：\(error.localizedDescription)", kind: .warning)
+            env.show(String(format: NSLocalizedString("导出失败：%@", comment: ""), error.localizedDescription), kind: .warning)
         }
     }
 }
@@ -1108,7 +1108,7 @@ struct AIConfigSheetView: View {
                             )
                             env.applyLLM(config)
                             Haptics.success()
-                            env.show("已切换到：\(config.displayName)", kind: .success)
+                            env.show(String(format: NSLocalizedString("已切换到：%@", comment: ""), config.displayName), kind: .success)
                             dismiss()
                         } label: {
                             Text("保存并启用")

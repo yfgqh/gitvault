@@ -662,3 +662,16 @@
 "%d 个你收藏的仓库刚刚发布了新的 Release，去收藏页看看。" = "%d saved repositories just published a new release — check your library.";
 "%d 个项目出现停更或归档信号，建议检查是否仍在使用。" = "%d projects show stale or archived signals — review whether you still need them.";
 "Pro 试用中 · 剩 %d 天" = "Pro trial · %d days left";
+
+/* 补充：保存位置与我的页 */
+"下载完成，请选择保存位置" = "Download complete — choose where to save";
+"下载后请选择保存位置，再用 TrollStore 或自签工具安装" = "After downloading, choose where to save, then install with TrollStore or a self-signing tool";
+"%d 处待处理" = "%d to review";
+"%d 个" = "%d";
+"导出 %@" = "Export %@";
+"导出失败：%@" = "Export failed: %@";
+"已切换到：%@" = "Switched to %@";
+"ghp_… 或 github_pat_…" = "ghp_… or github_pat_…";
+"sk-…（可留空）" = "sk-… (optional)";
+"例如 Ov23li…" = "e.g. Ov23li…";
+"例如 openai / gpt-4o-mini" = "e.g. openai / gpt-4o-mini";
