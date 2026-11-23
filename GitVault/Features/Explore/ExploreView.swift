@@ -65,11 +65,7 @@ struct ExploreView: View {
                     }
 
                     if let update = env.update.available {
-                        UpdateBanner(available: update) {
-                            if let url = update.url { openURL(url) }
-                        } onDismiss: {
-                            env.update.dismissBanner()
-                        }
+                        UpdateCard(available: update)
                     }
 
                     if let archive = archiveItem {

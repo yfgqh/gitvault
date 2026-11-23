@@ -16,6 +16,15 @@ final class UpdateChecker: ObservableObject {
         let name: String
         let notes: String
         let url: URL?
+        /// Release 里 .ipa 资产的名称 / 体积 / 下载地址（私有仓库需带 token）
+        var assetName: String?
+        var assetSize: Int?
+        var downloadURL: URL?
+
+        var sizeText: String {
+            guard let size = assetSize, size > 0 else { return "" }
+            return String(format: "%.1f MB", Double(size) / 1_048_576)
+        }
     }
 
     @Published private(set) var available: Available?
@@ -37,6 +46,18 @@ final class UpdateChecker: ObservableObject {
 
     // MARK: 检查
 
+    private let snoozeKey = "gv.update.snoozeUntil"
+
+    /// 24 小时内不再提醒
+    func snooze() {
+        UserDefaults.standard.set(Date().timeIntervalSince1970 + 24 * 3600, forKey: snoozeKey)
+        available = nil
+    }
+
+    var isSnoozed: Bool {
+        UserDefaults.standard.double(forKey: snoozeKey) > Date().timeIntervalSince1970
+    }
+
     /// 忽略某个版本（横幅不再出现）
     func dismissBanner() {
         if let tag = available?.tag {
@@ -54,6 +75,7 @@ final class UpdateChecker: ObservableObject {
             CrashReporter.log("update: skipped (no token, private repo)")
             return
         }
+        if !force, isSnoozed { return }
 
         isChecking = true
         defer { isChecking = false }
@@ -73,11 +95,15 @@ final class UpdateChecker: ObservableObject {
                 available = nil
                 return
             }
+            let ipa = (release.assets ?? []).first { $0.name.lowercased().hasSuffix(".ipa") }
             available = Available(
                 tag: release.tagName,
                 name: release.name ?? release.tagName,
                 notes: String((release.body ?? "").prefix(600)),
-                url: URL(string: release.htmlURL)
+                url: URL(string: release.htmlURL),
+                assetName: ipa?.name,
+                assetSize: ipa?.size,
+                downloadURL: ipa.flatMap { URL(string: $0.browserDownloadURL) }
             )
             CrashReporter.log("update: \(current) -> \(latest)")
         } catch {
