@@ -92,17 +92,21 @@ struct RootView: View {
             }
         }
         .toastHost()
-        .sheet(item: $launchUpdate) { update in
-            ScrollView {
-                UpdateCard(available: update, onClose: {
-                    withAnimation(DS.Motion.snappy) { launchUpdate = nil }
-                })
-                .padding(DS.Space.l)
+        // 更新卡：自定义底部弹层，从下往上滑出（不依赖系统 sheet）
+        .overlay(alignment: .bottom) {
+            if let update = launchUpdate {
+                BottomUpdateSheet(onClose: { closeLaunchUpdate() }) {
+                    ScrollView {
+                        UpdateCard(available: update, onClose: { closeLaunchUpdate() })
+                            .padding(DS.Space.l)
+                    }
+                    .scrollIndicators(.hidden)
+                }
+                .transition(.move(edge: .bottom))
+                .zIndex(300)
             }
-            .background(DS.bgPrimary)
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
         }
+        .animation(.spring(response: 0.42, dampingFraction: 0.86), value: launchUpdate != nil)
         .onChange(of: env.update.available) { newValue in
             if newValue == nil { launchUpdate = nil }
         }
@@ -136,8 +140,15 @@ struct RootView: View {
         }
     }
 
-    private var backGesture: some Gesture {
-        DragGesture(minimumDistance: 8)
+    /// 关闭更新卡并记住忽略这个版本
+    private func closeLaunchUpdate() {
+        env.update.dismissBanner()
+        withAnimation(.spring(response: 0.36, dampingFraction: 0.9)) {
+            launchUpdate = nil
+        }
+    }
+
+    private var backGesture: some Gesture {        DragGesture(minimumDistance: 8)
             .onChanged { value in
                 if !backTracking {
                     // 只允许从左边缘开始，且方向必须是向右

@@ -108,17 +108,20 @@ struct ProfileView: View {
                 ShareSheet(items: [target.url])
                     .presentationDetents([.medium, .large])
             }
-            .sheet(item: $pendingUpdate) { update in
-                ScrollView {
-                    UpdateCard(available: update, onClose: {
-                        withAnimation(DS.Motion.snappy) { pendingUpdate = nil }
-                    })
-                    .padding(DS.Space.l)
+            .overlay(alignment: .bottom) {
+                if let update = pendingUpdate {
+                    BottomUpdateSheet(onClose: { closePendingUpdate() }) {
+                        ScrollView {
+                            UpdateCard(available: update, onClose: { closePendingUpdate() })
+                                .padding(DS.Space.l)
+                        }
+                        .scrollIndicators(.hidden)
+                    }
+                    .transition(.move(edge: .bottom))
+                    .zIndex(300)
                 }
-                .background(DS.bgPrimary)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
             }
+            .animation(.spring(response: 0.42, dampingFraction: 0.86), value: pendingUpdate != nil)
             .sheet(isPresented: $showStarSync) { StarSyncView() }
             .sheet(isPresented: $showRepoHealth) { RepoHealthView() }
             .sheet(isPresented: $showOfflineSearch) { OfflineSearchView() }
@@ -626,6 +629,14 @@ struct ProfileView: View {
     private func updateCacheSize() {
         let bytes = Int(URLCache.shared.currentDiskUsage + URLCache.shared.currentMemoryUsage)
         cacheSizeText = String(format: "%.1f MB", Double(bytes) / 1_048_576)
+    }
+
+    /// 关闭手动检查得到的更新卡
+    private func closePendingUpdate() {
+        env.update.dismissBanner()
+        withAnimation(.spring(response: 0.36, dampingFraction: 0.9)) {
+            pendingUpdate = nil
+        }
     }
 
     private func export(_ format: VaultStore.ExportFormat) {

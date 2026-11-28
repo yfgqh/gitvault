@@ -84,10 +84,7 @@ final class UpdateChecker: ObservableObject {
             let stamp = UserDefaults.standard.double(forKey: lastCheckKey)
             if stamp > 0, Date().timeIntervalSince1970 - stamp < ttl { return }
         }
-        guard Keychain.read(Keychain.tokenKey)?.isEmpty == false else {
-            CrashReporter.log("update: skipped (no token, private repo)")
-            return
-        }
+        // 仓库已公开：未登录也能匿名读到 releases/latest，不再要求 token
         if !force, isSnoozed { return }
 
         isChecking = true
