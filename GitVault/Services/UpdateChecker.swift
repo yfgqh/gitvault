@@ -81,7 +81,7 @@ final class UpdateChecker: ObservableObject {
     /// 是否弹卡由「稍后」与「忽略该版本」两个用户选择决定。
     private let ttl: TimeInterval = 0
 
-    static var currentVersion: String {
+    nonisolated static var currentVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
     }
 
@@ -171,13 +171,13 @@ final class UpdateChecker: ObservableObject {
 
     // MARK: 版本号工具
 
-    static func normalize(_ raw: String) -> [Int] {
+    nonisolated static func normalize(_ raw: String) -> [Int] {
         let trimmed = raw.trimmingCharacters(in: CharacterSet(charactersIn: "vV "))
         return trimmed.split(separator: ".").map { Int($0.prefix(while: { $0.isNumber })) ?? 0 }
     }
 
     /// 返回 1 表示 a > b，-1 表示 a < b
-    static func compare(_ a: [Int], _ b: [Int]) -> Int {
+    nonisolated static func compare(_ a: [Int], _ b: [Int]) -> Int {
         let count = max(a.count, b.count)
         for index in 0..<count {
             let x = index < a.count ? a[index] : 0
