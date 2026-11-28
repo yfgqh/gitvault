@@ -294,7 +294,7 @@ struct VaultView: View {
     }
 
     private func entryRow(_ item: VaultItem) -> some View {
-        NavigationLink(value: ShowcaseRepo(entry: item)) {
+        Button { Haptics.tap(); DetailPresenter.shared.open(ShowcaseRepo(entry: item)) } label: {
             VStack(alignment: .leading, spacing: 6) {
                 VaultRow(item: item)
                 if let note = item.note, !note.isEmpty {

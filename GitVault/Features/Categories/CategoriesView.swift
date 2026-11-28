@@ -212,7 +212,7 @@ struct CategoryFeedView: View {
         } else {
             LazyVGrid(columns: columns, spacing: DS.Space.s) {
                 ForEach(vm.displayed.indexed) { entry in
-                    NavigationLink(value: entry.item) {
+                    Button { Haptics.tap(); DetailPresenter.shared.open(entry.item) } label: {
                         RepoCard(repo: entry.item)
                     }
                     .buttonStyle(.springPressCard)

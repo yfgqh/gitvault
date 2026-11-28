@@ -22,27 +22,67 @@ struct RootView: View {
     @StateObject private var releaseWatcher = ReleaseWatcher()
     @StateObject private var healthMonitor = RepoHealthMonitor()
     @State private var launchUpdate: UpdateChecker.Available?
+    @StateObject private var presenter = DetailPresenter.shared
+
+    // 边缘右滑返回
+    @State private var backDrag: CGFloat = 0
+    @State private var backArmed = false
+    @State private var backTracking = false
+
+    private var screenWidth: CGFloat { UIScreen.main.bounds.width }
+
+    private var backProgress: CGFloat {
+        min(max(backDrag / max(screenWidth, 1), 0), 1)
+    }
+
+    /// 底层页面以 1/3 速度跟入
+    private var backParallax: CGFloat {
+        presenter.top == nil ? 0 : -screenWidth / 3 + backDrag / 3
+    }
+
+    private var backDim: Double {
+        presenter.top == nil ? 0 : Double(backProgress) * 0.28
+    }
 
     var body: some View {
         ZStack {
             DS.bgPrimary.ignoresSafeArea()
 
-            if sizeClass == .regular {
-                HStack(spacing: 0) {
-                    SideRail(selection: $tab)
-                    content
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            } else {
-                ZStack(alignment: .bottom) {
-                    content
-                    if !env.isShowingDetail {
-                        GlassTabBar(selection: $tab)
-                            .padding(.bottom, DS.Space.s)
-                            .transition(.opacity)
+            Group {
+                if sizeClass == .regular {
+                    HStack(spacing: 0) {
+                        SideRail(selection: $tab)
+                        content
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
+                } else {
+                    ZStack(alignment: .bottom) {
+                        content
+                        if !env.isShowingDetail {
+                            GlassTabBar(selection: $tab)
+                                .padding(.bottom, DS.Space.s)
+                                .transition(.opacity)
+                        }
+                    }
+                    .animation(DS.Motion.fade, value: env.isShowingDetail)
                 }
-                .animation(DS.Motion.fade, value: env.isShowingDetail)
+            }
+            .offset(x: backParallax)
+            .overlay(
+                Color.black
+                    .opacity(backDim)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+            )
+
+            // 详情页：overlay 呈现，支持视差返回
+            if let repo = presenter.top {
+                NavigationStack {
+                    RepoDetailView(repo: repo)
+                }
+                .offset(x: backDrag)
+                .gesture(backGesture)
+                .zIndex(5)
             }
 
             if showSplash {
@@ -94,6 +134,42 @@ struct RootView: View {
                 showSplash = false
             }
         }
+    }
+
+    private var backGesture: some Gesture {
+        DragGesture(minimumDistance: 8)
+            .onChanged { value in
+                if !backTracking {
+                    // 只允许从左边缘开始，且方向必须是向右
+                    guard value.startLocation.x < 32, value.translation.width > 0 else { return }
+                    backTracking = true
+                    backArmed = true
+                }
+                guard backArmed else { return }
+                backDrag = max(0, value.translation.width)
+            }
+            .onEnded { value in
+                guard backArmed else { return }
+                let projected = value.predictedEndTranslation.width
+                let shouldClose = projected > screenWidth * 0.36
+                    || value.translation.width > screenWidth * 0.3
+
+                if shouldClose {
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.9)) {
+                        backDrag = screenWidth
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        presenter.close()
+                        backDrag = 0
+                        backTracking = false
+                        backArmed = false
+                    }
+                } else {
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) { backDrag = 0 }
+                    backTracking = false
+                    backArmed = false
+                }
+            }
     }
 
     @ViewBuilder

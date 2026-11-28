@@ -38,7 +38,7 @@ struct FolderDetailView: View {
                         .padding(.top, DS.Space.l)
                     } else {
                         ForEach(items) { item in
-                            NavigationLink(value: ShowcaseRepo(entry: item)) {
+                            Button { Haptics.tap(); DetailPresenter.shared.open(ShowcaseRepo(entry: item)) } label: {
                                 VaultRow(item: item)
                             }
                             .buttonStyle(.springPressCard)

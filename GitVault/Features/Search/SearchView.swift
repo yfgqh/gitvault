@@ -205,7 +205,7 @@ struct SearchView: View {
             .screenPadding()
 
             ForEach(vm.results.indexed) { entry in
-                NavigationLink(value: entry.item) {
+                Button { Haptics.tap(); DetailPresenter.shared.open(entry.item) } label: {
                     RepoCard(repo: entry.item)
                 }
                 .buttonStyle(.springPressCard)

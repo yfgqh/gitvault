@@ -32,6 +32,10 @@ struct RepoDetailView: View {
     @State private var isBusy = false
     @StateObject private var downloader = RepoDownloader()
 
+    // 大标题折叠
+    @State private var scrollOffset: CGFloat = 0
+    @State private var loadedOnce = false
+
     init(repo: ShowcaseRepo) {
         self.repo = repo
         _vm = StateObject(wrappedValue: DetailViewModel(repo: repo))
@@ -39,36 +43,70 @@ struct RepoDetailView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            VStack(spacing: 0) {
+            ZStack(alignment: .top) {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: DS.Space.l) {
-                        hero
-                        titleBlock.screenPadding()
-                        statsCard.screenPadding()
-                        HealthCard(repo: vm.repo).screenPadding()
-                        readmeCard.screenPadding()
-                        actionRow.screenPadding()
-                        tagsSection.screenPadding()
-                        similarSection
+                    ZStack(alignment: .top) {
+                        // 骨架：与真实布局同位置叠放，数据回来后交叉淡入
+                        if !loadedOnce {
+                            DetailSkeleton()
+                                .frame(width: proxy.size.width)
+                                .transition(.opacity)
+                        }
 
-                        Color.clear.frame(height: DS.Space.m)
+                        VStack(alignment: .leading, spacing: DS.Space.l) {
+                            GeometryReader { g in
+                                Color.clear.preference(
+                                    key: DetailScrollKey.self,
+                                    value: g.frame(in: .named("detailScroll")).minY
+                                )
+                            }
+                            .frame(height: 0)
+
+                            headerBlock.screenPadding()
+                            statsCard.screenPadding()
+                            HealthCard(repo: vm.repo).screenPadding()
+                            readmeCard.screenPadding()
+                            actionRow.screenPadding()
+                            tagsSection.screenPadding()
+                            similarSection
+
+                            Color.clear.frame(height: DS.Space.m)
+                        }
+                        .frame(width: proxy.size.width, alignment: .leading)
+                        .opacity(loadedOnce ? 1 : 0)
                     }
-                    // 关键：把宽度钉死为屏幕宽。垂直 ScrollView 给出的宽度提案
-                    // 会让内部 GeometryReader（语言条、进度条）算出超大宽度，
-                    // 从而把整页撑到屏幕外（表现为内容错位、文字被裁切）。
-                    .frame(width: proxy.size.width, alignment: .leading)
                 }
                 .scrollIndicators(.hidden)
+                .coordinateSpace(name: "detailScroll")
+                .onPreferenceChange(DetailScrollKey.self) { value in
+                    scrollOffset = value
+                }
 
-                bottomBar
+                topBar(topInset: proxy.safeAreaInsets.top)
                     .frame(width: proxy.size.width)
+
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    bottomBar
+                        .frame(width: proxy.size.width)
+                }
+            }
+        }
+        .navigationBarHidden(true)
+        .onChange(of: vm.isLoadingDetail) { loading in
+            if !loading, !loadedOnce {
+                withAnimation(.easeInOut(duration: 0.32)) { loadedOnce = true }
+            }
+        }
+        .onAppear {
+            // 兜底：极端情况下 isLoadingDetail 立即为 false
+            if !vm.isLoadingDetail, !loadedOnce {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    withAnimation(.easeInOut(duration: 0.32)) { loadedOnce = true }
+                }
             }
         }
         .background(DS.bgPrimary.ignoresSafeArea())
-        .navigationTitle(vm.repo.name)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(DS.bgPrimary, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
         .onAppear {
             env.isShowingDetail = true
             vault.clearNewRelease(id: repo.id)
@@ -149,58 +187,116 @@ struct RepoDetailView: View {
         }
     }
 
-    // MARK: Hero
+    // MARK: 折叠进度
 
-    private var hero: some View {
-        ZStack(alignment: .bottomLeading) {
-            LinearGradient(colors: vm.repo.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
-
-            Circle()
-                .fill(.white.opacity(0.20))
-                .frame(width: 220, height: 220)
-                .blur(radius: 70)
-                .offset(x: 130, y: -80)
-
-            HStack(alignment: .bottom, spacing: DS.Space.m) {
-                AvatarView(
-                    url: vm.repo.avatarURL,
-                    size: 64,
-                    initials: vm.repo.initials,
-                    gradient: vm.repo.gradient
-                )
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Button {
-                        Haptics.tap()
-                        showAuthor = true
-                    } label: {
-                        HStack(spacing: 3) {
-                            Text(vm.repo.owner)
-                                .font(DS.Typo.caption)
-                                .foregroundStyle(.white.opacity(0.85))
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 7, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.6))
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    Text(vm.repo.name)
-                        .font(.system(.title2, design: .default).weight(.bold))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(DS.Space.screen)
-        }
-        .frame(height: 240)
-        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.cardLarge, style: .continuous))
-        .padding(.horizontal, DS.Space.s)
-        .padding(.top, DS.Space.s)
+    /// 0 = 展开，1 = 完全收进顶部栏
+    private var collapseProgress: CGFloat {
+        min(max(-scrollOffset / 88, 0), 1)
     }
 
-    // MARK: 标题区
+    // MARK: 大标题
+
+    private var headerBlock: some View {
+        VStack(alignment: .leading, spacing: DS.Space.s) {
+            Button {
+                Haptics.tap()
+                showAuthor = true
+            } label: {
+                HStack(spacing: 3) {
+                    Text(vm.repo.owner)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(DS.textSecondary)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(DS.textTertiary)
+                }
+            }
+            .buttonStyle(.plain)
+            .padding(.top, DS.Space.s)
+
+            // 字号随滚动连续收缩，位置随之上移
+            Text(vm.repo.name)
+                .font(.system(size: 34 - 14 * collapseProgress, weight: .bold))
+                .foregroundStyle(DS.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .offset(y: -2 * collapseProgress)
+                .opacity(Double(1 - max(0, (collapseProgress - 0.72) / 0.28)))
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    TagChip(text: vm.repo.category.title,
+                            systemImage: vm.repo.category.symbol,
+                            tint: vm.repo.category.tint)
+                    TagChip(text: vm.repo.activity.title,
+                            systemImage: "flame.fill",
+                            tint: vm.repo.activity.tint, filled: true)
+                    TagChip(text: vm.repo.usage.title,
+                            systemImage: "bolt.fill",
+                            tint: vm.repo.usage.tint)
+                    TagChip(text: vm.repo.license.title,
+                            systemImage: "checkmark.seal.fill",
+                            tint: vm.repo.license.tint)
+                }
+            }
+
+            Text(vm.repo.summary)
+                .font(DS.Typo.body)
+                .foregroundStyle(DS.textSecondary)
+                .lineLimit(collapseProgress > 0.55 ? 1 : nil)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if let updated = vm.repo.updatedAt {
+                HStack(spacing: 5) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 9, weight: .semibold))
+                    Text("最近更新：" + updated.formatted(date: .abbreviated, time: .shortened))
+                    Text("· " + relativeText(updated))
+                }
+                .font(.system(size: 11))
+                .foregroundStyle(DS.textTertiary)
+            }
+        }
+    }
+
+    // MARK: 顶部栏（透明 → 毛玻璃）
+
+    private func topBar(topInset: CGFloat) -> some View {
+        HStack(spacing: DS.Space.s) {
+            Button {
+                Haptics.tap()
+                DetailPresenter.shared.close()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(DS.textPrimary)
+                    .frame(width: 30, height: 30)
+                    .background(Circle().fill(DS.glassFill))
+            }
+            .buttonStyle(.plain)
+
+            Text(vm.repo.name)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(DS.textPrimary)
+                .lineLimit(1)
+                .opacity(Double(max(0, (collapseProgress - 0.55) / 0.45)))
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, DS.Space.screen)
+        .padding(.top, topInset + 2)
+        .padding(.bottom, 6)
+        .background {
+            if collapseProgress > 0.02 {
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .opacity(Double(collapseProgress))
+                    .ignoresSafeArea(edges: .top)
+            }
+        }
+    }
+
+    // MARK: 标题区    // MARK: 标题区
 
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
@@ -757,4 +853,12 @@ struct RepoDetailView: View {
     .environmentObject(AppEnvironment.live())
     .environmentObject(AuthStore())
     .environmentObject(VaultStore(fileName: "preview-vault.json"))
+}
+
+/// 详情页顶部偏移
+struct DetailScrollKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
 }

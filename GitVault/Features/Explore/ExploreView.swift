@@ -40,7 +40,7 @@ struct ExploreView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
+            ElasticRefresh(action: { await vm.reload(profile: discoveryProfile) }) {
                 VStack(alignment: .leading, spacing: DS.Space.l) {
                     header
                         .screenPadding()
@@ -69,7 +69,7 @@ struct ExploreView: View {
                     }
 
                     if let archive = archiveItem {
-                        NavigationLink(value: ShowcaseRepo(entry: archive.item)) {
+                        Button { Haptics.tap(); DetailPresenter.shared.open(ShowcaseRepo(entry: archive.item)) } label: {
                             TodayArchiveCard(item: archive.item, daysAgo: archive.days)
                         }
                         .buttonStyle(.springPressCard)
@@ -86,9 +86,7 @@ struct ExploreView: View {
                     Color.clear.frame(height: DS.Space.tabBarInset)
                 }
             }
-            .scrollIndicators(.hidden)
             .background(DS.bgPrimary)
-            .refreshable { await vm.reload(profile: discoveryProfile) }
             .navigationBarHidden(true)
             .navigationDestination(for: ShowcaseRepo.self) { repo in
                 RepoDetailView(repo: repo)
@@ -179,35 +177,25 @@ struct ExploreView: View {
                 SkeletonHero()
                     .screenPadding()
             } else {
-                // 固定宽度横向轮播。
-                // 不要用 TabView(.page) 嵌在纵向 ScrollView 里：iOS 16 会出现
-                // 无限测量循环，表现为整页无响应（本次卡死的主因之一）。
-                GeometryReader { geo in
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: DS.Space.m) {
-                            ForEach(vm.feed.featured.indexed) { entry in
-                                NavigationLink(value: entry.item) {
-                                    HeroRepoCard(
-                                        repo: entry.item,
-                                        isSaved: vault.isSaved(entry.item.id)
-                                    ) {
-                                        toggleSave(entry.item)
-                                    }
-                                    .frame(width: min(max(geo.size.width - DS.Space.screen * 2, 240), 420))
-                                }
-                                .buttonStyle(.springPressCard)
-                            }
-                        }
-                        .padding(.horizontal, DS.Space.screen)
+                // 可拖拽卡片堆叠：拖动按位移旋转，甩出后下一张补位
+                CardStack(items: vm.feed.featured, visibleCount: 3) { repo in
+                    HeroRepoCard(
+                        repo: repo,
+                        isSaved: vault.isSaved(repo.id)
+                    ) {
+                        toggleSave(repo)
                     }
+                } onTap: { repo in
+                    Haptics.tap()
+                    DetailPresenter.shared.open(repo)
                 }
-                .frame(height: 248)
-                .clipped()
+                .frame(height: 252)
+                .screenPadding()
 
                 HStack(spacing: 5) {
                     Image(systemName: "hand.draw")
                         .font(.system(size: 10, weight: .semibold))
-                    Text(String(format: NSLocalizedString("左右滑动查看全部 %d 个精选", comment: ""), vm.feed.featured.count))
+                    Text(String(format: NSLocalizedString("左右拖动切换 · 共 %d 个精选", comment: ""), vm.feed.featured.count))
                         .font(.system(size: 11))
                 }
                 .foregroundStyle(DS.textTertiary)
@@ -255,7 +243,7 @@ struct ExploreView: View {
             } else {
                 VStack(spacing: DS.Space.s) {
                     ForEach(Array(vm.feed.trending.prefix(12)).indexed) { entry in
-                        NavigationLink(value: entry.item.repo) {
+                        Button { Haptics.tap(); DetailPresenter.shared.open(entry.item.repo) } label: {
                             HStack(spacing: DS.Space.m) {
                                 Text("\(entry.index + 1)")
                                     .font(.system(size: 13, weight: .bold, design: .rounded))
@@ -292,7 +280,7 @@ struct ExploreView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: DS.Space.m) {
                         ForEach(items.indexed) { entry in
-                            NavigationLink(value: entry.item.repo) {
+                            Button { Haptics.tap(); DetailPresenter.shared.open(entry.item.repo) } label: {
                                 RepoMiniCard(repo: entry.item.repo, reason: entry.item.reason)
                             }
                             .buttonStyle(.springPressCard)
@@ -343,7 +331,7 @@ struct ExploreView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: DS.Space.m) {
                         ForEach(vm.feed.forYou.indexed) { entry in
-                            NavigationLink(value: entry.item.repo) {
+                            Button { Haptics.tap(); DetailPresenter.shared.open(entry.item.repo) } label: {
                                 RepoMiniCard(repo: entry.item.repo, reason: entry.item.reason)
                             }
                             .buttonStyle(.springPressCard)
