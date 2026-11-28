@@ -134,10 +134,15 @@ final class DetailViewModel: ObservableObject {
 
     // MARK: README（原文优先，非中文再翻译）
 
-    func loadReadmeIfNeeded(force: Bool = false) async {
+    func loadReadmeIfNeeded(force: Bool = false, bypassCache: Bool = false) async {
         guard force || !didLoadReadme else { return }
         didLoadReadme = true
         errorMessage = nil
+        if force {
+            // 重新读取时清掉旧译文与错误，避免看起来「点了没反应」
+            readmeTranslated = nil
+            translateError = nil
+        }
 
         // 先用仓库描述兜底，保证卡片一出现就有内容，不留白屏
         if readmeOriginal?.isEmpty ?? true {
@@ -179,9 +184,9 @@ final class DetailViewModel: ObservableObject {
         }
         guard llm.isConfigured else { return }
 
-        // 命中缓存直接显示，不再调用模型
+        // 命中缓存直接显示，不再调用模型（重新读取时跳过缓存）
         let hash = TranslationCache.hash(excerpt)
-        if let cached = TranslationCache.shared.cached(repoID: repo.id, hash: hash) {
+        if !bypassCache, let cached = TranslationCache.shared.cached(repoID: repo.id, hash: hash) {
             readmeTranslated = cached
             readmeSource = "AI 翻译"
             return
@@ -207,9 +212,9 @@ final class DetailViewModel: ObservableObject {
 
     /// 重新尝试翻译（跳过缓存查询，用于失败后手动重试）
     func retryTranslation() async {
-        guard let markdown = readmeMarkdown else { return }
         readmeTranslated = nil
+        translateError = nil
         didLoadReadme = false
-        await loadReadmeIfNeeded(force: true)
+        await loadReadmeIfNeeded(force: true, bypassCache: true)
     }
 }

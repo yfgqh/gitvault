@@ -326,7 +326,7 @@ struct RepoDetailView: View {
             Text(currentReadmeText)
                 .font(DS.Typo.bodySmall)
                 .foregroundStyle(DS.textSecondary)
-                .lineLimit(readmeExpanded ? nil : 8)
+                .lineLimit(readmeExpanded ? nil : (vm.showingTranslation ? 14 : 8))
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 6) {
@@ -371,7 +371,7 @@ struct RepoDetailView: View {
 
                 Button {
                     Haptics.tap()
-                    Task { await vm.loadReadmeIfNeeded(force: true) }
+                    Task { await vm.loadReadmeIfNeeded(force: true, bypassCache: true) }
                 } label: {
                     HStack(spacing: 3) {
                         Image(systemName: "arrow.clockwise")

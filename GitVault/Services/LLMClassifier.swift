@@ -152,29 +152,67 @@ struct RemoteLLMClassifier: LLMClassifierProtocol {
         3) 只输出译文正文，不要加任何解释、标题或引号。
         """
 
-        // 分段翻译：单段不超过 900 字，避免模型截断或输出长度不足
-        let chunks = Self.chunk(text, limit: 900)
+        // 单块控制在 700 字：免费端点对长输入的输出长度不可靠
+        let chunks = Self.chunk(text, limit: 700)
         var outputs: [String] = []
-        var lastError: Error?
 
         for chunk in chunks {
-            do {
-                let content = try await chat(system: system, user: chunk, maxTokens: 900, temperature: 0.1)
-                let cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !cleaned.isEmpty {
-                    outputs.append(cleaned)
-                }
-            } catch {
-                // 单段失败不影响其它段落：保留原文片段，继续翻下一段
-                lastError = error
+            if let part = await translateChunk(chunk, system: system) {
+                outputs.append(part)
+            } else {
+                // 彻底失败时保留原文，不让内容凭空消失
                 outputs.append(chunk)
             }
         }
 
-        guard !outputs.isEmpty else {
-            throw lastError ?? GitHubError.decoding("翻译结果为空")
-        }
+        guard !outputs.isEmpty else { throw GitHubError.decoding("翻译结果为空") }
         return outputs.joined(separator: "\n\n")
+    }
+
+    /// 单块翻译：输出长度异常时（疑似被截断）自动二分重译
+    private func translateChunk(_ text: String, system: String) async -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        // 输出预算按输入长度估算：中文译文 token 数约为字数的 1.2–1.5 倍
+        let budget = min(1800, max(600, trimmed.count * 2))
+        do {
+            let raw = try await chat(system: system, user: trimmed, maxTokens: budget, temperature: 0.1)
+            let cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleaned.isEmpty else { return nil }
+
+            // 长度明显偏短 = 模型输出被截断，把这一块拆开重译
+            if trimmed.count > 240, cleaned.count < trimmed.count / 3 {
+                return await splitTranslate(trimmed, system: system)
+            }
+            return cleaned
+        } catch {
+            // 抛出错误（限流/超时）时同样拆半再试，提高整体成功率
+            if trimmed.count > 240 {
+                return await splitTranslate(trimmed, system: system)
+            }
+            return nil
+        }
+    }
+
+    /// 把一段文本从中间拆开分别翻译，失败部分保留原文
+    private func splitTranslate(_ text: String, system: String) async -> String? {
+        let offset = text.count / 2
+        var splitIndex = text.index(text.startIndex, offsetBy: offset)
+
+        // 尽量在换行或句号处断开，避免切断句子
+        if let newline = text[splitIndex...].firstIndex(of: "\n"), text.distance(from: splitIndex, to: newline) < 120 {
+            splitIndex = newline
+        } else if let period = text[splitIndex...].firstIndex(of: "."), text.distance(from: splitIndex, to: period) < 120 {
+            splitIndex = period
+        }
+
+        let head = String(text[..<splitIndex])
+        let tail = String(text[splitIndex...])
+
+        let headOut = await translateChunk(head, system: system) ?? head
+        let tailOut = await translateChunk(tail, system: system) ?? tail
+        return headOut + "\n" + tailOut
     }
 
     /// 按段落/句子边界切块，尽量不把一句话切断
