@@ -14,7 +14,7 @@ struct CategoryShortcut: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: category.symbol).font(.system(size: 16, weight: .semibold))
+            Text(category.emoji)
                 .font(.system(size: 15))
             VStack(alignment: .leading, spacing: 0) {
                 Text(category.title)
@@ -74,7 +74,7 @@ struct CategoryLargeCard: View {
                 .offset(x: 62, y: -18)
 
             VStack(alignment: .leading, spacing: 4) {
-                Image(systemName: category.symbol).font(.system(size: 16, weight: .semibold))
+                Text(category.emoji)
                     .font(.system(size: 20))
 
                 Text(category.title)

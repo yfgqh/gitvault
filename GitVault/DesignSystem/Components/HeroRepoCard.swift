@@ -64,7 +64,7 @@ struct HeroRepoCard: View {
                         .foregroundStyle(.white.opacity(0.75))
                     Text("·")
                         .foregroundStyle(.white.opacity(0.4))
-                    Label(repo.category.title, systemImage: repo.category.symbol)
+                    Text(repo.category.emoji + " " + repo.category.title)
                         .font(DS.Typo.caption)
                         .foregroundStyle(.white.opacity(0.75))
                 }

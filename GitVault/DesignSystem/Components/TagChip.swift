@@ -29,10 +29,7 @@ struct TagChip: View {
         .padding(.vertical, compact ? 3 : 5)
         .background {
             if filled {
-                // 整块实心：叠一层暗色，保证白字在亮色 tint 上也看得清
-                Capsule()
-                    .fill(tint)
-                    .overlay(Capsule().fill(Color.black.opacity(0.14)))
+                Capsule().fill(tint)
             } else {
                 Capsule().fill(tint.opacity(0.12))
             }

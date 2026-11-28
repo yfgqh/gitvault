@@ -32,11 +32,6 @@ struct RepoDetailView: View {
     @State private var isBusy = false
     @StateObject private var downloader = RepoDownloader()
 
-    // 吸顶折叠标题
-    @State private var scrollOffset: CGFloat = 0
-    @State private var collapseSettle: CGFloat = 0
-    @State private var settleTask: Task<Void, Never>?
-
     init(repo: ShowcaseRepo) {
         self.repo = repo
         _vm = StateObject(wrappedValue: DetailViewModel(repo: repo))
@@ -47,24 +42,8 @@ struct RepoDetailView: View {
             VStack(spacing: 0) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: DS.Space.l) {
-                        GeometryReader { g in
-                            Color.clear.preference(
-                                key: DetailScrollKey.self,
-                                value: g.frame(in: .named("detailScroll")).minY
-                            )
-                        }
-                        .frame(height: 0)
-
                         hero
-                            // 视差：向上滚动时头图慢半拍（只跟随 35%）
-                            .offset(y: min(0, scrollOffset) * 0.35)
-                            .scaleEffect(1 - collapseProgress * 0.04, anchor: .bottom)
-
-                        titleBlock
-                            .screenPadding()
-                            .opacity(Double(1 - collapseProgress))
-                            .scaleEffect(1 - collapseProgress * 0.06, anchor: .topLeading)
-                            .offset(y: -collapseProgress * 26)
+                        titleBlock.screenPadding()
                         statsCard.screenPadding()
                         HealthCard(repo: vm.repo).screenPadding()
                         readmeCard.screenPadding()
@@ -80,15 +59,10 @@ struct RepoDetailView: View {
                     .frame(width: proxy.size.width, alignment: .leading)
                 }
                 .scrollIndicators(.hidden)
-                .onPreferenceChange(DetailScrollKey.self) { value in
-                    handleScroll(value)
-                }
 
                 bottomBar
                     .frame(width: proxy.size.width)
             }
-            // 坐标空间必须挂在外层容器：ScrollView 自身不提供随滚动变化的坐标系
-            .coordinateSpace(name: "detailScroll")
         }
         .background(DS.bgPrimary.ignoresSafeArea())
         .navigationTitle(vm.repo.name)
@@ -175,90 +149,11 @@ struct RepoDetailView: View {
         }
     }
 
-    // MARK: 折叠进度
-
-    /// 0 = 展开，1 = 完全收进顶栏
-    private var collapseProgress: CGFloat {
-        let raw = min(max(-scrollOffset / 132, 0), 1)
-        return max(raw, collapseSettle)
-    }
-
-    /// 滚动停下后判断：停在半途就自己收到底（单向吸附，不强行改滚动位置）
-    private func handleScroll(_ value: CGFloat) {
-        let previous = scrollOffset
-        scrollOffset = value
-
-        // 用户仍在滑动：放弃吸附，交给实时进度
-        if abs(value - previous) > 1.5 {
-            collapseSettle = 0
-        }
-        // 回到顶部：复位
-        if value > -4 {
-            collapseSettle = 0
-        }
-
-        settleTask?.cancel()
-        guard value < -40 else { return }
-        settleTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 260_000_000)
-            guard !Task.isCancelled else { return }
-            let raw = min(max(-value / 132, 0), 1)
-            if raw > 0.35, raw < 0.92 {
-                withAnimation(.spring(response: 0.45, dampingFraction: 0.88)) {
-                    collapseSettle = 1
-                }
-            }
-        }
-    }
-
     // MARK: Hero
-
-    /// 头图优先用仓库自己的图片：README 首图 → GitHub 生成的仓库介绍图 → 渐变兜底
-    private var heroImageURL: URL? {
-        if let readmeImage = vm.previewImageURL { return readmeImage }
-        let encoded = vm.repo.owner.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? vm.repo.owner
-        let name = vm.repo.name.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? vm.repo.name
-        return URL(string: "https://opengraph.githubassets.com/1/\(encoded)/\(name)")
-    }
-
-    private var heroBackdrop: some View {
-        GeometryReader { geo in
-            ZStack {
-                LinearGradient(colors: vm.repo.gradient,
-                               startPoint: .topLeading,
-                               endPoint: .bottomTrailing)
-
-                if let url = heroImageURL {
-                    AsyncImage(url: url,
-                               transaction: Transaction(animation: .easeIn(duration: 0.35))) { phase in
-                        if let image = phase.image {
-                            image
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: geo.size.width, height: geo.size.height)
-                                .clipped()
-                                .overlay(
-                                    // 压暗，保证白色标题在任何图上都可读
-                                    LinearGradient(
-                                        colors: [
-                                            Color.black.opacity(0.18),
-                                            Color.black.opacity(0.42),
-                                            Color.black.opacity(0.78)
-                                        ],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     private var hero: some View {
         ZStack(alignment: .bottomLeading) {
-            heroBackdrop
+            LinearGradient(colors: vm.repo.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
 
             Circle()
                 .fill(.white.opacity(0.20))
@@ -311,22 +206,13 @@ struct RepoDetailView: View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
-                    TagChip(text: vm.repo.category.title,
-                            systemImage: vm.repo.category.symbol,
-                            tint: vm.repo.category.tint,
-                            filled: true)
-                    TagChip(text: vm.repo.activity.title,
-                            systemImage: vm.repo.activity.symbol,
-                            tint: vm.repo.activity.tint,
-                            filled: true)
-                    TagChip(text: vm.repo.usage.title,
-                            systemImage: vm.repo.usage.symbol,
-                            tint: vm.repo.usage.tint,
-                            filled: true)
-                    TagChip(text: vm.repo.license.title,
-                            systemImage: vm.repo.license.symbol,
-                            tint: vm.repo.license.tint,
-                            filled: true)
+                    TagChip(text: vm.repo.category.emoji + " " + vm.repo.category.title,
+                            tint: vm.repo.category.tint)
+                    TagChip(text: vm.repo.activity.emoji + " " + vm.repo.activity.title,
+                            tint: vm.repo.activity.tint, filled: true)
+                    TagChip(text: vm.repo.usage.emoji + " " + vm.repo.usage.title,
+                            tint: vm.repo.usage.tint)
+                    TagChip(text: vm.repo.license.title, tint: vm.repo.license.tint)
                 }
             }
 
@@ -871,12 +757,4 @@ struct RepoDetailView: View {
     .environmentObject(AppEnvironment.live())
     .environmentObject(AuthStore())
     .environmentObject(VaultStore(fileName: "preview-vault.json"))
-}
-
-/// 详情页顶部偏移
-struct DetailScrollKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
 }

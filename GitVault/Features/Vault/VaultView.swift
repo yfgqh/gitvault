@@ -194,31 +194,23 @@ struct VaultView: View {
             statsCard
                 .padding(.horizontal, DS.Space.screen)
 
-            // 毛毛虫下划线：手指划多少，下划线就跟多少
-            CaterpillarSegmented(titles: markFilterTitles, selection: markFilterIndex)
-                .padding(.horizontal, DS.Space.screen)
-        }
-    }
-
-    private var markFilterTitles: [String] {
-        [NSLocalizedString("全部", comment: "")] + MyMark.allCases.map { $0.title }
-    }
-
-    private var markFilterIndex: Binding<Int> {
-        Binding(
-            get: {
-                guard let active = activeMark,
-                      let index = MyMark.allCases.firstIndex(of: active) else { return 0 }
-                return index + 1
-            },
-            set: { newValue in
-                if newValue == 0 {
-                    activeMark = nil
-                } else if MyMark.allCases.indices.contains(newValue - 1) {
-                    activeMark = MyMark.allCases[newValue - 1]
+            ScrollView(.horizontal) {
+                HStack(spacing: DS.Space.s) {
+                    FilterChip(title: "全部", isActive: activeMark == nil) {
+                        withAnimation(DS.Motion.snappy) { activeMark = nil }
+                    }
+                    ForEach(MyMark.allCases) { mark in
+                        FilterChip(title: mark.title, emoji: mark.emoji, isActive: activeMark == mark) {
+                            withAnimation(DS.Motion.snappy) {
+                                activeMark = (activeMark == mark) ? nil : mark
+                            }
+                        }
+                    }
                 }
+                .padding(.horizontal, DS.Space.screen)
             }
-        )
+            .scrollIndicators(.hidden)
+        }
     }
 
     private var statsCard: some View {

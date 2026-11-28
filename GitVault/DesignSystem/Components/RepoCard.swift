@@ -122,8 +122,7 @@ struct RepoMiniCard: View {
             RepoCover(initials: repo.initials, gradient: repo.gradient, cornerRadius: 14)
                 .frame(height: 84)
                 .overlay(alignment: .topTrailing) {
-                    Image(systemName: repo.category.symbol)
-                .font(.system(size: 11, weight: .semibold))
+                    Text(repo.category.emoji)
                         .font(.system(size: 12))
                         .padding(6)
                         .background(Circle().fill(DS.glassFill))

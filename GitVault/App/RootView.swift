@@ -52,25 +52,16 @@ struct RootView: View {
             }
         }
         .toastHost()
-        .liquidSheet(
-            isPresented: Binding(
-                get: { launchUpdate != nil },
-                set: { if !$0 { launchUpdate = nil } }
-            )
-        ) {
-            if let update = launchUpdate {
-                VStack(spacing: 0) {
-                    ScrollView {
-                        UpdateCard(available: update, onClose: {
-                            withAnimation(LiquidSpring.settle) { launchUpdate = nil }
-                        })
-                        .padding(DS.Space.l)
-                    }
-                    .scrollIndicators(.hidden)
-                }
-                .background(DS.bgPrimary)
-                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .sheet(item: $launchUpdate) { update in
+            ScrollView {
+                UpdateCard(available: update, onClose: {
+                    withAnimation(DS.Motion.snappy) { launchUpdate = nil }
+                })
+                .padding(DS.Space.l)
             }
+            .background(DS.bgPrimary)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .onChange(of: env.update.available) { newValue in
             if newValue == nil { launchUpdate = nil }
