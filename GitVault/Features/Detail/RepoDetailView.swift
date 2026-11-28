@@ -186,20 +186,34 @@ struct RepoDetailView: View {
     // MARK: 头图
 
     private var heroImage: some View {
-        FilledRemoteImage(url: previewImageURL, cornerRadius: DS.Radius.cardLarge) {
-            ZStack {
-                LinearGradient(
-                    colors: vm.repo.gradient,
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                Text(vm.repo.initials)
-                    .font(.system(size: 44, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.28))
+        // 优先级：自家仓库用 App 图标 → README 项目图 → GitHub 社交卡 → 仓库头像 → 渐变
+        Group {
+            if vm.repo.isOwnApp, let logo = ShowcaseRepo.localAppLogo {
+                Image(uiImage: logo)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                FilledRemoteImage(
+                    url: previewImageURL ?? vm.repo.openGraphImageURL ?? vm.repo.avatarURL,
+                    cornerRadius: 0
+                ) {
+                    ZStack {
+                        LinearGradient(
+                            colors: vm.repo.gradient,
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        Text(vm.repo.initials)
+                            .font(.system(size: 44, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.28))
+                    }
+                }
             }
         }
         .frame(height: 180)
         .frame(maxWidth: .infinity)
+        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.cardLarge, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DS.Radius.cardLarge, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)

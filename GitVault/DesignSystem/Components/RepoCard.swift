@@ -123,6 +123,27 @@ struct RepoMiniCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
             // 封面：优先项目图，加载中/失败回退首字母灰底
+            if repo.isOwnApp, let logo = ShowcaseRepo.localAppLogo {
+                Image(uiImage: logo)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 84)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                    )
+                    .overlay(alignment: .topTrailing) {
+                        Image(systemName: repo.category.symbol)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.95))
+                            .padding(5)
+                            .background(Circle().fill(Color.black.opacity(0.38)))
+                            .padding(7)
+                    }
+            } else {
             FilledRemoteImage(
                 url: previewURL ?? repo.openGraphImageURL,
                 cornerRadius: 14
@@ -150,6 +171,7 @@ struct RepoMiniCard: View {
                     .padding(5)
                     .background(Circle().fill(Color.black.opacity(0.38)))
                     .padding(7)
+            }
             }
 
             Text(repo.name)

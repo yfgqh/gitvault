@@ -191,6 +191,17 @@ extension ShowcaseRepo {
 }
 
 extension ShowcaseRepo {
+    /// 是不是 GitVault 自己的仓库（用它自己的 App 图标当封面）
+    var isOwnApp: Bool {
+        owner.lowercased() == "yfgqh"
+            && ["gitvault", "gitvault-ios", "gitvaultapp"].contains(name.lowercased())
+    }
+
+    /// 本地 App 图标（Assets 里的 AppLogo）
+    static var localAppLogo: UIImage? {
+        UIImage(named: "AppLogo")
+    }
+
     /// GitHub 自动生成的仓库社交卡（1200×630，CDN 缓存，无需 API 请求）
     var openGraphImageURL: URL? {
         guard !owner.isEmpty, !name.isEmpty else { return nil }
