@@ -675,3 +675,8 @@
 "sk-…（可留空）" = "sk-… (optional)";
 "例如 Ov23li…" = "e.g. Ov23li…";
 "例如 openai / gpt-4o-mini" = "e.g. openai / gpt-4o-mini";
+
+/* 2.8.6 */
+"翻译未完成：%@" = "Translation incomplete: %@";
+"翻译结果为空，可点右上角重试" = "Translation came back empty — retry from the top right";
+"重试翻译" = "Retry translation";

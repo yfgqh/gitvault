@@ -337,6 +337,22 @@ struct RepoDetailView: View {
                     .font(.system(size: 10))
                     .foregroundStyle(DS.textTertiary)
                 Spacer()
+                if vm.needsTranslationRetry {
+                    Button {
+                        Haptics.tap()
+                        Task { await vm.retryTranslation() }
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "arrow.clockwise.circle")
+                                .font(.system(size: 9, weight: .bold))
+                            Text("重试翻译")
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                        .foregroundStyle(DS.warning)
+                    }
+                    .buttonStyle(.springPressSilent)
+                }
+
                 if vm.readmeMarkdown != nil {
                     Button {
                         Haptics.tap()

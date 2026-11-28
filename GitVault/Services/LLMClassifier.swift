@@ -151,11 +151,56 @@ struct RemoteLLMClassifier: LLMClassifierProtocol {
         2) 术语用国内开发者习惯说法；
         3) 只输出译文正文，不要加任何解释、标题或引号。
         """
-        let clipped = String(text.prefix(1400))
-        let content = try await chat(system: system, user: clipped, maxTokens: 700, temperature: 0.1)
-        let cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleaned.isEmpty else { throw GitHubError.decoding("翻译结果为空") }
-        return cleaned
+
+        // 分段翻译：单段不超过 900 字，避免模型截断或输出长度不足
+        let chunks = Self.chunk(text, limit: 900)
+        var outputs: [String] = []
+        var lastError: Error?
+
+        for chunk in chunks {
+            do {
+                let content = try await chat(system: system, user: chunk, maxTokens: 900, temperature: 0.1)
+                let cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !cleaned.isEmpty {
+                    outputs.append(cleaned)
+                }
+            } catch {
+                // 单段失败不影响其它段落：保留原文片段，继续翻下一段
+                lastError = error
+                outputs.append(chunk)
+            }
+        }
+
+        guard !outputs.isEmpty else {
+            throw lastError ?? GitHubError.decoding("翻译结果为空")
+        }
+        return outputs.joined(separator: "\n\n")
+    }
+
+    /// 按段落/句子边界切块，尽量不把一句话切断
+    private static func chunk(_ text: String, limit: Int) -> [String] {
+        guard text.count > limit else { return [text] }
+        var chunks: [String] = []
+        var current = ""
+
+        let pieces = text.components(separatedBy: "\n")
+        for piece in pieces {
+            let line = piece.trimmingCharacters(in: .whitespaces)
+            if current.count + line.count + 1 > limit, !current.isEmpty {
+                chunks.append(current)
+                current = line
+            } else {
+                current = current.isEmpty ? line : current + "\n" + line
+            }
+            // 单行本身就超长时，按字符硬切
+            while current.count > limit {
+                let end = current.index(current.startIndex, offsetBy: limit)
+                chunks.append(String(current[..<end]))
+                current = String(current[end...])
+            }
+        }
+        if !current.isEmpty { chunks.append(current) }
+        return chunks.isEmpty ? [text] : chunks
     }
 
     // MARK: 请求

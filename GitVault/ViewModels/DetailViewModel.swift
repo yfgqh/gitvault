@@ -33,6 +33,7 @@ final class DetailViewModel: ObservableObject {
     /// README 首图 / 演示站点预览
     @Published var previewImageURL: URL?
     @Published var isTranslating = false
+    @Published var translateError: String?
 
     @Published var isLoadingDetail = false
     @Published var errorMessage: String?
@@ -69,8 +70,16 @@ final class DetailViewModel: ObservableObject {
     var readmeHint: String {
         if isTranslating { return NSLocalizedString("原文为英文，正在用 AI 翻译…", comment: "") }
         if showingTranslation { return "已由 \(llm.displayName) 译为中文" }
+        if let translateError, !translateError.isEmpty {
+            return String(format: NSLocalizedString("翻译未完成：%@", comment: ""), translateError)
+        }
         if isLoadingReadme { return "正在读取 README 原文…" }
         return "README 原文摘录"
+    }
+
+    /// 是否需要展示「重试翻译」入口
+    var needsTranslationRetry: Bool {
+        translateError?.isEmpty == false && readmeTranslated == nil && readmeMarkdown != nil
     }
 
     // MARK: 详情
@@ -179,11 +188,28 @@ final class DetailViewModel: ObservableObject {
         }
 
         isTranslating = true
+        translateError = nil
         defer { isTranslating = false }
-        if let translated = try? await llm.translate(excerpt), !translated.isEmpty {
-            readmeTranslated = translated
-            readmeSource = "AI 翻译"
-            TranslationCache.shared.store(repoID: repo.id, hash: hash, text: translated)
+        do {
+            let translated = try await llm.translate(excerpt)
+            let cleaned = translated.trimmingCharacters(in: .whitespacesAndNewlines)
+            if cleaned.isEmpty {
+                translateError = NSLocalizedString("翻译结果为空，可点右上角重试", comment: "")
+            } else {
+                readmeTranslated = cleaned
+                readmeSource = "AI 翻译"
+                TranslationCache.shared.store(repoID: repo.id, hash: hash, text: cleaned)
+            }
+        } catch {
+            translateError = error.localizedDescription
         }
+    }
+
+    /// 重新尝试翻译（跳过缓存查询，用于失败后手动重试）
+    func retryTranslation() async {
+        guard let markdown = readmeMarkdown else { return }
+        readmeTranslated = nil
+        didLoadReadme = false
+        await loadReadmeIfNeeded(force: true)
     }
 }
