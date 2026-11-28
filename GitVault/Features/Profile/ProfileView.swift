@@ -27,7 +27,6 @@ struct ProfileView: View {
     @State private var showLanguageDialog = false
     @State private var showStarSync = false
     @State private var showClearConfirm = false
-    @State private var showVaultHealth = false
     @State private var showOfflineSearch = false
     @State private var pendingUpdate: UpdateChecker.Available?
 
@@ -422,11 +421,6 @@ struct ProfileView: View {
                 SettingsRow(symbol: "rosette", title: "成就徽章",
                             detail: "\(Gamification.achievements(items: vault.items).filter { $0.unlocked }.count)/8") {
                     showBadges = true
-                }
-                Divider().padding(.leading, 52)
-                SettingsRow(symbol: "stethoscope", title: "收藏库体检",
-                            detail: String(format: NSLocalizedString("%d 处待处理", comment: ""), VaultHealthScanner.scan(vault.items).count)) {
-                    showVaultHealth = true
                 }
                 Divider().padding(.leading, 52)
                 SettingsRow(symbol: "magnifyingglass.circle", title: "离线搜索", detail: "无网可用") {
