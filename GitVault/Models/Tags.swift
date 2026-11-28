@@ -26,6 +26,15 @@ enum ActivityTag: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    var symbol: String {
+        switch self {
+        case .rising: return "flame.fill"
+        case .newStar: return "leaf.fill"
+        case .classic: return "trophy.fill"
+        case .dormant: return "moon.zzz.fill"
+        }
+    }
+
     var emoji: String {
         switch self {
         case .rising: return "🔥"
@@ -62,6 +71,14 @@ enum UsageTag: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    var symbol: String {
+        switch self {
+        case .readyToUse: return "bolt.fill"
+        case .needsLearning: return "graduationcap.fill"
+        case .referenceOnly: return "bookmark.fill"
+        }
+    }
+
     var emoji: String {
         switch self {
         case .readyToUse: return "⚡️"
@@ -88,6 +105,15 @@ enum LicenseTag: String, CaseIterable, Identifiable, Codable {
     case none
 
     var id: String { rawValue }
+
+    var symbol: String {
+        switch self {
+        case .mit: return "checkmark.seal.fill"
+        case .apache: return "checkmark.seal.fill"
+        case .gpl: return "exclamationmark.triangle.fill"
+        case .none: return "questionmark.circle.fill"
+        }
+    }
 
     var title: String {
         switch self {

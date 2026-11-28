@@ -3,7 +3,7 @@
 //  GitVault
 //
 //  四条手感动效的公共实现：
-//  · LiquidTabBar —— 选中胶囊「前沿先到、后沿跟上」，像一滴水流过去
+//  · LiquidIndicator —— 选中胶囊「前沿先到、后沿跟上」，像一滴水流过去
 //  · CaterpillarSegmented —— 下划线跟着手指走，先伸长再收尾
 //  · LiquidSheet —— 底部弹窗升起时背景后退，可拖着走也能甩着关
 //
@@ -19,8 +19,6 @@ enum LiquidSpring {
     static let trail = Animation.interpolatingSpring(stiffness: 250, damping: 24).delay(0.05)
     /// 闭合 / 吸附
     static let settle = Animation.spring(response: 0.42, dampingFraction: 0.86)
-    /// 跟手时的即时响应
-    static let track = Animation.interactiveSpring(response: 0.18, dampingFraction: 0.9)
 }
 
 // MARK: - ① 水滴胶囊指示器
@@ -52,7 +50,7 @@ struct LiquidIndicator: View {
 
 // MARK: - ④ 毛毛虫分段控件
 
-/// 下划线的 leading / trailing 分别由进度驱动：
+/// 整条都可以按住左右滑：手指在哪，下划线就跟到哪；
 /// 前半程只动 trailing（伸长），后半程才动 leading（收尾）。
 struct CaterpillarSegmented: View {
     let titles: [String]
@@ -73,7 +71,7 @@ struct CaterpillarSegmented: View {
                 // 下划线
                 Capsule(style: .continuous)
                     .fill(DS.accentGradient)
-                    .frame(width: max(0, underlineTrailing - underlineLeading), height: 3)
+                    .frame(width: max(6, underlineTrailing - underlineLeading), height: 3)
                     .offset(x: underlineLeading, y: geo.size.height - 3)
                     .opacity(itemFrames.isEmpty ? 0 : 1)
 
@@ -103,14 +101,14 @@ struct CaterpillarSegmented: View {
                 }
                 .coordinateSpace(name: space)
             }
-            .gesture(
-                DragGesture(minimumDistance: 2)
+            .contentShape(Rectangle())
+            // 与按钮并列响应：拖动时跟手，轻点仍然点到按钮
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 6)
                     .onChanged { value in
                         isDragging = true
-                        // 手指位置换算成连续索引：划多少跟多少
-                        let startX = CGFloat(selection) * itemWidth + itemWidth / 2
-                        let x = startX + value.translation.width
-                        let raw = (x - itemWidth / 2) / itemWidth
+                        // 直接按手指当前横坐标换算连续索引 —— 任意位置按下都能拖
+                        let raw = (value.location.x - itemWidth / 2) / itemWidth
                         progress = min(max(raw, 0), CGFloat(max(titles.count - 1, 0)))
                     }
                     .onEnded { _ in
@@ -139,19 +137,16 @@ struct CaterpillarSegmented: View {
 
     private var underlineLeading: CGFloat {
         let (a, b, f) = interpolation()
-        // 后半程才收尾
-        let k = max(0, f * 2 - 1)
+        let k = max(0, f * 2 - 1)          // 后半程才收尾
         return a.minX + (b.minX - a.minX) * k
     }
 
     private var underlineTrailing: CGFloat {
         let (a, b, f) = interpolation()
-        // 前半程先伸长
-        let k = min(1, f * 2)
+        let k = min(1, f * 2)              // 前半程先伸长
         return a.maxX + (b.maxX - a.maxX) * k
     }
 
-    /// 返回相邻两项的 frame 与中间进度
     private func interpolation() -> (CGRect, CGRect, CGFloat) {
         let lower = Int(floor(progress))
         let upper = min(lower + 1, titles.count - 1)
@@ -190,53 +185,60 @@ struct LiquidSheetModifier<SheetContent: View>: ViewModifier {
     @ViewBuilder var sheetContent: () -> SheetContent
 
     @State private var dragY: CGFloat = 0
-    @GestureState private var isDragging = false
 
     private let backdropScale: CGFloat = 0.93
-    private let backdropCorner: CGFloat = 22
+    private let backdropCorner: CGFloat = 24
 
     func body(content: Content) -> some View {
-        GeometryReader { geo in
-            ZStack(alignment: .bottom) {
-                // 背后的页面：缩放 + 圆角 + 轻微下沉
-                content
-                    .scaleEffect(isPresented ? backdropScale : 1, anchor: .top)
-                    .offset(y: isPresented ? 10 : 0)
-                    .clipShape(
-                        RoundedRectangle(cornerRadius: isPresented ? backdropCorner : 0, style: .continuous)
-                    )
-                    .brightness(isPresented ? -0.05 : 0)
-                    .allowsHitTesting(!isPresented)
-                    .animation(LiquidSpring.settle, value: isPresented)
-
+        content
+            // 背景页面后退：缩小 + 圆角 + 压暗
+            .scaleEffect(isPresented ? backdropScale : 1, anchor: .top)
+            .clipShape(
+                RoundedRectangle(cornerRadius: isPresented ? backdropCorner : 0, style: .continuous)
+            )
+            .brightness(isPresented ? -0.05 : 0)
+            .allowsHitTesting(!isPresented)
+            .animation(LiquidSpring.settle, value: isPresented)
+            // overlay 只负责测量与呈现，不参与背景页面的布局
+            .overlay {
                 if isPresented {
-                    Color.black
-                        .opacity(0.42 * backdropDimming)
-                        .ignoresSafeArea()
-                        .transition(.opacity)
-                        .onTapGesture { close() }
+                    GeometryReader { geo in
+                        ZStack(alignment: .bottom) {
+                            Color.black
+                                .opacity(0.42 * backdropDimming)
+                                .ignoresSafeArea()
+                                .onTapGesture { animateClose() }
+                                .transition(.opacity)
 
-                    sheetContent()
-                        .frame(maxHeight: geo.size.height * 0.88)
-                        .padding(.horizontal, DS.Space.s)
-                        .padding(.bottom, max(geo.safeAreaInsets.bottom, 12))
-                        .background(
-                            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                                .fill(DS.bgSecondary)
-                                .shadow(color: .black.opacity(0.35), radius: 24, y: -6)
+                            sheetContent()
+                                .frame(maxWidth: .infinity)
+                                .frame(maxHeight: geo.size.height * 0.9)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 26, style: .continuous)
+                                        .fill(DS.bgSecondary)
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 26, style: .continuous)
+                                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                                )
+                                .shadow(color: .black.opacity(0.4), radius: 26, y: -8)
                                 .padding(.horizontal, DS.Space.s)
-                                .padding(.bottom, max(geo.safeAreaInsets.bottom, 12))
-                        )
-                        .offset(y: max(0, dragY))
-                        .gesture(dragGesture)
-                        .transition(.move(edge: .bottom))
+                                .padding(.bottom, max(geo.safeAreaInsets.bottom, 10))
+                                .offset(y: max(0, dragY))
+                                .gesture(dragGesture)
+                                .transition(.move(edge: .bottom))
+                        }
+                        .animation(LiquidSpring.settle, value: isPresented)
+                    }
                 }
             }
-            .animation(LiquidSpring.settle, value: isPresented)
-        }
+            .onChange(of: isPresented) { newValue in
+                if !newValue { dragY = 0 }
+            }
     }
 
-    /// 拖动越多，背景越亮（恢复），形成「托着走」的手感
+    /// 拖动越多，背景越亮（恢复原样），形成「托着走」的手感
     private var backdropDimming: CGFloat {
         let progress = min(max(dragY / 320, 0), 1)
         return 1 - progress * 0.45
@@ -245,23 +247,22 @@ struct LiquidSheetModifier<SheetContent: View>: ViewModifier {
     private var dragGesture: some Gesture {
         DragGesture(minimumDistance: 6)
             .onChanged { value in
-                // 上滑时给一点阻尼，避免整块被顶出屏幕
                 let translation = value.translation.height
+                // 向下跟手，向上给阻尼，避免整块被顶出屏幕
                 dragY = translation >= 0 ? translation : translation * 0.25
             }
             .onEnded { value in
                 let projected = value.predictedEndTranslation.height
                 let shouldClose = projected > 160 || value.translation.height > 120
                 if shouldClose {
-                    withAnimation(LiquidSpring.settle) { isPresented = false }
-                    dragY = 0
+                    animateClose()
                 } else {
                     withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) { dragY = 0 }
                 }
             }
     }
 
-    private func close() {
+    private func animateClose() {
         withAnimation(LiquidSpring.settle) { isPresented = false }
     }
 }

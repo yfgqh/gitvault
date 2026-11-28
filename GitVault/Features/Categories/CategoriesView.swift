@@ -120,7 +120,11 @@ struct CategoryFeedView: View {
                 .offset(x: 120, y: -60)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(category.emoji + " " + category.title)
+                HStack(spacing: 5) {
+                        Image(systemName: category.symbol)
+                            .font(.system(size: 13, weight: .semibold))
+                        Text(category.title)
+                    }
                     .font(DS.Typo.title)
                     .foregroundStyle(.white)
                 Text(vm.totalCount > 0

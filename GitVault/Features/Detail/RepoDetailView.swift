@@ -80,7 +80,6 @@ struct RepoDetailView: View {
                     .frame(width: proxy.size.width, alignment: .leading)
                 }
                 .scrollIndicators(.hidden)
-                .coordinateSpace(name: "detailScroll")
                 .onPreferenceChange(DetailScrollKey.self) { value in
                     handleScroll(value)
                 }
@@ -88,6 +87,8 @@ struct RepoDetailView: View {
                 bottomBar
                     .frame(width: proxy.size.width)
             }
+            // 坐标空间必须挂在外层容器：ScrollView 自身不提供随滚动变化的坐标系
+            .coordinateSpace(name: "detailScroll")
         }
         .background(DS.bgPrimary.ignoresSafeArea())
         .navigationTitle(vm.repo.name)
@@ -212,9 +213,52 @@ struct RepoDetailView: View {
 
     // MARK: Hero
 
+    /// 头图优先用仓库自己的图片：README 首图 → GitHub 生成的仓库介绍图 → 渐变兜底
+    private var heroImageURL: URL? {
+        if let readmeImage = vm.previewImageURL { return readmeImage }
+        let encoded = vm.repo.owner.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? vm.repo.owner
+        let name = vm.repo.name.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? vm.repo.name
+        return URL(string: "https://opengraph.githubassets.com/1/\(encoded)/\(name)")
+    }
+
+    private var heroBackdrop: some View {
+        GeometryReader { geo in
+            ZStack {
+                LinearGradient(colors: vm.repo.gradient,
+                               startPoint: .topLeading,
+                               endPoint: .bottomTrailing)
+
+                if let url = heroImageURL {
+                    AsyncImage(url: url,
+                               transaction: Transaction(animation: .easeIn(duration: 0.35))) { phase in
+                        if let image = phase.image {
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: geo.size.width, height: geo.size.height)
+                                .clipped()
+                                .overlay(
+                                    // 压暗，保证白色标题在任何图上都可读
+                                    LinearGradient(
+                                        colors: [
+                                            Color.black.opacity(0.18),
+                                            Color.black.opacity(0.42),
+                                            Color.black.opacity(0.78)
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private var hero: some View {
         ZStack(alignment: .bottomLeading) {
-            LinearGradient(colors: vm.repo.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+            heroBackdrop
 
             Circle()
                 .fill(.white.opacity(0.20))
@@ -267,13 +311,22 @@ struct RepoDetailView: View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
-                    TagChip(text: vm.repo.category.emoji + " " + vm.repo.category.title,
-                            tint: vm.repo.category.tint)
-                    TagChip(text: vm.repo.activity.emoji + " " + vm.repo.activity.title,
-                            tint: vm.repo.activity.tint, filled: true)
-                    TagChip(text: vm.repo.usage.emoji + " " + vm.repo.usage.title,
-                            tint: vm.repo.usage.tint)
-                    TagChip(text: vm.repo.license.title, tint: vm.repo.license.tint)
+                    TagChip(text: vm.repo.category.title,
+                            systemImage: vm.repo.category.symbol,
+                            tint: vm.repo.category.tint,
+                            filled: true)
+                    TagChip(text: vm.repo.activity.title,
+                            systemImage: vm.repo.activity.symbol,
+                            tint: vm.repo.activity.tint,
+                            filled: true)
+                    TagChip(text: vm.repo.usage.title,
+                            systemImage: vm.repo.usage.symbol,
+                            tint: vm.repo.usage.tint,
+                            filled: true)
+                    TagChip(text: vm.repo.license.title,
+                            systemImage: vm.repo.license.symbol,
+                            tint: vm.repo.license.tint,
+                            filled: true)
                 }
             }
 
