@@ -40,8 +40,9 @@ struct RepoDetailView: View {
     @State private var previewImageURL: URL?
     @Environment(\.dismiss) private var dismissEnvironment
 
-    init(repo: ShowcaseRepo) {
+    init(repo: ShowcaseRepo, onClose: (() -> Void)? = nil) {
         self.repo = repo
+        self.onClose = onClose
         _vm = StateObject(wrappedValue: DetailViewModel(repo: repo))
     }
 
