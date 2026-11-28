@@ -272,10 +272,10 @@ final class VaultStore: ObservableObject {
     }
 
     /// 从损坏数据里逐条捞回能解码的条目
-    private static func salvageItems(from data: Data, decoder: JSONDecoder) -> (items: [VaultItem], folders: [VaultFolder])? {
+    private static func salvageItems(from data: Data, decoder: JSONDecoder) -> (items: [VaultItem], folders: [VaultFolderItem])? {
         struct Partial: Decodable {
             let items: [FailableItem]
-            let folders: [VaultFolder]?
+            let folders: [VaultFolderItem]?
         }
         struct FailableItem: Decodable {
             let value: VaultItem?
