@@ -32,6 +32,11 @@ struct RepoDetailView: View {
     @State private var isBusy = false
     @StateObject private var downloader = RepoDownloader()
 
+    // 吸顶折叠标题
+    @State private var scrollOffset: CGFloat = 0
+    @State private var collapseSettle: CGFloat = 0
+    @State private var settleTask: Task<Void, Never>?
+
     init(repo: ShowcaseRepo) {
         self.repo = repo
         _vm = StateObject(wrappedValue: DetailViewModel(repo: repo))
@@ -42,8 +47,24 @@ struct RepoDetailView: View {
             VStack(spacing: 0) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: DS.Space.l) {
+                        GeometryReader { g in
+                            Color.clear.preference(
+                                key: DetailScrollKey.self,
+                                value: g.frame(in: .named("detailScroll")).minY
+                            )
+                        }
+                        .frame(height: 0)
+
                         hero
-                        titleBlock.screenPadding()
+                            // 视差：向上滚动时头图慢半拍（只跟随 35%）
+                            .offset(y: min(0, scrollOffset) * 0.35)
+                            .scaleEffect(1 - collapseProgress * 0.04, anchor: .bottom)
+
+                        titleBlock
+                            .screenPadding()
+                            .opacity(Double(1 - collapseProgress))
+                            .scaleEffect(1 - collapseProgress * 0.06, anchor: .topLeading)
+                            .offset(y: -collapseProgress * 26)
                         statsCard.screenPadding()
                         HealthCard(repo: vm.repo).screenPadding()
                         readmeCard.screenPadding()
@@ -59,6 +80,10 @@ struct RepoDetailView: View {
                     .frame(width: proxy.size.width, alignment: .leading)
                 }
                 .scrollIndicators(.hidden)
+                .coordinateSpace(name: "detailScroll")
+                .onPreferenceChange(DetailScrollKey.self) { value in
+                    handleScroll(value)
+                }
 
                 bottomBar
                     .frame(width: proxy.size.width)
@@ -146,6 +171,42 @@ struct RepoDetailView: View {
         .sheet(isPresented: $showPro) {
             ProUnlockView()
                 .environmentObject(env)
+        }
+    }
+
+    // MARK: 折叠进度
+
+    /// 0 = 展开，1 = 完全收进顶栏
+    private var collapseProgress: CGFloat {
+        let raw = min(max(-scrollOffset / 132, 0), 1)
+        return max(raw, collapseSettle)
+    }
+
+    /// 滚动停下后判断：停在半途就自己收到底（单向吸附，不强行改滚动位置）
+    private func handleScroll(_ value: CGFloat) {
+        let previous = scrollOffset
+        scrollOffset = value
+
+        // 用户仍在滑动：放弃吸附，交给实时进度
+        if abs(value - previous) > 1.5 {
+            collapseSettle = 0
+        }
+        // 回到顶部：复位
+        if value > -4 {
+            collapseSettle = 0
+        }
+
+        settleTask?.cancel()
+        guard value < -40 else { return }
+        settleTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 260_000_000)
+            guard !Task.isCancelled else { return }
+            let raw = min(max(-value / 132, 0), 1)
+            if raw > 0.35, raw < 0.92 {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.88)) {
+                    collapseSettle = 1
+                }
+            }
         }
     }
 
@@ -757,4 +818,12 @@ struct RepoDetailView: View {
     .environmentObject(AppEnvironment.live())
     .environmentObject(AuthStore())
     .environmentObject(VaultStore(fileName: "preview-vault.json"))
+}
+
+/// 详情页顶部偏移
+struct DetailScrollKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
 }

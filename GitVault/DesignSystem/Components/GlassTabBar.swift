@@ -2,8 +2,9 @@
 //  GlassTabBar.swift
 //  GitVault
 //
-//  自定义悬浮玻璃 Tab Bar：胶囊高亮块使用 matchedGeometryEffect 做弹性迁移。
-//  iOS 16 兼容：不依赖 symbolEffect，用 scale + spring 表达「弹性」。
+//  自定义悬浮玻璃 Tab Bar。
+//  选中胶囊不再是整体平移，而是 leading / trailing 两条弹簧分开跑：
+//  前沿先到位、后沿延迟跟上，中途宽度被拉长，视觉上像一滴水流过去。
 //
 
 import SwiftUI
@@ -43,13 +44,31 @@ enum AppTab: String, CaseIterable, Identifiable {
 
 struct GlassTabBar: View {
     @Binding var selection: AppTab
-    @Namespace private var pill
+
+    @State private var frames: [Int: CGRect] = [:]
+    @State private var leading: CGFloat = 0
+    @State private var trailing: CGFloat = 0
+    @State private var ready = false
+
+    private let space = "tabbar"
+
+    private var selectionIndex: Int {
+        AppTab.allCases.firstIndex(of: selection) ?? 0
+    }
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(AppTab.allCases) { tab in
-                tabButton(tab)
+            ForEach(Array(AppTab.allCases.enumerated()), id: \.element) { index, tab in
+                tabButton(tab, index: index)
             }
+        }
+        .coordinateSpace(name: space)
+        .background(alignment: .topLeading) {
+            LiquidIndicator(leading: leading,
+                            trailing: trailing,
+                            height: frames[selectionIndex]?.height ?? 0,
+                            cornerRadius: (frames[selectionIndex]?.height ?? 0) / 2)
+                .opacity(ready ? 1 : 0)
         }
         .padding(.horizontal, DS.Space.s)
         .padding(.vertical, DS.Space.s)
@@ -63,20 +82,30 @@ struct GlassTabBar: View {
         .clipShape(Capsule(style: .continuous))
         .dsShadow(.elevated)
         .padding(.horizontal, DS.Space.l)
+        .onPreferenceChange(TabFrameKey.self) { value in
+            frames = value
+            // 首次布局：不带动画直接归位
+            if !ready, let target = value[selectionIndex], target.width > 0 {
+                leading = target.minX
+                trailing = target.maxX
+                ready = true
+            }
+        }
+        .onChange(of: selection) { _ in
+            moveIndicator()
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("主导航")
     }
 
     @ViewBuilder
-    private func tabButton(_ tab: AppTab) -> some View {
+    private func tabButton(_ tab: AppTab, index: Int) -> some View {
         let isSelected = selection == tab
 
         Button {
             guard selection != tab else { return }
             Haptics.selection()
-            withAnimation(DS.Motion.tab) {
-                selection = tab
-            }
+            selection = tab
         } label: {
             VStack(spacing: 4) {
                 Image(systemName: tab.symbol)
@@ -92,19 +121,42 @@ struct GlassTabBar: View {
             .foregroundStyle(isSelected ? Color.white : DS.textTertiary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
+            .contentShape(Rectangle())
             .background {
-                if isSelected {
-                    Capsule(style: .continuous)
-                        .fill(DS.accentGradient)
-                        .matchedGeometryEffect(id: "tabPill", in: pill)
-                        .shadow(color: DS.accent.opacity(0.45), radius: 12, y: 4)
+                GeometryReader { g in
+                    Color.clear.preference(
+                        key: TabFrameKey.self,
+                        value: [index: g.frame(in: .named(space))]
+                    )
                 }
             }
-            .contentShape(Rectangle())
         }
         .buttonStyle(.springPressSilent)
         .accessibilityLabel(tab.title)
         .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : .isButton)
+    }
+
+    // MARK: 水滴移动
+
+    private func moveIndicator() {
+        guard let target = frames[selectionIndex], target.width > 0 else { return }
+        guard ready else {
+            leading = target.minX
+            trailing = target.maxX
+            ready = true
+            return
+        }
+        let currentMid = (leading + trailing) / 2
+        let movingRight = target.midX > currentMid
+
+        if movingRight {
+            // 右边缘（前沿）先冲向目标，左边缘随后跟上 → 拉长
+            withAnimation(LiquidSpring.lead) { trailing = target.maxX }
+            withAnimation(LiquidSpring.trail) { leading = target.minX }
+        } else {
+            withAnimation(LiquidSpring.lead) { leading = target.minX }
+            withAnimation(LiquidSpring.trail) { trailing = target.maxX }
+        }
     }
 }
 

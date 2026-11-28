@@ -108,19 +108,24 @@ struct ProfileView: View {
                 ShareSheet(items: [target.url])
                     .presentationDetents([.medium, .large])
             }
-            .sheet(item: $pendingUpdate) { update in
-                ScrollView {
-                    UpdateCard(available: update, onClose: {
-                        withAnimation(DS.Motion.snappy) { pendingUpdate = nil }
-                    })
-                    .padding(DS.Space.l)
+            .liquidSheet(
+                isPresented: Binding(
+                    get: { pendingUpdate != nil },
+                    set: { if !$0 { pendingUpdate = nil } }
+                )
+            ) {
+                if let update = pendingUpdate {
+                    ScrollView {
+                        UpdateCard(available: update, onClose: {
+                            withAnimation(LiquidSpring.settle) { pendingUpdate = nil }
+                        })
+                        .padding(DS.Space.l)
+                    }
+                    .scrollIndicators(.hidden)
                 }
-                .background(DS.bgPrimary)
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
             }
-            .sheet(isPresented: $showStarSync) { StarSyncView() }
-            .sheet(isPresented: $showRepoHealth) { RepoHealthView() }
+            .liquidSheet(isPresented: $showStarSync) { StarSyncView() }
+            .liquidSheet(isPresented: $showRepoHealth) { RepoHealthView() }
             .sheet(isPresented: $showOfflineSearch) { OfflineSearchView() }
             .sheet(isPresented: $showPro) {
                 ProUnlockView()
