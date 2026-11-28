@@ -8,10 +8,11 @@
 import SwiftUI
 
 struct UpdateCard: View {
-    /// 在弹窗里使用时由外部提供：点 × 需要同时关掉包裹它的 sheet
-    var onClose: (() -> Void)? = nil
-
     let available: UpdateChecker.Available
+
+    /// 在弹窗里使用时由外部提供：点 × 需要同时关掉包裹它的 sheet。
+    /// 声明在其它属性之后，保证 memberwise init 的调用顺序是 (available:onClose:)。
+    var onClose: (() -> Void)? = nil
 
     @EnvironmentObject private var env: AppEnvironment
     @Environment(\.openURL) private var openURL
