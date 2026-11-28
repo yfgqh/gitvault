@@ -152,7 +152,9 @@ final class DetailViewModel: ObservableObject {
         OfflineIndex.shared.upsert(from: repo)
         OfflineIndex.shared.upsertReadme(id: repo.id, markdown: markdown)
         previewImageURL = SummaryService.firstImageURL(in: markdown)
-        let excerpt = SummaryService.readmeExcerpt(markdown, maxChars: 2000)
+        // 优先用结构化摘要（简介段 + Features），拿不到再回落到前 N 字
+        let digest = SummaryService.readmeDigest(markdown, maxChars: 1200)
+        let excerpt = digest.isEmpty ? SummaryService.readmeExcerpt(markdown, maxChars: 2000) : digest
         guard !excerpt.isEmpty else {
             readmeOriginal = repo.rawDescription ?? repo.summary
             return
@@ -168,11 +170,20 @@ final class DetailViewModel: ObservableObject {
         }
         guard llm.isConfigured else { return }
 
+        // 命中缓存直接显示，不再调用模型
+        let hash = TranslationCache.hash(excerpt)
+        if let cached = TranslationCache.shared.cached(repoID: repo.id, hash: hash) {
+            readmeTranslated = cached
+            readmeSource = "AI 翻译"
+            return
+        }
+
         isTranslating = true
         defer { isTranslating = false }
         if let translated = try? await llm.translate(excerpt), !translated.isEmpty {
             readmeTranslated = translated
             readmeSource = "AI 翻译"
+            TranslationCache.shared.store(repoID: repo.id, hash: hash, text: translated)
         }
     }
 }

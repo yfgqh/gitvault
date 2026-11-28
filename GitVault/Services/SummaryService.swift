@@ -34,6 +34,7 @@ enum SummaryService {
     ]
 
     /// 一句话中文摘要
+    /// 只产出中文：英文原描述交给卡片以更小字号单独展示，避免一句里中英混排。
     static func chineseSummary(for dto: RepositoryDTO, category: RepoCategory) -> String {
         let description = (dto.description ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -42,20 +43,14 @@ enum SummaryService {
             return firstSentence(description)
         }
 
-        // 2) 规则模板：语言 + 主题 + 中文 topic 词
+        // 2) 英文描述：用「主题方向 + 语言」描述，句式尽量贴近自然表达
         let language = dto.language ?? "多语言"
-        let topicPhrase = chineseTopics(dto.topics ?? [], limit: 3)
-        var sentence = "一个用 \(language) 编写的\(category.title)项目"
-        if !topicPhrase.isEmpty {
-            sentence += "，重点在\(topicPhrase)"
-        }
-        sentence += "。"
+        let topicPhrase = chineseTopics(dto.topics ?? [], limit: 2)
 
-        // 3) 英文原始描述作为补充，帮助用户判断
-        if !description.isEmpty {
-            sentence += "原描述：\(firstSentence(description))"
+        if !topicPhrase.isEmpty {
+            return "\(topicPhrase)方向的 \(language) 项目"
         }
-        return sentence
+        return "\(language) 编写的\(category.title)项目"
     }
 
     /// 把英文 topics 翻成中文短语
@@ -193,6 +188,121 @@ enum SummaryService {
         }
         return text
     }
+    // MARK: README 结构化摘要
+
+    /// 抽取 README 里信息量最高的部分，而不是简单截前 N 字：
+    /// 1) 第一段真正的正文（通常是「这个项目是什么」）
+    /// 2) Features / 特性 段落里的前三个要点
+    /// 抽不到时回落到 readmeExcerpt。
+    static func readmeDigest(_ markdown: String, maxChars: Int = 1200) -> String {
+        let lines = markdown.components(separatedBy: .newlines)
+
+        // ---- 预处理：过滤徽章、图片、HTML、表格、代码块 ----
+        var blocks: [String] = []
+        var inFence = false
+        for raw in lines {
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            if line.hasPrefix("```") { inFence.toggle(); continue }
+            if inFence { continue }
+            if line.isEmpty {
+                if blocks.last?.isEmpty == false { blocks.append("") }
+                continue
+            }
+            if line.hasPrefix("![") || line.hasPrefix("[![") || line.hasPrefix("<") || line.hasPrefix("|") { continue }
+            let lower = line.lowercased()
+            if lower.contains("shields.io") || lower.contains("badge") { continue }
+            blocks.append(line)
+        }
+
+        func isHeading(_ s: String) -> Bool { s.hasPrefix("#") }
+        func headingText(_ s: String) -> String {
+            s.replacingOccurrences(of: "#", with: "").trimmingCharacters(in: .whitespaces).lowercased()
+        }
+        func isList(_ s: String) -> Bool {
+            s.hasPrefix("- ") || s.hasPrefix("* ") || s.hasPrefix("+ ")
+                || s.range(of: "^\\d+\\.\\s", options: .regularExpression) != nil
+        }
+        func looksLikeCommand(_ s: String) -> Bool {
+            let lower = s.lowercased()
+            let markers = ["npm i", "npm install", "yarn add", "pnpm add", "pip install",
+                           "brew install", "cargo add", "go get", "git clone", "docker run",
+                           "$ ", "sudo ", "apt install", "./"]
+            if markers.contains(where: { lower.hasPrefix($0) || lower.contains($0) }) { return true }
+            // 纯链接或纯命令样式的行
+            if lower.hasPrefix("http") { return true }
+            return false
+        }
+
+        // ---- 1. 简介段：第一段像样的人话 ----
+        var intro = ""
+        var index = 0
+        while index < blocks.count {
+            let line = blocks[index]
+            if line.isEmpty || isHeading(line) || isList(line) { index += 1; continue }
+            var paragraph: [String] = []
+            while index < blocks.count, !blocks[index].isEmpty, !isHeading(blocks[index]) {
+                paragraph.append(blocks[index])
+                index += 1
+            }
+            let joined = paragraph.joined(separator: " ")
+            let trimmed = joined.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.count >= 40, !looksLikeCommand(trimmed) {
+                intro = trimmed
+                break
+            }
+        }
+
+        // ---- 2. Features 列表：前三条 ----
+        var features: [String] = []
+        let featureKeys = ["feature", "features", "highlight", "highlights",
+                           "特性", "功能", "亮点", "核心能力", "主要特性"]
+        var featureStart: Int?
+        for (offset, line) in blocks.enumerated() where isHeading(line) {
+            let title = headingText(line)
+            if featureKeys.contains(where: { title.contains($0) }) {
+                featureStart = offset
+                break
+            }
+        }
+        if let start = featureStart {
+            var cursor = start + 1
+            while cursor < blocks.count, features.count < 3 {
+                let line = blocks[cursor]
+                if isHeading(line) { break }
+                if isList(line) {
+                    var item = String(line.dropFirst(2)).trimmingCharacters(in: .whitespaces)
+                    // 去掉行内的 markdown 链接与加粗
+                    item = item.replacingOccurrences(of: "\\*\\*", with: "", options: .regularExpression)
+                    item = item.replacingOccurrences(of: "\\[([^\\]]*)\\]\\([^)]*\\)", with: "$1", options: .regularExpression)
+                    if item.count >= 4, item.count <= 80 {
+                        features.append(item)
+                    }
+                }
+                cursor += 1
+            }
+        }
+
+        // ---- 3. 组装 ----
+        var parts: [String] = []
+        if !intro.isEmpty {
+            parts.append(firstSentence(intro, maxLength: 320))
+        }
+        if !features.isEmpty {
+            parts.append("功能：" + features.joined(separator: " · "))
+        }
+
+        if parts.isEmpty {
+            return readmeExcerpt(markdown, maxChars: maxChars)
+        }
+
+        var result = parts.joined(separator: "\n")
+        if result.count > maxChars {
+            let end = result.index(result.startIndex, offsetBy: maxChars)
+            result = String(result[..<end]) + "…"
+        }
+        return result
+    }
+
     /// 是否以中文为主（汉字占字母类字符 30% 以上即视为中文）。
     /// 韩文/日文/英文都会返回 false，从而触发翻译。
     static func isMostlyChinese(_ text: String) -> Bool {

@@ -52,6 +52,18 @@ struct RepoCard: View {
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
 
+                // 英文原描述：小一号、更淡，与中文摘要分开，避免中英混排
+                if !compact,
+                   let raw = repo.rawDescription,
+                   !raw.isEmpty,
+                   !SummaryService.containsCJK(raw) {
+                    Text(raw)
+                        .font(.system(size: 10))
+                        .foregroundStyle(DS.textTertiary)
+                        .lineLimit(1)
+                        .multilineTextAlignment(.leading)
+                }
+
                 // 元信息行
                 HStack(spacing: 10) {
                     if let reason, !reason.isEmpty {
