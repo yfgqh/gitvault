@@ -54,12 +54,17 @@ struct RootView: View {
         .toastHost()
         .sheet(item: $launchUpdate) { update in
             ScrollView {
-                UpdateCard(available: update)
-                    .padding(DS.Space.l)
+                UpdateCard(available: update, onClose: {
+                    withAnimation(DS.Motion.snappy) { launchUpdate = nil }
+                })
+                .padding(DS.Space.l)
             }
             .background(DS.bgPrimary)
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+        }
+        .onChange(of: env.update.available) { newValue in
+            if newValue == nil { launchUpdate = nil }
         }
         .onChange(of: tab) { newValue in
             mounted.insert(newValue)
@@ -72,8 +77,9 @@ struct RootView: View {
                 await env.update.checkIfNeeded()
                 // 有新版：稍等一下再弹，避开启动动画；无新版：什么都不做
                 if let update = env.update.consumeLaunchPrompt() {
-                    try? await Task.sleep(nanoseconds: 1_200_000_000)
-                    launchUpdate = update
+                    // 等启动页淡出完成，再从底部弹出更新卡，避免两层动画打架
+                    try? await Task.sleep(nanoseconds: 1_900_000_000)
+                    withAnimation(DS.Motion.snappy) { launchUpdate = update }
                 }
             }
             env.allRepos.loadIfNeeded()

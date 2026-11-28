@@ -8,6 +8,9 @@
 import SwiftUI
 
 struct UpdateCard: View {
+    /// 在弹窗里使用时由外部提供：点 × 需要同时关掉包裹它的 sheet
+    var onClose: (() -> Void)? = nil
+
     let available: UpdateChecker.Available
 
     @EnvironmentObject private var env: AppEnvironment
@@ -96,6 +99,7 @@ struct UpdateCard: View {
             Button {
                 Haptics.tap()
                 env.update.dismissBanner()
+                onClose?()
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 9, weight: .bold))

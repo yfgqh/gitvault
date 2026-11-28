@@ -110,8 +110,10 @@ struct ProfileView: View {
             }
             .sheet(item: $pendingUpdate) { update in
                 ScrollView {
-                    UpdateCard(available: update)
-                        .padding(DS.Space.l)
+                    UpdateCard(available: update, onClose: {
+                        withAnimation(DS.Motion.snappy) { pendingUpdate = nil }
+                    })
+                    .padding(DS.Space.l)
                 }
                 .background(DS.bgPrimary)
                 .presentationDetents([.medium, .large])
