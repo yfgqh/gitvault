@@ -28,6 +28,8 @@ actor RepoImageService {
     // MARK: 对外
 
     func previewImage(owner: String, name: String) async -> URL? {
+        // 匿名额度只够浏览，README 抓图降级给 CDN 封面（社交卡 / 头像）兜底
+        guard Keychain.read(Keychain.tokenKey)?.isEmpty == false else { return nil }
         let key = "\(owner)/\(name)"
         if let cached = cachedURL(key: key) {
             return cached

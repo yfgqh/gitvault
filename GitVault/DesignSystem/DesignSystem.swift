@@ -56,6 +56,8 @@ enum DS {
     // MARK: 强调色
 
     static let accent = Color(hex: 0x6E7BFF)
+    /// 承载白字时用这个：对白色 4.97:1（accent 只有 3.51:1，不达 AA）
+    static let accentSolid = Color(hex: 0x5560E8)
     static let accentAlt = Color(hex: 0xA66CFF)
 
     /// 主渐变：#6E7BFF → #A66CFF（左上到右下）

@@ -273,6 +273,7 @@ struct GitHubExtrasService {
     // MARK: 下载
 
     func zipballURL(owner: String, repo: String, branch: String) -> URL? {
-        URL(string: "https://api.github.com/repos/\(owner)/\(repo)/zipball/\(branch)")
+        // 不指定 ref，GitHub 会用仓库默认分支（master / main 都能命中）
+        URL(string: "https://api.github.com/repos/\(owner)/\(repo)/zipball")
     }
 }

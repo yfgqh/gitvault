@@ -26,6 +26,8 @@ final class ReleaseWatcher: ObservableObject {
 
     func checkIfNeeded(vault: VaultStore, force: Bool = false) async {
         guard !isChecking else { return }
+        // 匿名额度只有 60 次/小时，收藏监听优先级最低，留给浏览用
+        guard Keychain.read(Keychain.tokenKey)?.isEmpty == false else { return }
         if !force {
             let stamp = UserDefaults.standard.double(forKey: lastCheckKey)
             if stamp > 0, Date().timeIntervalSince1970 - stamp < throttle {

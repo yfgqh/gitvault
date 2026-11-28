@@ -207,7 +207,7 @@ struct UpdateCard: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(Capsule().fill(DS.accent))
+                    .background(Capsule().fill(DS.accentSolid))
                 }
                 .buttonStyle(.springPress)
 

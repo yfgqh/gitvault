@@ -68,7 +68,7 @@ struct FilterChip: View {
             .padding(.vertical, 8)
             .background {
                 if isActive {
-                    Capsule().fill(DS.accent)
+                    Capsule().fill(DS.accentSolid)
                 } else {
                     Capsule().fill(DS.bgTertiary)
                 }

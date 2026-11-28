@@ -36,6 +36,7 @@ struct RepoDetailView: View {
     @State private var loadedOnce = false
     /// 项目介绍图（README 首图）
     @State private var previewImageURL: URL?
+    @Environment(\.dismiss) private var dismissEnvironment
 
     init(repo: ShowcaseRepo) {
         self.repo = repo
@@ -326,11 +327,21 @@ struct RepoDetailView: View {
 
     // MARK: 顶部栏（透明 → 毛玻璃）
 
+    /// 两条进入路径都要能返回：
+    /// overlay（presenter 有栈）用 presenter 关；push（作者页 / 我的仓库）用 dismiss
+    private func goBack() {
+        Haptics.tap()
+        if DetailPresenter.shared.isPresenting {
+            DetailPresenter.shared.close()
+        } else {
+            dismissEnvironment()
+        }
+    }
+
     private func topBar(topInset: CGFloat) -> some View {
         HStack(spacing: DS.Space.s) {
             Button {
-                Haptics.tap()
-                DetailPresenter.shared.close()
+                goBack()
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 14, weight: .bold))
@@ -825,7 +836,7 @@ struct RepoDetailView: View {
                 .padding(.vertical, 13)
                 .background(
                     RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                        .fill(DS.accent)
+                        .fill(DS.accentSolid)
                 )
             }
             .buttonStyle(.springPressSilent)

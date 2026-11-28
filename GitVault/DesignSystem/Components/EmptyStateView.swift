@@ -55,7 +55,7 @@ struct EmptyStateView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, DS.Space.l)
                         .padding(.vertical, 11)
-                        .background(Capsule().fill(DS.accent))
+                        .background(Capsule().fill(DS.accentSolid))
                 }
                 .buttonStyle(.springPress)
             }

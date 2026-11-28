@@ -175,7 +175,7 @@ struct UpdateBanner: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(Capsule().fill(DS.accent))
+                    .background(Capsule().fill(DS.accentSolid))
             }
             .buttonStyle(.springPressSilent)
 

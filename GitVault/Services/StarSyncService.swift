@@ -96,10 +96,12 @@ final class StarSyncService: ObservableObject {
 
         // ---------- 3. 导入缺失 ----------
         let existing = Set(vault.items.map { $0.repoID })
+        var newItems: [VaultItem] = []
+        var alreadyStarred: [String] = []
         for dto in remote {
             let repo = ShowcaseRepo(dto: dto)
             if existing.contains(repo.id) {
-                vault.markGithubStarred(id: repo.id, starred: true)
+                alreadyStarred.append(repo.id)
                 result.skipped += 1
                 continue
             }
@@ -107,22 +109,27 @@ final class StarSyncService: ObservableObject {
             var item = VaultItem.make(from: repo, mark: .starred)
             item.categoryRaw = category.rawValue
             item.githubStarred = true
-            vault.insertIfMissing(item)
+            newItems.append(item)
             result.imported += 1
         }
+        // 统一落盘：循环里逐条 persist 会让写入量变成 O(N²)
+        if !newItems.isEmpty { vault.insertIfMissing(newItems) }
+        if !alreadyStarred.isEmpty { vault.markGithubStarred(ids: alreadyStarred, starred: true) }
 
         // ---------- 4. 回写（含在 GitHub 上被取消的） ----------
         let pending = Array(vault.itemsNeedingStarPush().prefix(pushLimit))
+        var pushed: [String] = []
         for (index, item) in pending.enumerated() {
             phase = .pushing(done: index, total: pending.count)
             do {
                 try await GitHubExtrasService.shared.star(owner: item.owner, repo: item.name)
-                vault.markGithubStarred(id: item.repoID, starred: true)
+                pushed.append(item.repoID)
                 result.pushed += 1
             } catch {
                 result.failed += 1
             }
         }
+        if !pushed.isEmpty { vault.markGithubStarred(ids: pushed, starred: true) }
 
         lastSyncAt = .now
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastSyncKey)

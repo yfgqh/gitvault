@@ -77,6 +77,9 @@ final class AppEnvironment: ObservableObject {
         }
 
         var result: [RepoCategory: Int] = [:]
+        // 已登录（5000 次/小时）每次都刷；匿名只刷一次，之后复用缓存
+        let signedIn = Keychain.read(Keychain.tokenKey)?.isEmpty == false
+        if !signedIn, !force, !categoryCounts.isEmpty { return }
         for category in RepoCategory.allCases {
             if let count = try? await api.categoryTotal(category), count > 0 {
                 result[category] = count

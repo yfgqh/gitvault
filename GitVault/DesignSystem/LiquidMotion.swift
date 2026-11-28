@@ -37,7 +37,7 @@ struct LiquidIndicator: View {
 
     var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(DS.accent)
+            .fill(DS.accentSolid)
             .frame(width: max(0, trailing - leading), height: height)
             .offset(x: leading)
             

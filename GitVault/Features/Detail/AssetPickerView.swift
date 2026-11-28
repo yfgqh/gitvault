@@ -133,7 +133,7 @@ struct AssetPickerView: View {
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 2)
-                                .background(Capsule().fill(DS.accent))
+                                .background(Capsule().fill(DS.accentSolid))
                         }
                     }
                     Text("\(asset.kind) · \(asset.sizeText)")

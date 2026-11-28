@@ -81,8 +81,20 @@ final class VaultStore: ObservableObject {
 
     /// 导入 star 时使用：已存在则跳过（保留用户分类与笔记）
     func insertIfMissing(_ item: VaultItem) {
-        guard !items.contains(where: { $0.repoID == item.repoID }) else { return }
-        items.append(item)
+        insertIfMissing([item])
+    }
+
+    /// 批量版：循环内不落盘，结束后统一 reindex + persist
+    /// 单条版每条都全量编码写盘，几百条时会变成 O(N²)
+    func insertIfMissing(_ incoming: [VaultItem]) {
+        var added = 0
+        var existing = Set(items.map { $0.repoID })
+        for item in incoming where !existing.contains(item.repoID) {
+            items.append(item)
+            existing.insert(item.repoID)
+            added += 1
+        }
+        guard added > 0 else { return }
         reindex()
         persist()
     }
@@ -102,10 +114,20 @@ final class VaultStore: ObservableObject {
     }
 
     func markGithubStarred(id: String, starred: Bool) {
-        guard let index = items.firstIndex(where: { $0.repoID == id }) else { return }
-        guard items[index].githubStarred != starred else { return }
-        items[index].githubStarred = starred
-        persist()
+        markGithubStarred(ids: [id], starred: starred)
+    }
+
+    /// 批量版：一次落盘
+    func markGithubStarred(ids: [String], starred: Bool) {
+        let target = Set(ids)
+        var changed = false
+        for index in items.indices where target.contains(items[index].repoID) {
+            if items[index].githubStarred != starred {
+                items[index].githubStarred = starred
+                changed = true
+            }
+        }
+        if changed { persist() }
     }
 
     /// 需要回写到 GitHub 的项目：明确未 star 的，或状态未知的
@@ -249,6 +271,22 @@ final class VaultStore: ObservableObject {
         }
     }
 
+    /// 从损坏数据里逐条捞回能解码的条目
+    private static func salvageItems(from data: Data, decoder: JSONDecoder) -> [VaultItem]? {
+        struct Partial: Decodable {
+            let items: [FailableItem]
+        }
+        struct FailableItem: Decodable {
+            let value: VaultItem?
+            init(from decoder: Decoder) throws {
+                value = try? VaultItem(from: decoder)
+            }
+        }
+        guard let partial = try? decoder.decode(Partial.self, from: data) else { return nil }
+        let recovered = partial.items.compactMap(\.value)
+        return recovered.isEmpty ? nil : recovered
+    }
+
     private func persist() {
         var file = VaultFile()
         file.items = items
@@ -272,11 +310,20 @@ final class VaultStore: ObservableObject {
         guard let data = try? Data(contentsOf: fileURL) else { return }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
+        // 先尝试整体解码；失败再逐条捞回，避免一条坏数据导致整库丢失
         if let file = try? decoder.decode(VaultFile.self, from: data) {
             items = file.items.sorted { $0.sortIndex < $1.sortIndex }
             folders = file.folders.sorted { $0.sortIndex < $1.sortIndex }
         } else {
             // 旧格式 / 损坏：备份后从空库开始，绝不因为本地数据崩在启动阶段
+            // 逐条尝试：能救回来的一条都不丢
+            if let salvaged = Self.salvageItems(from: data, decoder: decoder), !salvaged.isEmpty {
+                items = salvaged
+                reindex()
+                persist()
+                CrashReporter.logSync("vault: salvaged \(salvaged.count) items from corrupt file")
+                return
+            }
             let backup = fileURL.appendingPathExtension("corrupt-\(Int(Date().timeIntervalSince1970))")
             try? FileManager.default.moveItem(at: fileURL, to: backup)
             CrashReporter.logSync("vault: decode failed, moved to \(backup.lastPathComponent)")

@@ -261,6 +261,21 @@ extension RepoDownloader: URLSessionDownloadDelegate {
         // 关键：这个回调一返回，系统就会删除 location 指向的临时文件。
         // 所以必须在这里同步完成搬运，不能丢进 Task 里等主线程调度，
         // 否则会报 "CFNetworkDownload_xxx.tmp ... no such file"。
+        // 先校验 HTTP 状态：404 / 限流的 JSON 不能被当成文件保存
+        if let response = downloadTask.response as? HTTPURLResponse,
+           !(200..<300).contains(response.statusCode) {
+            let hint: String
+            switch response.statusCode {
+            case 404: hint = "文件不存在（可能是私有仓库或已删除）"
+            case 403, 429: hint = "接口额度已用完，稍后再试"
+            default: hint = "服务器返回 \(response.statusCode)"
+            }
+            Task { @MainActor in
+                self.state = .failed(hint)
+            }
+            return
+        }
+
         let fallback = downloadTask.originalRequest?.url?.lastPathComponent ?? "repo.zip"
         let described = downloadTask.taskDescription ?? ""
         let name = described.isEmpty ? fallback : described

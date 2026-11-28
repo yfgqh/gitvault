@@ -92,16 +92,17 @@ enum RepoCategory: String, CaseIterable, Identifiable, Codable {
 
     var gradient: [Color] {
         switch self {
-        case .ai: return [Color(hex: 0x6E7BFF), Color(hex: 0xA66CFF)]
-        case .data: return [Color(hex: 0x22D3EE), Color(hex: 0x3B82F6)]
-        case .tooling: return [Color(hex: 0x4F8DFD), Color(hex: 0x6EE7FF)]
-        case .frontend: return [Color(hex: 0xA66CFF), Color(hex: 0xFF6FB5)]
-        case .backend: return [Color(hex: 0x3A4A8C), Color(hex: 0x6E7BFF)]
-        case .database: return [Color(hex: 0x10B981), Color(hex: 0x0EA5E9)]
-        case .mobile: return [Color(hex: 0x5B6CFF), Color(hex: 0x3DDC97)]
-        case .systems: return [Color(hex: 0x64748B), Color(hex: 0x1E293B)]
-        case .security: return [Color(hex: 0xEF4444), Color(hex: 0xF59E0B)]
-        case .learning: return [Color(hex: 0xFF9A5A), Color(hex: 0xFF6FB5)]
+        // 亮端统一压到相对亮度 ≤ 0.18，保证白字对比度达到 WCAG AA
+        case .ai: return [Color(hex: 0x4A4FB8), Color(hex: 0x7B3FC4)]
+        case .data: return [Color(hex: 0x0E7490), Color(hex: 0x1D4ED8)]
+        case .tooling: return [Color(hex: 0x1E40AF), Color(hex: 0x0E7490)]
+        case .frontend: return [Color(hex: 0x7B3FC4), Color(hex: 0xB0397E)]
+        case .backend: return [Color(hex: 0x2A3566), Color(hex: 0x4A4FB8)]
+        case .database: return [Color(hex: 0x047857), Color(hex: 0x0C4A6E)]
+        case .mobile: return [Color(hex: 0x3F45C7), Color(hex: 0x0F766E)]
+        case .systems: return [Color(hex: 0x475569), Color(hex: 0x1E293B)]
+        case .security: return [Color(hex: 0xB91C1C), Color(hex: 0xB45309)]
+        case .learning: return [Color(hex: 0xC2410C), Color(hex: 0xBE185D)]
         }
     }
 

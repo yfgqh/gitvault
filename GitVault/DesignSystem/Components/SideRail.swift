@@ -35,7 +35,7 @@ struct SideRail: View {
                     .background {
                         if selection == tab {
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(DS.accent)
+                                .fill(DS.accentSolid)
                                 .matchedGeometryEffect(id: "railPill", in: pill)
                                 
                         }

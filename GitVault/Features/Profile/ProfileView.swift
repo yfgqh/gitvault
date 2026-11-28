@@ -27,6 +27,7 @@ struct ProfileView: View {
     @State private var cacheSizeText = "—"
     @State private var showLanguageDialog = false
     @State private var showStarSync = false
+    @State private var showClearConfirm = false
     @State private var showOfflineSearch = false
     @State private var pendingUpdate: UpdateChecker.Available?
 
@@ -64,6 +65,18 @@ struct ProfileView: View {
             }
             .background(DS.bgPrimary)
             .navigationBarHidden(true)
+            .confirmationDialog(
+                NSLocalizedString("确定清空收藏库？", comment: ""),
+                isPresented: $showClearConfirm,
+                titleVisibility: .visible
+            ) {
+                Button(NSLocalizedString("清空（会先备份）", comment: ""), role: .destructive) {
+                    clearVaultWithBackup()
+                }
+                Button(NSLocalizedString("取消", comment: ""), role: .cancel) {}
+            } message: {
+                Text(NSLocalizedString("收藏、笔记与文件夹都会被删除。清空前会自动导出一份 JSON 备份到本机，可通过「导出收藏」找回。", comment: ""))
+            }
             .sheet(isPresented: $showAuthSheet) {
                 AuthSheetView()
                     .presentationDetents([.medium, .large])
@@ -296,7 +309,7 @@ struct ProfileView: View {
                     .padding(.vertical, 13)
                     .background(
                         RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                            .fill(DS.accent)
+                            .fill(DS.accentSolid)
                     )
                     .dsShadow(.light)
                 }
@@ -338,7 +351,7 @@ struct ProfileView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Capsule().fill(DS.accent))
+                    .background(Capsule().fill(DS.accentSolid))
             }
             .padding(DS.Space.m)
             .glassSurface()
@@ -598,9 +611,8 @@ struct ProfileView: View {
                     Haptics.success()
                 }
                 Divider().padding(.leading, 52)
-                SettingsRow(symbol: "trash", title: "清空收藏库", detail: "不可恢复", tint: DS.danger) {
-                    vault.removeAll()
-                    env.show("收藏库已清空", kind: .warning)
+                SettingsRow(symbol: "trash", title: "清空收藏库", detail: "会先自动备份一份", tint: DS.danger) {
+                    showClearConfirm = true
                 }
             }
             .background(
@@ -620,6 +632,20 @@ struct ProfileView: View {
     private func updateCacheSize() {
         let bytes = Int(URLCache.shared.currentDiskUsage + URLCache.shared.currentMemoryUsage)
         cacheSizeText = String(format: "%.1f MB", Double(bytes) / 1_048_576)
+    }
+
+    /// 清空收藏前先落一份 JSON 备份，只保留最近一份
+    private func clearVaultWithBackup() {
+        if let url = try? vault.export(.json) {
+            let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+            if let dir {
+                let dest = dir.appendingPathComponent("GITVAULT-BACKUP-before-clear.json")
+                try? FileManager.default.removeItem(at: dest)
+                try? FileManager.default.copyItem(at: url, to: dest)
+            }
+        }
+        vault.removeAll()
+        env.show("收藏库已清空，备份已保存到「文件」App 的 GitVault 目录", kind: .warning)
     }
 
     /// 关闭手动检查得到的更新卡
@@ -970,7 +996,7 @@ struct AuthSheetView: View {
                             .padding(.vertical, 14)
                             .background(
                                 RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                                    .fill(DS.accent)
+                                    .fill(DS.accentSolid)
                             )
                     }
                     .buttonStyle(.springPress)
@@ -998,7 +1024,7 @@ struct AuthSheetView: View {
                     .padding(.vertical, 14)
                     .background(
                         RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                            .fill(DS.accent)
+                            .fill(DS.accentSolid)
                     )
                 }
                 .buttonStyle(.springPress)
@@ -1016,7 +1042,7 @@ struct AuthSheetView: View {
                         .padding(.vertical, 14)
                         .background(
                             RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                                .fill(DS.accent)
+                                .fill(DS.accentSolid)
                         )
                 }
                 .buttonStyle(.springPress)
@@ -1122,7 +1148,7 @@ struct AIConfigSheetView: View {
                                 .padding(.vertical, 14)
                                 .background(
                                     RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                                        .fill(DS.accent)
+                                        .fill(DS.accentSolid)
                                 )
                         }
                         .buttonStyle(.springPress)
@@ -1336,7 +1362,7 @@ struct AboutSheetView: View {
                             .padding(.vertical, 12)
                             .background(
                                 RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                                    .fill(DS.accent)
+                                    .fill(DS.accentSolid)
                             )
                         }
                         .buttonStyle(.springPress)
