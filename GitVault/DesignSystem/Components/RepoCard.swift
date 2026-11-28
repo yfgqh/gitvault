@@ -119,40 +119,30 @@ struct RepoMiniCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
-            // 封面：优先用仓库图片（GitHub 社交卡），失败回退首字母灰底
-            RemoteImage(url: RepoImageSource.openGraph(owner: repo.owner, name: repo.name)) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(DS.bgTertiary)
-                    Text(repo.initials)
-                        .font(.system(size: 20, weight: .semibold, design: .rounded))
-                        .foregroundStyle(DS.textSecondary)
-                }
-            }
-            .frame(height: 84)
-            .frame(maxWidth: .infinity)
-            .clipped()
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            // 封面：优先用仓库图片（GitHub 社交卡），加载中/失败回退首字母灰底
+            RemoteImage(
+                url: repo.openGraphImageURL,
+                height: 84,
+                cornerRadius: 14,
+                placeholder: AnyView(
+                    ZStack {
+                        DS.bgTertiary
+                        Text(repo.initials)
+                            .font(.system(size: 20, weight: .semibold, design: .rounded))
+                            .foregroundStyle(DS.textSecondary)
+                    }
+                )
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
             )
-            // 图片底部压一层暗色，保证分类角标始终可读
-            .overlay(alignment: .bottom) {
-                LinearGradient(
-                    colors: [.clear, Color.black.opacity(0.35)],
-                    startPoint: .center,
-                    endPoint: .bottom
-                )
-                .frame(height: 34)
-                .allowsHitTesting(false)
-            }
             .overlay(alignment: .topTrailing) {
                 Image(systemName: repo.category.symbol)
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(.white.opacity(0.95))
                     .padding(5)
-                    .background(Circle().fill(Color.black.opacity(0.35)))
+                    .background(Circle().fill(Color.black.opacity(0.38)))
                     .padding(7)
             }
 

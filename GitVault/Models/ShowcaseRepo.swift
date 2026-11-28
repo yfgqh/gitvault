@@ -189,3 +189,11 @@ extension ShowcaseRepo {
         )
     }
 }
+
+extension ShowcaseRepo {
+    /// GitHub 自动生成的仓库社交卡（1200×630，CDN 缓存，无需 API 请求）
+    var openGraphImageURL: URL? {
+        guard !owner.isEmpty, !name.isEmpty else { return nil }
+        return URL(string: "https://opengraph.githubassets.com/1/\(owner)/\(name)")
+    }
+}

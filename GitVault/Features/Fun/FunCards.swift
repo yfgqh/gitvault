@@ -203,6 +203,8 @@ struct RemoteImage: View {
     let url: URL?
     var height: CGFloat = 160
     var cornerRadius: CGFloat = DS.Radius.card
+    /// 加载中/失败时显示的内容；为 nil 时用默认的占位图标
+    var placeholder: AnyView? = nil
 
     @StateObject private var loader = RemoteImageLoader()
 
@@ -212,6 +214,9 @@ struct RemoteImage: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
+                    .transition(.opacity)
+            } else if let placeholder {
+                placeholder
             } else {
                 ZStack {
                     DS.bgSecondary
