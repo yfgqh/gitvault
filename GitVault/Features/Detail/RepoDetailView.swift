@@ -126,12 +126,6 @@ struct RepoDetailView: View {
             guard env.auth.isSignedIn else { return }
             isStarred = await GitHubExtrasService.shared.isStarred(owner: vm.repo.owner, repo: vm.repo.name)
         }
-        .onChange(of: downloader.releasesPage) { newValue in
-            if let url = newValue {
-                openURL(url)
-                downloader.releasesPage = nil
-            }
-        }
         .onChange(of: downloader.notice) { newValue in
             if let newValue {
                 env.show(newValue, kind: .info)
@@ -161,6 +155,36 @@ struct RepoDetailView: View {
             set: { exportedURL = $0?.url }
         )) { target in
             DocumentExporter(url: target.url)
+        }
+        .onChange(of: downloader.releasesPage) { newValue in
+            // 只由面板里的「在浏览器打开」触发，不再自动跳转
+            if let url = newValue {
+                openURL(url)
+                downloader.releasesPage = nil
+            }
+        }
+        .confirmationDialog(
+            NSLocalizedString("该仓库没有可下载的二进制文件", comment: ""),
+            isPresented: Binding(
+                get: { downloader.asksForSource },
+                set: { if !$0 { downloader.asksForSource = false } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(NSLocalizedString("下载仓库源码", comment: "")) {
+                downloader.startSource(owner: vm.repo.owner, repo: vm.repo.name, branch: "main")
+            }
+            Button(NSLocalizedString("打开发布页", comment: "")) {
+                downloader.asksForSource = false
+                if let url = URL(string: "https://github.com/\(vm.repo.owner)/\(vm.repo.name)/releases") {
+                    openURL(url)
+                }
+            }
+            Button(NSLocalizedString("取消", comment: ""), role: .cancel) {
+                downloader.asksForSource = false
+            }
+        } message: {
+            Text(NSLocalizedString("Release 里没有安装包或压缩包，可以改为下载源码压缩包，或去发布页自行查看。", comment: ""))
         }
         .sheet(isPresented: $downloader.showsAssetPicker) {
             AssetPickerView(downloader: downloader)

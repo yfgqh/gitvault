@@ -40,6 +40,7 @@ struct AssetPickerView: View {
                     }
 
                     sourceRow
+                    browserRow
                 }
                 .padding(DS.Space.l)
             }
@@ -56,6 +57,40 @@ struct AssetPickerView: View {
                 }
             }
         }
+    }
+
+    /// 次要入口：确实需要看网页时再跳
+    private var browserRow: some View {
+        Button {
+            Haptics.tap()
+            downloader.openReleasesInBrowser()
+        } label: {
+            HStack(spacing: DS.Space.m) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(DS.textTertiary.opacity(0.12))
+                        .frame(width: 38, height: 38)
+                    Image(systemName: "safari")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(DS.textSecondary)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("在浏览器打开发布页")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(DS.textPrimary)
+                    Text("需要登录或查看完整变更说明时使用")
+                        .font(.system(size: 10))
+                        .foregroundStyle(DS.textTertiary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "arrow.up.right.square")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(DS.textSecondary)
+            }
+            .padding(DS.Space.m)
+            .glassSurface(radius: DS.Radius.button)
+        }
+        .buttonStyle(.springPressSilent)
     }
 
     private var header: some View {

@@ -77,13 +77,20 @@ final class RepoDownloader: NSObject, ObservableObject {
 
             switch choices.count {
             case 0:
-                // 没有二进制：只提示，不再自动下源码
+                // 没有二进制：询问是否下载源码
                 state = .idle
-                notice = "此项目没有编译好的文件！"
+                asksForSource = true
+            case 1:
+                // 只有一个文件：直接下，少一次点击
+                if let only = choices.first {
+                    notice = "正在下载 " + only.name
+                    beginDownload(only.url, fileName: only.name)
+                }
             default:
-                // 有二进制：交给界面打开 Releases 页面
+                // 多个文件：列出名字让用户挑
+                assetChoices = choices
                 state = .idle
-                releasesPage = URL(string: "https://github.com/\(owner)/\(repo)/releases")
+                showsAssetPicker = true
             }
         }
     }
@@ -114,6 +121,15 @@ final class RepoDownloader: NSObject, ObservableObject {
     }
 
     func dismissPicker() {
+        showsAssetPicker = false
+        assetChoices = []
+        state = .idle
+    }
+
+    /// 面板里的次要入口：在浏览器打开发布页
+    func openReleasesInBrowser() {
+        guard let pendingSource else { return }
+        releasesPage = URL(string: "https://github.com/\(pendingSource.owner)/\(pendingSource.repo)/releases")
         showsAssetPicker = false
         assetChoices = []
         state = .idle
