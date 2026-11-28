@@ -34,6 +34,8 @@ struct RepoDetailView: View {
     // 大标题折叠
     @State private var scrollOffset: CGFloat = 0
     @State private var loadedOnce = false
+    /// 项目介绍图（README 首图）
+    @State private var previewImageURL: URL?
 
     init(repo: ShowcaseRepo) {
         self.repo = repo
@@ -124,6 +126,12 @@ struct RepoDetailView: View {
             guard env.auth.isSignedIn else { return }
             isStarred = await GitHubExtrasService.shared.isStarred(owner: vm.repo.owner, repo: vm.repo.name)
         }
+        .onChange(of: downloader.releasesPage) { newValue in
+            if let url = newValue {
+                openURL(url)
+                downloader.releasesPage = nil
+            }
+        }
         .onChange(of: downloader.notice) { newValue in
             if let newValue {
                 env.show(newValue, kind: .info)
@@ -139,29 +147,6 @@ struct RepoDetailView: View {
             if case .failed(let message) = newValue {
                 env.show(message, kind: .warning)
             }
-        }
-        .confirmationDialog(
-            NSLocalizedString("该仓库没有可下载的二进制文件", comment: ""),
-            isPresented: Binding(
-                get: { downloader.asksForSource },
-                set: { if !$0 { downloader.asksForSource = false } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button(NSLocalizedString("下载仓库源码", comment: "")) {
-                downloader.startSource(owner: vm.repo.owner, repo: vm.repo.name, branch: "main")
-            }
-            Button(NSLocalizedString("打开发布页", comment: "")) {
-                downloader.asksForSource = false
-                if let url = URL(string: "https://github.com/\(vm.repo.owner)/\(vm.repo.name)/releases") {
-                    openURL(url)
-                }
-            }
-            Button(NSLocalizedString("取消", comment: ""), role: .cancel) {
-                downloader.asksForSource = false
-            }
-        } message: {
-            Text(NSLocalizedString("Release 里没有安装包或压缩包，可以改为下载源码压缩包，或去发布页自行查看。", comment: ""))
         }
         .sheet(isPresented: $showAuthor) {
             AuthorView(login: vm.repo.owner)
@@ -198,6 +183,41 @@ struct RepoDetailView: View {
         }
     }
 
+    // MARK: 头图
+
+    private var heroImage: some View {
+        ZStack(alignment: .bottomLeading) {
+            if let url = previewImageURL {
+                RemoteImage(url: url, height: 180, cornerRadius: DS.Radius.cardLarge)
+            } else {
+                LinearGradient(
+                    colors: vm.repo.gradient,
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .frame(height: 180)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.cardLarge, style: .continuous))
+                .overlay(alignment: .center) {
+                    Text(vm.repo.initials)
+                        .font(.system(size: 44, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.28))
+                }
+            }
+        }
+        .frame(height: 180)
+        .frame(maxWidth: .infinity)
+        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.cardLarge, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.cardLarge, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+        )
+        .task(id: vm.repo.id) {
+            guard previewImageURL == nil else { return }
+            previewImageURL = await RepoImageService.shared.previewImage(owner: vm.repo.owner, name: vm.repo.name)
+        }
+    }
+
     // MARK: 折叠进度
 
     /// 0 = 展开，1 = 完全收进顶部栏
@@ -209,6 +229,10 @@ struct RepoDetailView: View {
 
     private var headerBlock: some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
+            // 头图：优先项目介绍图（README 首图），没有就用分类渐变
+            heroImage
+                .padding(.bottom, DS.Space.xs)
+
             Button {
                 Haptics.tap()
                 showAuthor = true
@@ -652,7 +676,7 @@ struct RepoDetailView: View {
     }
 
     private func startDownload() {
-        // 有二进制就下二进制；没有则由下面的对话框询问是否下源码
+        // 有二进制 → 跳转 Releases；没有 → 顶部提示
         downloader.start(owner: vm.repo.owner, repo: vm.repo.name, branch: "main")
     }
 
@@ -738,7 +762,10 @@ struct RepoDetailView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: DS.Space.m) {
                         ForEach(items) { item in
-                            NavigationLink(value: item) {
+                            Button {
+                            Haptics.tap()
+                            DetailPresenter.shared.open(item)
+                        } label: {
                                 RepoMiniCard(repo: item)
                             }
                             .buttonStyle(.springPressCard)

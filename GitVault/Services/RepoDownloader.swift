@@ -46,6 +46,8 @@ final class RepoDownloader: NSObject, ObservableObject {
     @Published var showsAssetPicker = false
     /// 没有任何二进制资产时置位：由界面询问「是否下载仓库源码」
     @Published var asksForSource = false
+    /// 有二进制资产时置位：交给界面跳转到 Releases 页面
+    @Published var releasesPage: URL?
 
     private var pendingSource: (owner: String, repo: String, branch: String)?
 
@@ -75,18 +77,13 @@ final class RepoDownloader: NSObject, ObservableObject {
 
             switch choices.count {
             case 0:
-                // 没有二进制资产：不擅自下载，先问用户
+                // 没有二进制：只提示，不再自动下源码
                 state = .idle
-                asksForSource = true
-            case 1:
-                if let only = choices.first {
-                    beginDownload(only.url, fileName: only.name)
-                }
+                notice = "此项目没有编译好的文件！"
             default:
-                // 多个资产：交给用户挑，避免默认下错平台
-                assetChoices = choices
+                // 有二进制：交给界面打开 Releases 页面
                 state = .idle
-                showsAssetPicker = true
+                releasesPage = URL(string: "https://github.com/\(owner)/\(repo)/releases")
             }
         }
     }

@@ -21,24 +21,17 @@ struct ProfileView: View {
     @State private var exportFile: ExportFile?
     @State private var showAbout = false
     @State private var showBadges = false
-    @State private var showWeekly = false
-    @State private var showMap = false
     @State private var showMyRepos = false
     @State private var showPro = false
-    @State private var showCompare = false
-    @State private var showHealth = false
-    @State private var showRadar = false
-    @State private var showLearning = false
     @State private var shareTarget: ExportTarget?
     @State private var cacheSizeText = "—"
     @State private var showLanguageDialog = false
     @State private var showStarSync = false
-    @State private var showRepoHealth = false
     @State private var showOfflineSearch = false
     @State private var pendingUpdate: UpdateChecker.Available?
 
     /// 我的：主页 / 实验室 / 设置 三层
-    private enum Pane { case home, lab, settings }
+    private enum Pane { case home, settings }
     @State private var pane: Pane = .home
 
     private var appearance: AppearanceMode {
@@ -57,9 +50,7 @@ struct ProfileView: View {
                         proCard.screenPadding()
                         collectionCard.screenPadding()
                         entrySection.screenPadding()
-                    } else if pane == .lab {
-                        paneHeader(title: "实验室", subtitle: "分析、整理与创作工具")
-                        labSection.screenPadding()
+                        toolsSection.screenPadding()
                     } else {
                         paneHeader(title: "设置", subtitle: "外观、AI 与数据")
                         appearanceSection.screenPadding()
@@ -74,6 +65,18 @@ struct ProfileView: View {
             .scrollIndicators(.hidden)
             .background(DS.bgPrimary)
             .navigationBarHidden(true)
+            // 设置页支持从左边缘右滑返回「我的」
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 20)
+                    .onEnded { value in
+                        guard pane == .settings else { return }
+                        guard value.startLocation.x < 40,
+                              value.translation.width > 90,
+                              abs(value.translation.height) < 120 else { return }
+                        Haptics.tap()
+                        withAnimation(DS.Motion.fade) { pane = .home }
+                    }
+            )
             .sheet(isPresented: $showAuthSheet) {
                 AuthSheetView()
                     .presentationDetents([.medium, .large])
@@ -95,15 +98,7 @@ struct ProfileView: View {
                     .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showBadges) { BadgesView() }
-            .sheet(isPresented: $showWeekly) { WeeklyReportView() }
-            .sheet(isPresented: $showMap) { CollectionMapView() }
             .sheet(isPresented: $showMyRepos) { MyReposView() }
-            .sheet(isPresented: $showCompare) { RepoCompareView() }
-            .sheet(isPresented: $showHealth) { VaultHealthView() }
-            .sheet(isPresented: $showRadar) { TechRadarView() }
-            .sheet(isPresented: $showLearning) {
-                LearningPathView(category: vault.items.first?.category ?? .ai)
-            }
             .sheet(item: $shareTarget) { target in
                 ShareSheet(items: [target.url])
                     .presentationDetents([.medium, .large])
@@ -123,7 +118,6 @@ struct ProfileView: View {
             }
             .animation(.spring(response: 0.42, dampingFraction: 0.86), value: pendingUpdate != nil)
             .sheet(isPresented: $showStarSync) { StarSyncView() }
-            .sheet(isPresented: $showRepoHealth) { RepoHealthView() }
             .sheet(isPresented: $showOfflineSearch) { OfflineSearchView() }
             .sheet(isPresented: $showPro) {
                 ProUnlockView()
@@ -309,12 +303,6 @@ struct ProfileView: View {
 
     private var entrySection: some View {
         VStack(spacing: 0) {
-            SettingsRow(symbol: "testtube.2", title: "实验室",
-                        detail: "对比 · 体检 · 雷达 · 学习路径") {
-                Haptics.tap()
-                withAnimation(DS.Motion.fade) { pane = .lab }
-            }
-            Divider().padding(.leading, 52)
             SettingsRow(symbol: "gearshape", title: "设置", detail: "外观 · AI · 数据") {
                 Haptics.tap()
                 withAnimation(DS.Motion.fade) { pane = .settings }
@@ -334,110 +322,41 @@ struct ProfileView: View {
         )
     }
 
-    // MARK: 实验室
+    // MARK: 工具（并入「我的」）
 
-    private var labSection: some View {
-        VStack(alignment: .leading, spacing: DS.Space.l) {
-            VStack(alignment: .leading, spacing: DS.Space.s) {
-                Text("分析")
-                    .font(DS.Typo.caption)
-                    .foregroundStyle(DS.textTertiary)
+    private var toolsSection: some View {
+        VStack(alignment: .leading, spacing: DS.Space.s) {
+            Text("工具")
+                .font(DS.Typo.caption)
+                .foregroundStyle(DS.textTertiary)
 
-                VStack(spacing: 0) {
-                    SettingsRow(symbol: "rectangle.split.3x1", title: "仓库对比", detail: "选 2–3 个") {
-                        showCompare = true
-                    }
-                    Divider().padding(.leading, 52)
-                    SettingsRow(symbol: "stethoscope", title: "收藏库体检",
-                                detail: String(format: NSLocalizedString("%d 处待处理", comment: ""), VaultHealthScanner.scan(vault.items).count)) {
-                        showHealth = true
-                    }
-                    Divider().padding(.leading, 52)
-                    SettingsRow(symbol: "antenna.radiowaves.left.and.right", title: "技术雷达", detail: "近半年") {
-                        showRadar = true
-                    }
-                    Divider().padding(.leading, 52)
-                    SettingsRow(symbol: "graduationcap", title: "学习路径", detail: "按难度分档") {
-                        showLearning = true
-                    }
-                    Divider().padding(.leading, 52)
-                    SettingsRow(symbol: "star.circle", title: "Star 同步", detail: "GitHub ↔ 本地") {
-                        showStarSync = true
-                    }
-                    Divider().padding(.leading, 52)
-                    SettingsRow(symbol: "waveform.path.ecg", title: "仓库健康", detail: "停更 / 归档") {
-                        showRepoHealth = true
+            VStack(spacing: 0) {
+                SettingsRow(symbol: "star.circle", title: "Star 同步", detail: "GitHub ↔ 本地") {
+                    showStarSync = true
+                }
+                Divider().padding(.leading, 52)
+                SettingsRow(symbol: "rosette", title: "成就徽章",
+                            detail: "\(Gamification.achievements(items: vault.items).filter { $0.unlocked }.count)/8") {
+                    showBadges = true
+                }
+                Divider().padding(.leading, 52)
+                SettingsRow(symbol: "magnifyingglass.circle", title: "离线搜索", detail: "无网可用") {
+                    showOfflineSearch = true
+                }
+                Divider().padding(.leading, 52)
+                SettingsRow(symbol: "square.and.arrow.up.on.square", title: "分享收藏夹", detail: "导出 HTML") {
+                    if let url = ShareVaultHTML.writeFile(items: vault.items, title: "我的 GitVault 收藏") {
+                        shareTarget = ExportTarget(url: url)
+                        env.show("已生成分享页", kind: .success)
+                    } else {
+                        env.show("生成失败，请重试", kind: .warning)
                     }
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
-                        .fill(DS.bgSecondary)
-                )
             }
-
-            VStack(alignment: .leading, spacing: DS.Space.s) {
-                Text("记录与创作")
-                    .font(DS.Typo.caption)
-                    .foregroundStyle(DS.textTertiary)
-
-                VStack(spacing: 0) {
-                    SettingsRow(symbol: "rosette", title: "成就徽章",
-                                detail: "\(Gamification.achievements(items: vault.items).filter { $0.unlocked }.count)/8") {
-                        showBadges = true
-                    }
-                    Divider().padding(.leading, 52)
-                    SettingsRow(symbol: "chart.bar.doc.horizontal", title: "探索报告", detail: "近 7 天") {
-                        showWeekly = true
-                    }
-                    Divider().padding(.leading, 52)
-                    SettingsRow(symbol: "circle.hexagongrid", title: "收藏地图", detail: String(format: NSLocalizedString("%d 个", comment: ""), vault.items.count)) {
-                        showMap = true
-                    }
-                    Divider().padding(.leading, 52)
-                    SettingsRow(symbol: "magnifyingglass.circle", title: "离线搜索", detail: "无网可用") {
-                        showOfflineSearch = true
-                    }
-                    Divider().padding(.leading, 52)
-                    SettingsRow(symbol: "square.and.arrow.up.on.square", title: "分享收藏夹", detail: "导出 HTML") {
-                        if let url = ShareVaultHTML.writeFile(items: vault.items, title: "我的 GitVault 收藏") {
-                            shareTarget = ExportTarget(url: url)
-                            env.show("已生成分享页", kind: .success)
-                        } else {
-                            env.show("生成失败，请重试", kind: .warning)
-                        }
-                    }
-                }
-                .background(
-                    RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
-                        .fill(DS.bgSecondary)
-                )
-            }
-
-            VStack(alignment: .leading, spacing: DS.Space.s) {
-                Text("账号")
-                    .font(DS.Typo.caption)
-                    .foregroundStyle(DS.textTertiary)
-
-                VStack(spacing: 0) {
-                    SettingsRow(symbol: "shippingbox", title: "我的仓库",
-                                detail: auth.isSignedIn ? auth.displayName : "未登录") {
-                        showMyRepos = true
-                    }
-                    Divider().padding(.leading, 52)
-                    SettingsRow(symbol: "arrow.clockwise", title: "刷新账号资料",
-                                detail: auth.isSignedIn ? "已登录" : "未登录") {
-                        Task {
-                            await auth.refreshProfile()
-                            env.show(auth.isSignedIn ? "资料已刷新" : "请先登录",
-                                     kind: auth.isSignedIn ? .success : .warning)
-                        }
-                    }
-                }
-                .background(
-                    RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
-                        .fill(DS.bgSecondary)
-                )
-            }
+            .background(
+                RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
+                    .fill(DS.bgSecondary)
+            )
         }
     }
 
