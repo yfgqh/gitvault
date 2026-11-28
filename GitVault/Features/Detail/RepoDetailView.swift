@@ -186,28 +186,20 @@ struct RepoDetailView: View {
     // MARK: 头图
 
     private var heroImage: some View {
-        ZStack(alignment: .bottomLeading) {
-            if let url = previewImageURL {
-                RemoteImage(url: url, height: 180, cornerRadius: DS.Radius.cardLarge)
-            } else {
+        FilledRemoteImage(url: previewImageURL, cornerRadius: DS.Radius.cardLarge) {
+            ZStack {
                 LinearGradient(
                     colors: vm.repo.gradient,
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
-                .frame(height: 180)
-                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.cardLarge, style: .continuous))
-                .overlay(alignment: .center) {
-                    Text(vm.repo.initials)
-                        .font(.system(size: 44, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.28))
-                }
+                Text(vm.repo.initials)
+                    .font(.system(size: 44, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.28))
             }
         }
         .frame(height: 180)
         .frame(maxWidth: .infinity)
-        .clipped()
-        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.cardLarge, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: DS.Radius.cardLarge, style: .continuous)
                 .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)

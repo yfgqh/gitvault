@@ -35,7 +35,7 @@ struct CardStack<Item: Identifiable, Card: View>: View {
 
                     if abs(delta) < 2.4 {
                         card(item)
-                            .frame(width: cardWidth, height: geo.size.height * 0.94)
+                            .frame(width: cardWidth, height: 240)
                             .clipped()
                             .scaleEffect(scale(for: delta))
                             .rotation3DEffect(
@@ -57,6 +57,7 @@ struct CardStack<Item: Identifiable, Card: View>: View {
                 }
             }
             .frame(width: width, height: geo.size.height)
+            .clipped()
             .simultaneousGesture(dragGesture(step: step))
         }
     }

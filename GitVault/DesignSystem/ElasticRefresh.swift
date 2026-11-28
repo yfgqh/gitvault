@@ -52,7 +52,9 @@ struct ElasticRefresh<Content: View>: View {
                         .frame(height: 0)
                         .offset(y: min(pull * 0.55, threshold))
 
+                    // 阻尼拉伸：越往下拉，内容跟随的距离越短
                     content()
+                        .offset(y: min(pull * 0.62, threshold * 1.2))
                 }
             }
             .scrollIndicators(.hidden)

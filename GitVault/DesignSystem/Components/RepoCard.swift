@@ -122,20 +122,20 @@ struct RepoMiniCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
-            // 封面：优先用仓库图片（GitHub 社交卡），加载中/失败回退首字母灰底
-            RemoteImage(
+            // 封面：优先项目图，加载中/失败回退首字母灰底
+            FilledRemoteImage(
                 url: previewURL ?? repo.openGraphImageURL,
-                height: 84,
-                cornerRadius: 14,
-                placeholder: AnyView(
-                    ZStack {
-                        DS.bgTertiary
-                        Text(repo.initials)
-                            .font(.system(size: 20, weight: .semibold, design: .rounded))
-                            .foregroundStyle(DS.textSecondary)
-                    }
-                )
-            )
+                cornerRadius: 14
+            ) {
+                ZStack {
+                    DS.bgTertiary
+                    Text(repo.initials)
+                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                        .foregroundStyle(DS.textSecondary)
+                }
+            }
+            .frame(height: 84)
+            .frame(maxWidth: .infinity)
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)

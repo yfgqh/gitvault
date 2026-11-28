@@ -36,14 +36,20 @@ struct HeroRepoCard: View {
 
             // 有项目图就铺满；上面压一层从透明到深的遮罩，保证文字可读
             if let previewURL {
-                RemoteImage(url: previewURL, height: 248, cornerRadius: 0)
-                    .overlay(
-                        LinearGradient(
-                            colors: [Color.black.opacity(0.10), Color.black.opacity(0.72)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
+                FilledRemoteImage(url: previewURL, cornerRadius: 0) {
+                    LinearGradient(
+                        colors: repo.gradient,
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     )
+                }
+                .overlay(
+                    LinearGradient(
+                        colors: [Color.black.opacity(0.10), Color.black.opacity(0.72)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
             } else {
                 // 装饰性光斑只在纯渐变时出现
                 Circle()

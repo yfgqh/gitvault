@@ -33,6 +33,9 @@ struct ProfileView: View {
     /// 我的：主页 / 实验室 / 设置 三层
     private enum Pane { case home, settings }
     @State private var pane: Pane = .home
+    /// 设置页返回手势的位移
+    @State private var settingsDrag: CGFloat = 0
+    @State private var settingsTracking = false
 
     private var appearance: AppearanceMode {
         AppearanceMode(rawValue: appearanceRaw) ?? .dark
@@ -40,43 +43,27 @@ struct ProfileView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: DS.Space.l) {
-                    if pane == .home {
-                        accountCard
-                            .screenPadding()
-                            .padding(.top, DS.Space.s)
+            ZStack {
+                // 底层：我的主页，设置页打开时以 1/3 速度左移
+                homeScroll
+                    .offset(x: bottomParallax)
+                    .overlay(
+                        Color.black
+                            .opacity(bottomDim)
+                            .ignoresSafeArea()
+                            .allowsHitTesting(false)
+                    )
 
-                        proCard.screenPadding()
-                        collectionCard.screenPadding()
-                        entrySection.screenPadding()
-                        toolsSection.screenPadding()
-                    } else {
-                        paneHeader(title: "设置", subtitle: "外观、AI 与数据")
-                        appearanceSection.screenPadding()
-                        languageSection.screenPadding()
-                        aiSection.screenPadding()
-                        dataSection.screenPadding()
-                    }
-
-                    Color.clear.frame(height: DS.Space.tabBarInset)
+                // 覆盖层：设置页
+                if pane == .settings {
+                    settingsScroll
+                        .offset(x: settingsDrag)
+                        .gesture(settingsBackGesture)
+                        .zIndex(5)
                 }
             }
-            .scrollIndicators(.hidden)
             .background(DS.bgPrimary)
             .navigationBarHidden(true)
-            // 设置页支持从左边缘右滑返回「我的」
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 20)
-                    .onEnded { value in
-                        guard pane == .settings else { return }
-                        guard value.startLocation.x < 40,
-                              value.translation.width > 90,
-                              abs(value.translation.height) < 120 else { return }
-                        Haptics.tap()
-                        withAnimation(DS.Motion.fade) { pane = .home }
-                    }
-            )
             .sheet(isPresented: $showAuthSheet) {
                 AuthSheetView()
                     .presentationDetents([.medium, .large])
@@ -139,6 +126,91 @@ struct ProfileView: View {
     }
 
     // MARK: 账号
+
+    // MARK: 设置页覆盖层动画
+
+    private var screenWidth: CGFloat { UIScreen.main.bounds.width }
+
+    private var settingsProgress: CGFloat {
+        min(max(settingsDrag / max(screenWidth, 1), 0), 1)
+    }
+
+    /// 底层以 1/3 速度跟入
+    private var bottomParallax: CGFloat {
+        pane == .settings ? -screenWidth / 3 + settingsDrag / 3 : 0
+    }
+
+    private var bottomDim: Double {
+        pane == .settings ? Double(settingsProgress) * 0.3 : 0
+    }
+
+    private var settingsBackGesture: some Gesture {
+        DragGesture(minimumDistance: 8)
+            .onChanged { value in
+                if !settingsTracking {
+                    guard value.startLocation.x < 32, value.translation.width > 0 else { return }
+                    settingsTracking = true
+                }
+                settingsDrag = max(0, value.translation.width)
+            }
+            .onEnded { value in
+                guard settingsTracking else { return }
+                settingsTracking = false
+                let projected = value.predictedEndTranslation.width
+                let shouldClose = projected > screenWidth * 0.36
+                    || value.translation.width > screenWidth * 0.3
+
+                if shouldClose {
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.9)) {
+                        settingsDrag = screenWidth
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        pane = .home
+                        settingsDrag = 0
+                    }
+                } else {
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                        settingsDrag = 0
+                    }
+                }
+            }
+    }
+
+    // MARK: 页面内容
+
+    private var homeScroll: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: DS.Space.l) {
+                accountCard
+                    .screenPadding()
+                    .padding(.top, DS.Space.s)
+
+                proCard.screenPadding()
+                collectionCard.screenPadding()
+                entrySection.screenPadding()
+                toolsSection.screenPadding()
+
+                Color.clear.frame(height: DS.Space.tabBarInset)
+            }
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    private var settingsScroll: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: DS.Space.l) {
+                paneHeader(title: "设置", subtitle: "外观、AI 与数据")
+                appearanceSection.screenPadding()
+                languageSection.screenPadding()
+                aiSection.screenPadding()
+                dataSection.screenPadding()
+
+                Color.clear.frame(height: DS.Space.tabBarInset)
+            }
+        }
+        .scrollIndicators(.hidden)
+        .background(DS.bgPrimary)
+    }
 
     private var accountCard: some View {
         VStack(alignment: .leading, spacing: DS.Space.m) {
