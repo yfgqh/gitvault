@@ -25,39 +25,53 @@ struct HeroRepoCard: View {
         )
     }
 
-    var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            // 底色：渐变（无图时直接用）
+    /// 无图时的兜底底：渐变 + 光斑 + 首字母
+    private var gradientBackdrop: some View {
+        ZStack {
             LinearGradient(
                 colors: repo.gradient,
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
+            Circle()
+                .fill(Color.white.opacity(0.20))
+                .frame(width: 180, height: 180)
+                .blur(radius: 60)
+                .offset(x: 120, y: -60)
+            Text(repo.initials)
+                .font(.system(size: 52, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.22))
+        }
+    }
 
-            // 有项目图就铺满；上面压一层从透明到深的遮罩，保证文字可读
-            if let previewURL {
-                FilledRemoteImage(url: previewURL, cornerRadius: 0) {
-                    LinearGradient(
-                        colors: repo.gradient,
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            // 封面：自家仓库用 App 图标，其余走四级回退，保证全部有图
+            Group {
+                if repo.isOwnApp, let logo = ShowcaseRepo.localAppLogo {
+                    Image(uiImage: logo)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    FilledRemoteImage(
+                        url: previewURL ?? repo.openGraphImageURL ?? repo.avatarURL,
+                        cornerRadius: 0
+                    ) {
+                        gradientBackdrop
+                    }
                 }
-                .overlay(
-                    LinearGradient(
-                        colors: [Color.black.opacity(0.10), Color.black.opacity(0.72)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-            } else {
-                // 装饰性光斑只在纯渐变时出现
-                Circle()
-                    .fill(Color.white.opacity(0.20))
-                    .frame(width: 180, height: 180)
-                    .blur(radius: 60)
-                    .offset(x: 120, y: -60)
             }
+            .frame(height: 240)
+            .frame(maxWidth: .infinity)
+            .clipped()
+            .overlay(
+                // 从透明到深的遮罩，保证白色文字在任何图上都读得清
+                LinearGradient(
+                    colors: [Color.black.opacity(0.10), Color.black.opacity(0.72)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
 
             // 顶部标签
             VStack {
