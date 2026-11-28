@@ -127,11 +127,14 @@ struct RepoMiniCard: View {
                 url: previewURL ?? repo.openGraphImageURL,
                 cornerRadius: 14
             ) {
-                ZStack {
-                    DS.bgTertiary
-                    Text(repo.initials)
-                        .font(.system(size: 20, weight: .semibold, design: .rounded))
-                        .foregroundStyle(DS.textSecondary)
+                // 主图失败：先用仓库头像顶住，再退首字母
+                FilledRemoteImage(url: repo.avatarURL, cornerRadius: 0) {
+                    ZStack {
+                        DS.bgTertiary
+                        Text(repo.initials)
+                            .font(.system(size: 20, weight: .semibold, design: .rounded))
+                            .foregroundStyle(DS.textSecondary)
+                    }
                 }
             }
             .frame(height: 84)

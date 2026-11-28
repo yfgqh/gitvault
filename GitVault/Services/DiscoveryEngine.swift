@@ -176,8 +176,8 @@ enum DiscoveryEngine {
         var feed = DiscoveryFeed()
         feed.savedAt = now
 
-        feed.rising = pick(risingScored, limit: 6, maxPerCategory: 2, selection: &selection)
-        feed.gems = pick(gemScored, limit: 6, maxPerCategory: 2, selection: &selection)
+        feed.rising = pick(risingScored, limit: 9, maxPerCategory: 3, selection: &selection)
+        feed.gems = pick(gemScored, limit: 9, maxPerCategory: 3, selection: &selection)
         feed.evergreen = pick(evergreenScored, limit: 6, maxPerCategory: 2, selection: &selection)
         feed.trending = pick(trendingScored, limit: 12, maxPerCategory: 3, selection: &selection)
 
@@ -234,12 +234,12 @@ enum DiscoveryEngine {
             picks.append(list[offset].repo)
         }
 
-        if picks.count < 4 {
-            picks = Array(scored.prefix(4)).map(\.repo)
+        if picks.count < 9 {
+            picks = Array(scored.prefix(9)).map(\.repo)
         }
-        let rotate = picks.count > 4 ? dayOfYear % picks.count : 0
+        let rotate = picks.count > 9 ? dayOfYear % picks.count : 0
         let rotated = Array(picks[rotate...]) + Array(picks[..<rotate])
-        return Array(rotated.prefix(4))
+        return Array(rotated.prefix(9))
     }
 
     // MARK: 选择器

@@ -78,7 +78,10 @@ struct RootView: View {
             // 详情页：overlay 呈现，支持视差返回
             if let repo = presenter.top {
                 NavigationStack {
+                    // .id 让 SwiftUI 在切换仓库时重建视图与 @StateObject，
+                    // 否则从「相似项目」进入会复用旧实例，界面不更新
                     RepoDetailView(repo: repo)
+                        .id(repo.id)
                 }
                 .offset(x: backDrag)
                 .gesture(backGesture)
