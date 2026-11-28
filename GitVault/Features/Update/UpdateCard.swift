@@ -17,7 +17,6 @@ struct UpdateCard: View {
     @EnvironmentObject private var env: AppEnvironment
     @Environment(\.openURL) private var openURL
     @StateObject private var installer = UpdateInstaller()
-    @State private var exportedURL: URL?
     @State private var showFolderPicker = false
     @State private var pickedFolderName: String?
     @State private var showNotes = false
@@ -53,17 +52,14 @@ struct UpdateCard: View {
             RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
                 .strokeBorder(DS.accent.opacity(0.35), lineWidth: 1)
         )
-        .sheet(item: Binding(
-            get: { exportedURL.map { ExportTarget(url: $0) } },
-            set: { exportedURL = $0?.url }
-        )) { target in
-            DocumentExporter(url: target.url)
-        }
         .onChange(of: installer.phase) { phase in
             if case .finished(let url) = phase {
-                // 下载完成后弹出系统的「存储到文件」，让用户自己选保存位置
-                exportedURL = url
+                // 下载完成后直接交给系统打开：TrollStore 会出现在「用…打开」里
                 Haptics.success()
+                let handled = DocumentOpener.shared.open(url)
+                if !handled {
+                    env.show("没有找到能打开 IPA 的应用，请确认已安装 TrollStore", kind: .warning)
+                }
             }
             if case .failed(let message) = phase {
                 env.show(message, kind: .warning)
@@ -174,15 +170,25 @@ struct UpdateCard: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 12))
                     .foregroundStyle(DS.success)
-                Text(NSLocalizedString("下载完成，请选择保存位置", comment: ""))
+                Text(NSLocalizedString("已下载，正在打开…", comment: ""))
                     .font(.system(size: 10))
                     .foregroundStyle(DS.textSecondary)
                 Spacer()
-                Button("再存一次") {
-                    if case .finished(let url) = installer.phase { exportedURL = url }
+                Button(NSLocalizedString("再次打开", comment: "")) {
+                    if case .finished(let url) = installer.phase {
+                        DocumentOpener.shared.open(url)
+                    }
                 }
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(DS.accent)
+
+                Button(NSLocalizedString("另存", comment: "")) {
+                    if case .finished(let url) = installer.phase {
+                        DocumentOpener.shared.export(url)
+                    }
+                }
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(DS.textTertiary)
             }
         default:
             VStack(spacing: 6) {

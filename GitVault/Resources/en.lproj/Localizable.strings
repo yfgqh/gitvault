@@ -689,3 +689,9 @@
 "下载 %@" = "Download %@";
 "下载 %@（%@）" = "Download %@ (%@)";
 "这个版本没有可下载的资产，去发布页看看" = "This release has nothing to download — check the release page";
+
+/* 3.2.4 */
+"已下载，正在打开…" = "Downloaded — opening…";
+"再次打开" = "Open again";
+"另存" = "Save as";
+"没有找到能打开 IPA 的应用，请确认已安装 TrollStore" = "No app can open this IPA — make sure TrollStore is installed";
