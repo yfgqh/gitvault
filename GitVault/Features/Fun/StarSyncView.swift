@@ -162,7 +162,7 @@ struct StarSyncView: View {
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(Capsule().fill(DS.accentGradient))
+                .background(Capsule().fill(DS.accent))
             }
             .buttonStyle(.springPress)
         }

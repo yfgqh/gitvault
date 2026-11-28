@@ -112,10 +112,10 @@ struct ExploreView: View {
     private var header: some View {
         HStack(alignment: .center, spacing: DS.Space.m) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(greetingText)
+                Text("GitHub 精选 · 每日更新")
                     .font(DS.Typo.caption)
                     .foregroundStyle(DS.textTertiary)
-                Text("今天挖点什么")
+                Text("发现")
                     .font(DS.Typo.largeTitle)
                     .foregroundStyle(DS.textPrimary)
                     .lineLimit(1)
@@ -250,7 +250,7 @@ struct ExploreView: View {
                             }
                         }
                         .buttonStyle(.springPressCard)
-                        .staggerAppear(entry.index)
+                        
                     }
                 }
                 .screenPadding()
@@ -280,7 +280,7 @@ struct ExploreView: View {
                                 RepoMiniCard(repo: entry.item.repo, reason: entry.item.reason)
                             }
                             .buttonStyle(.springPressCard)
-                            .staggerAppear(entry.index)
+                            
                         }
                     }
                     .padding(.horizontal, DS.Space.screen)
@@ -302,7 +302,7 @@ struct ExploreView: View {
                         CategoryShortcut(category: entry.item, count: env.categoryCount(entry.item))
                     }
                     .buttonStyle(.springPress)
-                    .staggerAppear(entry.index)
+                    
                 }
             }
             .screenPadding()
@@ -331,7 +331,7 @@ struct ExploreView: View {
                                 RepoMiniCard(repo: entry.item.repo, reason: entry.item.reason)
                             }
                             .buttonStyle(.springPressCard)
-                            .staggerAppear(entry.index)
+                            
                         }
                     }
                     .padding(.horizontal, DS.Space.screen)

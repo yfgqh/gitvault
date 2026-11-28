@@ -124,7 +124,7 @@ struct ProUnlockView: View {
                     .padding(.vertical, 14)
                     .background(
                         RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                            .fill(DS.accentGradient)
+                            .fill(DS.accent)
                     )
                 }
                 .buttonStyle(.springPress)

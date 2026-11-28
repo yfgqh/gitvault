@@ -26,6 +26,15 @@ enum ActivityTag: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    var symbol: String {
+        switch self {
+        case .rising: return "flame.fill"
+        case .newStar: return "leaf.fill"
+        case .classic: return "trophy.fill"
+        case .dormant: return "moon.zzz.fill"
+        }
+    }
+
     var emoji: String {
         switch self {
         case .rising: return "🔥"

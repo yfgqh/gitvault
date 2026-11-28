@@ -112,7 +112,7 @@ struct TechRadarView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
-                .background(Capsule().fill(DS.accentGradient))
+                .background(Capsule().fill(DS.accent))
             }
             .buttonStyle(.springPress)
             .disabled(isLoading)

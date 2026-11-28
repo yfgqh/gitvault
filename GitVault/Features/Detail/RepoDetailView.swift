@@ -313,11 +313,14 @@ struct RepoDetailView: View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
-                    TagChip(text: vm.repo.category.emoji + " " + vm.repo.category.title,
+                    TagChip(text: vm.repo.category.title,
+                            systemImage: vm.repo.category.symbol,
                             tint: vm.repo.category.tint)
-                    TagChip(text: vm.repo.activity.emoji + " " + vm.repo.activity.title,
+                    TagChip(text: vm.repo.activity.title,
+                            systemImage: "flame.fill",
                             tint: vm.repo.activity.tint, filled: true)
-                    TagChip(text: vm.repo.usage.emoji + " " + vm.repo.usage.title,
+                    TagChip(text: vm.repo.usage.title,
+                            systemImage: "bolt.fill",
                             tint: vm.repo.usage.tint)
                     TagChip(text: vm.repo.license.title, tint: vm.repo.license.tint)
                 }
@@ -765,7 +768,7 @@ struct RepoDetailView: View {
                 .padding(.vertical, 13)
                 .background(
                     RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                        .fill(DS.accentGradient)
+                        .fill(DS.accent)
                 )
             }
             .buttonStyle(.springPressSilent)

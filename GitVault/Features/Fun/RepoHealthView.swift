@@ -86,7 +86,7 @@ struct RepoHealthView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 9)
-                    .background(Capsule().fill(DS.accentGradient))
+                    .background(Capsule().fill(DS.accent))
                 }
                 .buttonStyle(.springPress)
                 .disabled(monitor.isScanning)

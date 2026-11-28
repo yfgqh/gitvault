@@ -28,7 +28,7 @@ struct EmptyStateView: View {
 
                 Image(systemName: symbol)
                     .font(.system(size: 38, weight: .light))
-                    .foregroundStyle(DS.accentGradient)
+                    .foregroundStyle(DS.accent)
             }
             .frame(height: 140)
 
@@ -55,7 +55,7 @@ struct EmptyStateView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, DS.Space.l)
                         .padding(.vertical, 11)
-                        .background(Capsule().fill(DS.accentGradient))
+                        .background(Capsule().fill(DS.accent))
                 }
                 .buttonStyle(.springPress)
             }

@@ -48,15 +48,15 @@ enum DS {
     static let textSecondary = dynamicColor(dark: 0x9AA4B2, light: 0x636B7A)
 
     /// 三级文本（时间、占位符）
-    static let textTertiary = dynamicColor(dark: 0x6B7686, light: 0x9AA1AE)
+    static let textTertiary = dynamicColor(dark: 0x8A94A6, light: 0x7A8291)
 
     /// 分割线
     static let separator = dynamicColor(dark: 0x242B39, light: 0xE6E8EF)
 
     // MARK: 强调色
 
-    static let accent = Color(hex: 0x6E7BFF)
-    static let accentAlt = Color(hex: 0xA66CFF)
+    static let accent = Color(hex: 0x2FB3A0)
+    static let accentAlt = Color(hex: 0x4FCBBB)
 
     /// 主渐变：#6E7BFF → #A66CFF（左上到右下）
     static let accentGradient = LinearGradient(
@@ -182,7 +182,7 @@ extension View {
     /// iOS 16 上表现为掉帧与「页面闪烁」。
     func glassSurface(
         radius: CGFloat = DS.Radius.card,
-        strokeOpacity: Double = 0.10
+        strokeOpacity: Double = 0.13
     ) -> some View {
         self
             .background(

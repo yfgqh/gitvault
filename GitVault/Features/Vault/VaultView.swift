@@ -200,7 +200,7 @@ struct VaultView: View {
                         withAnimation(DS.Motion.snappy) { activeMark = nil }
                     }
                     ForEach(MyMark.allCases) { mark in
-                        FilterChip(title: mark.title, emoji: mark.emoji, isActive: activeMark == mark) {
+                        FilterChip(title: mark.title, systemImage: mark.symbol, isActive: activeMark == mark) {
                             withAnimation(DS.Motion.snappy) {
                                 activeMark = (activeMark == mark) ? nil : mark
                             }
@@ -215,12 +215,10 @@ struct VaultView: View {
 
     private var statsCard: some View {
         HStack(spacing: DS.Space.l) {
+            // 环形只表达「总库填充度」，各状态分布交给右侧列表，避免同一信息编码两次
             StatRing(
                 segments: [
-                    .init(value: vault.count(.starred), color: MyMark.starred.tint, label: "收藏"),
-                    .init(value: vault.count(.inUse), color: MyMark.inUse.tint, label: "在用"),
-                    .init(value: vault.count(.watching), color: MyMark.watching.tint, label: "观察"),
-                    .init(value: vault.count(.archived), color: MyMark.archived.tint, label: "归档")
+                    .init(value: vault.items.count, color: DS.accent, label: "全部")
                 ],
                 total: vault.items.count
             )
@@ -229,7 +227,7 @@ struct VaultView: View {
                 ForEach(MyMark.allCases) { mark in
                     HStack(spacing: 8) {
                         Circle().fill(mark.tint).frame(width: 7, height: 7)
-                        Text(mark.emoji + " " + mark.title)
+                        Label(mark.title, systemImage: mark.symbol)
                             .font(DS.Typo.caption)
                             .foregroundStyle(DS.textSecondary)
                         Spacer(minLength: 4)

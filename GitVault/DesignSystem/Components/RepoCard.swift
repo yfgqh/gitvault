@@ -119,15 +119,27 @@ struct RepoMiniCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
-            RepoCover(initials: repo.initials, gradient: repo.gradient, cornerRadius: 14)
-                .frame(height: 84)
-                .overlay(alignment: .topTrailing) {
-                    Text(repo.category.emoji)
-                        .font(.system(size: 12))
-                        .padding(6)
-                        .background(Circle().fill(DS.glassFill))
-                        .padding(8)
-                }
+            // 中性封面：rail 里不再用彩色渐变，避免一屏多个亮点
+            ZStack {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(DS.bgTertiary)
+                Text(repo.initials)
+                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    .foregroundStyle(DS.textSecondary)
+            }
+            .frame(height: 84)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)
+            )
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: repo.category.symbol)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(DS.textTertiary)
+                    .padding(6)
+                    .background(Circle().fill(DS.glassFill))
+                    .padding(8)
+            }
 
             Text(repo.name)
                 .font(DS.Typo.headline)

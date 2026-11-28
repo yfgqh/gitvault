@@ -230,7 +230,7 @@ struct ProfileView: View {
                     .padding(.vertical, 13)
                     .background(
                         RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                            .fill(DS.accentGradient)
+                            .fill(DS.accent)
                     )
                     .dsShadow(.light)
                 }
@@ -272,7 +272,7 @@ struct ProfileView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Capsule().fill(DS.accentGradient))
+                    .background(Capsule().fill(DS.accent))
             }
             .padding(DS.Space.m)
             .glassSurface()
@@ -496,7 +496,7 @@ struct ProfileView: View {
                         .background(
                             RoundedRectangle(cornerRadius: DS.Radius.chip + 4, style: .continuous)
                                 .fill(appearance == mode
-                                      ? AnyShapeStyle(DS.accentGradient)
+                                      ? AnyShapeStyle(DS.accent)
                                       : AnyShapeStyle(DS.bgSecondary))
                         )
                     }
@@ -979,7 +979,7 @@ struct AuthSheetView: View {
                             .padding(.vertical, 14)
                             .background(
                                 RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                                    .fill(DS.accentGradient)
+                                    .fill(DS.accent)
                             )
                     }
                     .buttonStyle(.springPress)
@@ -1007,7 +1007,7 @@ struct AuthSheetView: View {
                     .padding(.vertical, 14)
                     .background(
                         RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                            .fill(DS.accentGradient)
+                            .fill(DS.accent)
                     )
                 }
                 .buttonStyle(.springPress)
@@ -1025,7 +1025,7 @@ struct AuthSheetView: View {
                         .padding(.vertical, 14)
                         .background(
                             RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                                .fill(DS.accentGradient)
+                                .fill(DS.accent)
                         )
                 }
                 .buttonStyle(.springPress)
@@ -1131,7 +1131,7 @@ struct AIConfigSheetView: View {
                                 .padding(.vertical, 14)
                                 .background(
                                     RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                                        .fill(DS.accentGradient)
+                                        .fill(DS.accent)
                                 )
                         }
                         .buttonStyle(.springPress)
@@ -1345,7 +1345,7 @@ struct AboutSheetView: View {
                             .padding(.vertical, 12)
                             .background(
                                 RoundedRectangle(cornerRadius: DS.Radius.button, style: .continuous)
-                                    .fill(DS.accentGradient)
+                                    .fill(DS.accent)
                             )
                         }
                         .buttonStyle(.springPress)

@@ -44,6 +44,7 @@ struct TagChip: View {
 struct FilterChip: View {
     var title: String
     var emoji: String? = nil
+    var systemImage: String? = nil
     var isActive: Bool
     var action: () -> Void
 
@@ -53,7 +54,10 @@ struct FilterChip: View {
             action()
         }) {
             HStack(spacing: 6) {
-                if let emoji {
+                if let systemImage {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 11, weight: .semibold))
+                } else if let emoji {
                     Text(emoji).font(.system(size: 12))
                 }
                 Text(title)
@@ -64,7 +68,7 @@ struct FilterChip: View {
             .padding(.vertical, 8)
             .background {
                 if isActive {
-                    Capsule().fill(DS.accentGradient)
+                    Capsule().fill(DS.accent)
                 } else {
                     Capsule().fill(DS.bgTertiary)
                 }

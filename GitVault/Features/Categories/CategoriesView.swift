@@ -169,7 +169,7 @@ struct CategoryFeedView: View {
                 .offset(x: 120, y: -60)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(category.emoji + " " + category.title)
+                Label(category.title, systemImage: category.symbol)
                     .font(DS.Typo.title)
                     .foregroundStyle(.white)
                 Text(vm.totalCount > 0
@@ -189,7 +189,7 @@ struct CategoryFeedView: View {
     private var subcategoryBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: DS.Space.s) {
-                FilterChip(title: "全部", emoji: "🗂", isActive: vm.activeSub == nil) {
+                FilterChip(title: "全部", systemImage: "square.grid.2x2.fill", isActive: vm.activeSub == nil) {
                     Haptics.selection()
                     withAnimation(DS.Motion.snappy) { vm.setSubcategory(nil) }
                 }
@@ -221,7 +221,7 @@ struct CategoryFeedView: View {
                 Divider().frame(height: 20)
 
                 ForEach(ActivityTag.allCases) { tag in
-                    FilterChip(title: tag.title, emoji: tag.emoji, isActive: vm.activeActivity == tag) {
+                    FilterChip(title: tag.title, systemImage: tag.symbol, isActive: vm.activeActivity == tag) {
                         withAnimation(DS.Motion.snappy) {
                             vm.activeActivity = (vm.activeActivity == tag) ? nil : tag
                         }

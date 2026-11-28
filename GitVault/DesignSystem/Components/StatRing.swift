@@ -42,7 +42,7 @@ struct StatRing: View {
                 Text("\(total)")
                     .font(.system(size: 24, weight: .bold, design: .rounded))
                     .foregroundStyle(DS.textPrimary)
-                Text("总收藏")
+                Text("个仓库")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(DS.textTertiary)
             }

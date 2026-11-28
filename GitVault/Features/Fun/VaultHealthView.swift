@@ -208,7 +208,7 @@ struct VaultHealthView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .background(
-                    Capsule().fill(active ? AnyShapeStyle(DS.accentGradient) : AnyShapeStyle(DS.bgSecondary))
+                    Capsule().fill(active ? AnyShapeStyle(DS.accent) : AnyShapeStyle(DS.bgSecondary))
                 )
         }
         .buttonStyle(.springPressSilent)
