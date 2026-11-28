@@ -13,6 +13,8 @@ struct HeroRepoCard: View {
     var onToggleSave: () -> Void = {}
 
     @State private var heartBurst = false
+    /// 项目介绍图（README 首图）；拿不到时保留渐变
+    @State private var previewURL: URL?
 
     private var ownerAvatar: some View {
         AvatarView(
@@ -25,18 +27,31 @@ struct HeroRepoCard: View {
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
+            // 底色：渐变（无图时直接用）
             LinearGradient(
                 colors: repo.gradient,
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
 
-            // 装饰性光斑
-            Circle()
-                .fill(Color.white.opacity(0.20))
-                .frame(width: 180, height: 180)
-                .blur(radius: 60)
-                .offset(x: 120, y: -60)
+            // 有项目图就铺满；上面压一层从透明到深的遮罩，保证文字可读
+            if let previewURL {
+                RemoteImage(url: previewURL, height: 248, cornerRadius: 0)
+                    .overlay(
+                        LinearGradient(
+                            colors: [Color.black.opacity(0.10), Color.black.opacity(0.72)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            } else {
+                // 装饰性光斑只在纯渐变时出现
+                Circle()
+                    .fill(Color.white.opacity(0.20))
+                    .frame(width: 180, height: 180)
+                    .blur(radius: 60)
+                    .offset(x: 120, y: -60)
+            }
 
             // 顶部标签
             VStack {
@@ -107,6 +122,10 @@ struct HeroRepoCard: View {
         .frame(height: 240)
         .clipShape(RoundedRectangle(cornerRadius: DS.Radius.cardLarge, style: .continuous))
         .dsShadow(.elevated)
+        .task(id: repo.id) {
+            guard previewURL == nil else { return }
+            previewURL = await RepoImageService.shared.previewImage(owner: repo.owner, name: repo.name)
+        }
     }
 
     private var saveButton: some View {

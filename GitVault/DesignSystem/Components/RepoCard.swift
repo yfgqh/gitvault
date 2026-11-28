@@ -117,11 +117,14 @@ struct RepoMiniCard: View {
     let repo: ShowcaseRepo
     var reason: String? = nil
 
+    /// README 首图（项目介绍图）；拿不到时回退到 GitHub 社交卡
+    @State private var previewURL: URL?
+
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Space.s) {
             // 封面：优先用仓库图片（GitHub 社交卡），加载中/失败回退首字母灰底
             RemoteImage(
-                url: repo.openGraphImageURL,
+                url: previewURL ?? repo.openGraphImageURL,
                 height: 84,
                 cornerRadius: 14,
                 placeholder: AnyView(
@@ -191,6 +194,10 @@ struct RepoMiniCard: View {
             RoundedRectangle(cornerRadius: DS.Radius.card, style: .continuous)
                 .strokeBorder(DS.separator, lineWidth: 1)
         )
+        .task(id: repo.id) {
+            guard previewURL == nil else { return }
+            previewURL = await RepoImageService.shared.previewImage(owner: repo.owner, name: repo.name)
+        }
     }
 }
 
