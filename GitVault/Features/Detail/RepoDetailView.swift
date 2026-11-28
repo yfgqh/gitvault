@@ -26,7 +26,6 @@ struct RepoDetailView: View {
     @State private var showPro = false
     @State private var showReadmeFull = false
     @State private var showAuthor = false
-    @State private var showDownloadOptions = false
     @State private var exportedURL: URL?
     @State private var isStarred = false
     @State private var isBusy = false
@@ -141,16 +140,28 @@ struct RepoDetailView: View {
                 env.show(message, kind: .warning)
             }
         }
-        .confirmationDialog("下载内容", isPresented: $showDownloadOptions, titleVisibility: .visible) {
-            Button("下载二进制文件") {
-                downloader.start(owner: vm.repo.owner, repo: vm.repo.name, branch: "main")
-            }
-            Button("下载仓库源码") {
+        .confirmationDialog(
+            NSLocalizedString("该仓库没有可下载的二进制文件", comment: ""),
+            isPresented: Binding(
+                get: { downloader.asksForSource },
+                set: { if !$0 { downloader.asksForSource = false } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(NSLocalizedString("下载仓库源码", comment: "")) {
                 downloader.startSource(owner: vm.repo.owner, repo: vm.repo.name, branch: "main")
             }
-            Button("取消", role: .cancel) {}
+            Button(NSLocalizedString("打开发布页", comment: "")) {
+                downloader.asksForSource = false
+                if let url = URL(string: "https://github.com/\(vm.repo.owner)/\(vm.repo.name)/releases") {
+                    openURL(url)
+                }
+            }
+            Button(NSLocalizedString("取消", comment: ""), role: .cancel) {
+                downloader.asksForSource = false
+            }
         } message: {
-            Text("二进制文件来自该仓库的 Release 资产；没有资产时会自动改下源码包。")
+            Text(NSLocalizedString("Release 里没有安装包或压缩包，可以改为下载源码压缩包，或去发布页自行查看。", comment: ""))
         }
         .sheet(isPresented: $showAuthor) {
             AuthorView(login: vm.repo.owner)
@@ -638,7 +649,8 @@ struct RepoDetailView: View {
     }
 
     private func startDownload() {
-        showDownloadOptions = true
+        // 有二进制就下二进制；没有则由下面的对话框询问是否下源码
+        downloader.start(owner: vm.repo.owner, repo: vm.repo.name, branch: "main")
     }
 
     private func relativeText(_ date: Date) -> String {

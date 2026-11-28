@@ -695,3 +695,8 @@
 "再次打开" = "Open again";
 "另存" = "Save as";
 "没有找到能打开 IPA 的应用，请确认已安装 TrollStore" = "No app can open this IPA — make sure TrollStore is installed";
+
+/* 3.2.5 */
+"该仓库没有可下载的二进制文件" = "This repository has no downloadable binaries";
+"打开发布页" = "Open release page";
+"Release 里没有安装包或压缩包，可以改为下载源码压缩包，或去发布页自行查看。" = "The release has no installer or archive. Download the source zip instead, or check the release page.";

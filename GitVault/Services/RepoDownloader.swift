@@ -44,6 +44,8 @@ final class RepoDownloader: NSObject, ObservableObject {
     @Published private(set) var assetChoices: [AssetChoice] = []
     /// 是否弹出资产选择器
     @Published var showsAssetPicker = false
+    /// 没有任何二进制资产时置位：由界面询问「是否下载仓库源码」
+    @Published var asksForSource = false
 
     private var pendingSource: (owner: String, repo: String, branch: String)?
 
@@ -73,8 +75,9 @@ final class RepoDownloader: NSObject, ObservableObject {
 
             switch choices.count {
             case 0:
-                notice = "该仓库没有发布编译好的二进制文件，正在下载源码包"
-                downloadSource()
+                // 没有二进制资产：不擅自下载，先问用户
+                state = .idle
+                asksForSource = true
             case 1:
                 if let only = choices.first {
                     beginDownload(only.url, fileName: only.name)
@@ -99,6 +102,7 @@ final class RepoDownloader: NSObject, ObservableObject {
     func startSource(owner: String, repo: String, branch: String) {
         guard !isDownloading else { return }
         pendingSource = (owner, repo, branch)
+        asksForSource = false
         notice = "正在下载源码包"
         downloadSource()
     }
@@ -107,6 +111,7 @@ final class RepoDownloader: NSObject, ObservableObject {
     func chooseSourcePackage() {
         showsAssetPicker = false
         assetChoices = []
+        asksForSource = false
         notice = "正在下载源码包"
         downloadSource()
     }
