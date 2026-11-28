@@ -21,6 +21,7 @@ struct RootView: View {
     @State private var mounted: Set<AppTab> = [.explore]
     @StateObject private var releaseWatcher = ReleaseWatcher()
     @StateObject private var healthMonitor = RepoHealthMonitor()
+    @State private var launchUpdate: UpdateChecker.Available?
 
     var body: some View {
         ZStack {
@@ -51,6 +52,15 @@ struct RootView: View {
             }
         }
         .toastHost()
+        .sheet(item: $launchUpdate) { update in
+            ScrollView {
+                UpdateCard(available: update)
+                    .padding(DS.Space.l)
+            }
+            .background(DS.bgPrimary)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
         .onChange(of: tab) { newValue in
             mounted.insert(newValue)
         }
@@ -58,7 +68,14 @@ struct RootView: View {
             await auth.restore()
             // 这两件事不阻塞启动：StoreKit 与 Releases 都可能慢
             Task { await env.pro.bootstrap() }
-            Task { await env.update.checkIfNeeded() }
+            Task {
+                await env.update.checkIfNeeded()
+                // 有新版：稍等一下再弹，避开启动动画；无新版：什么都不做
+                if let update = env.update.consumeLaunchPrompt() {
+                    try? await Task.sleep(nanoseconds: 1_200_000_000)
+                    launchUpdate = update
+                }
+            }
             env.allRepos.loadIfNeeded()
             // 收藏仓库的新版本检查（Pro 能力，6 小时节流）
             OfflineIndex.shared.loadIfNeeded()

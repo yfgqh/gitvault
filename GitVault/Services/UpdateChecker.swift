@@ -30,12 +30,16 @@ final class UpdateChecker: ObservableObject {
     }
 
     @Published private(set) var available: Available?
+    /// 启动检查命中新版本时置位，RootView 取走后弹卡
+    @Published var pendingLaunchPrompt: Available?
     @Published private(set) var isChecking = false
     @Published private(set) var lastCheckedAt: Date?
 
     private let lastCheckKey = "gv.update.lastCheck"
     private let dismissedKey = "gv.update.dismissedTag"
-    private let ttl: TimeInterval = 6 * 3600
+    /// 启动检查不做时限节流：每次打开 App 都查一次（单次仅 1 个请求）。
+    /// 是否弹卡由「稍后」与「忽略该版本」两个用户选择决定。
+    private let ttl: TimeInterval = 0
 
     static var currentVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
@@ -49,6 +53,13 @@ final class UpdateChecker: ObservableObject {
     // MARK: 检查
 
     private let snoozeKey = "gv.update.snoozeUntil"
+
+    /// 取走启动提示（弹过一次就清空）
+    func consumeLaunchPrompt() -> Available? {
+        let value = pendingLaunchPrompt
+        pendingLaunchPrompt = nil
+        return value
+    }
 
     /// 24 小时内不再提醒
     func snooze() {
@@ -98,7 +109,7 @@ final class UpdateChecker: ObservableObject {
                 return
             }
             let ipa = (release.assets ?? []).first { $0.name.lowercased().hasSuffix(".ipa") }
-            available = Available(
+            let info = Available(
                 tag: release.tagName,
                 name: release.name ?? release.tagName,
                 notes: String((release.body ?? "").prefix(600)),
@@ -107,6 +118,9 @@ final class UpdateChecker: ObservableObject {
                 assetSize: ipa?.size,
                 downloadURL: ipa.flatMap { URL(string: $0.browserDownloadURL) }
             )
+            available = info
+            // 供启动时弹出更新卡
+            if !force { pendingLaunchPrompt = info }
             CrashReporter.log("update: \(current) -> \(latest)")
         } catch {
             CrashReporter.log("update: check failed \(error.localizedDescription)")
