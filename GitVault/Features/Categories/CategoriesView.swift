@@ -136,7 +136,7 @@ struct CategoryFeedView: View {
                 if let hint = vm.cacheHint {
                     HStack(spacing: 5) {
                         Image(systemName: "internaldrive")
-                            .font(.system(size: 9, weight: .semibold))
+                            .font(.system(size: 10, weight: .semibold))
                         Text(hint)
                             .font(.system(size: 11))
                     }
@@ -176,7 +176,7 @@ struct CategoryFeedView: View {
                      ? category.subtitle + " · " + String(format: NSLocalizedString("共 %@ 个", comment: ""), ShowcaseRepo.compact(vm.totalCount))
                      : category.subtitle)
                     .font(DS.Typo.caption)
-                    .foregroundStyle(.white.opacity(0.8))
+                    .foregroundStyle(.white.opacity(0.92))
             }
             .padding(DS.Space.m)
         }

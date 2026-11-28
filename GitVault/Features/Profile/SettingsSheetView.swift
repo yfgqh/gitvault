@@ -44,7 +44,7 @@ struct SettingsSheetView: View {
                                     .background(
                                         RoundedRectangle(cornerRadius: DS.Radius.chip + 4, style: .continuous)
                                             .fill(appearance == mode
-                                                  ? AnyShapeStyle(DS.accent)
+                                                  ? AnyShapeStyle(DS.accentSolid)
                                                   : AnyShapeStyle(DS.bgSecondary))
                                     )
                                 }

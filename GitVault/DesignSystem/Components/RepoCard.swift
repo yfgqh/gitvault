@@ -187,7 +187,7 @@ struct RepoMiniCard: View {
 
             if let reason, !reason.isEmpty {
                 Text(reason)
-                    .font(.system(size: 9, weight: .medium))
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(DS.accent)
                     .lineLimit(1)
                     .padding(.horizontal, 5)
@@ -202,7 +202,7 @@ struct RepoMiniCard: View {
                     .foregroundStyle(DS.textTertiary)
                 Spacer(minLength: 0)
                 Image(systemName: "star.fill")
-                    .font(.system(size: 9))
+                    .font(.system(size: 10))
                     .foregroundStyle(DS.textTertiary)
                 Text(repo.starText)
                     .font(DS.Typo.micro)

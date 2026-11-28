@@ -58,7 +58,7 @@ struct ExploreView: View {
                     if vm.loadedFromCache, let saved = vm.lastUpdated {
                         HStack(spacing: 5) {
                             Image(systemName: "clock.arrow.circlepath")
-                                .font(.system(size: 9, weight: .semibold))
+                                .font(.system(size: 10, weight: .semibold))
                             Text("显示缓存（" + saved.formatted(date: .abbreviated, time: .shortened) + "），下拉可刷新")
                                 .font(.system(size: 11))
                         }

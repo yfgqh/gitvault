@@ -298,7 +298,7 @@ struct VaultView: View {
                 if let note = item.note, !note.isEmpty {
                     HStack(spacing: 4) {
                         Image(systemName: "text.quote")
-                            .font(.system(size: 8))
+                            .font(.system(size: 10))
                         Text(note)
                             .font(.system(size: 10))
                             .lineLimit(2)
@@ -582,7 +582,7 @@ struct VaultRow: View {
                         HStack(spacing: 3) {
                             Circle().fill(DS.danger).frame(width: 5, height: 5)
                             Text(item.latestReleaseTag ?? "新版本")
-                                .font(.system(size: 9, weight: .semibold))
+                                .font(.system(size: 10, weight: .semibold))
                                 .foregroundStyle(DS.danger)
                         }
                         .padding(.horizontal, 6)

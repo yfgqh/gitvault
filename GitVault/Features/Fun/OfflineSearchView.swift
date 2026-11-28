@@ -136,7 +136,7 @@ struct OfflineSearchView: View {
                         .lineLimit(1)
                     Spacer()
                     Text(doc.language)
-                        .font(.system(size: 9))
+                        .font(.system(size: 10))
                         .foregroundStyle(DS.textTertiary)
                 }
                 .padding(.vertical, 4)
@@ -173,7 +173,7 @@ struct OfflineSearchView: View {
                         Text(hit.doc.topics.prefix(2).joined(separator: " · "))
                     }
                 }
-                .font(.system(size: 9))
+                .font(.system(size: 10))
                 .foregroundStyle(DS.textTertiary)
             }
             .padding(DS.Space.m)

@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 @main
 struct GitVaultApp: App {
@@ -42,8 +43,23 @@ struct GitVaultApp: App {
                 )
                 .tint(DS.accent)
                 .onAppear {
+                    // 接管前台通知：否则 App 打开时系统不显示横幅
+                    UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
                     CrashReporter.log("root view appeared")
                 }
         }
     }
+
+// MARK: - 通知代理
+
+/// 默认情况下 App 在前台时系统不展示通知；这里接管，让「收藏有新版本」在应用内也能看到
+final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = NotificationDelegate()
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
+    }
+}
 }

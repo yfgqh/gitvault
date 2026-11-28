@@ -121,7 +121,7 @@ struct AuthorView: View {
 
             HStack(spacing: 3) {
                 Image(systemName: "star.fill")
-                    .font(.system(size: 8))
+                    .font(.system(size: 10))
                     .foregroundStyle(MyMark.starred.tint)
                 Text(repo.starText)
                     .font(.system(size: 10, weight: .semibold))

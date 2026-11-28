@@ -196,7 +196,7 @@ struct SearchView: View {
                     HStack(spacing: 3) {
                         Text(sortTitle(vm.sort))
                         Image(systemName: "arrow.up.arrow.down")
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.system(size: 10, weight: .bold))
                     }
                     .font(DS.Typo.caption)
                     .foregroundStyle(DS.accent)
@@ -309,7 +309,7 @@ struct FlowChips: View {
                     HStack(spacing: 4) {
                         if showsFlame {
                             Image(systemName: "flame.fill")
-                                .font(.system(size: 9))
+                                .font(.system(size: 10))
                                 .foregroundStyle(ActivityTag.rising.tint)
                         }
                         Text(item)

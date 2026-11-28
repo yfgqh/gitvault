@@ -14,8 +14,8 @@ struct CategoryShortcut: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: category.symbol).font(.system(size: 15, weight: .semibold))
-                .font(.system(size: 15))
+            Image(systemName: category.symbol)
+                .font(.system(size: 15, weight: .semibold))
             VStack(alignment: .leading, spacing: 0) {
                 Text(category.title)
                     .font(DS.Typo.caption)
@@ -74,8 +74,8 @@ struct CategoryLargeCard: View {
                 .offset(x: 62, y: -18)
 
             VStack(alignment: .leading, spacing: 4) {
-                Image(systemName: category.symbol).font(.system(size: 15, weight: .semibold))
-                    .font(.system(size: 20))
+                Image(systemName: category.symbol)
+                    .font(.system(size: 20, weight: .semibold))
 
                 Text(category.title)
                     .font(DS.Typo.cardTitle)
@@ -83,7 +83,7 @@ struct CategoryLargeCard: View {
 
                 Text(category.subtitle)
                     .font(.system(size: 11, weight: .regular))
-                    .foregroundStyle(.white.opacity(0.78))
+                    .foregroundStyle(.white.opacity(0.92))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
 
@@ -91,10 +91,10 @@ struct CategoryLargeCard: View {
 
                 Text(count > 0 ? String(format: NSLocalizedString("%d 个项目", comment: ""), count) : "加载中…")
                     .font(DS.Typo.micro)
-                    .foregroundStyle(.white.opacity(0.92))
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Capsule().fill(.white.opacity(0.20)))
+                    .background(Capsule().fill(.black.opacity(0.30)))
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)

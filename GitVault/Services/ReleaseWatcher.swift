@@ -20,7 +20,8 @@ final class ReleaseWatcher: ObservableObject {
 
     private let lastCheckKey = "gv.release.lastCheck"
     private let throttle: TimeInterval = 6 * 3600
-    private let batchLimit = 10
+        /// 每轮检查的数量：不是硬上限，而是分批轮转的窗口
+    private let batchLimit = 25
 
     // MARK: 对外
 
@@ -36,10 +37,16 @@ final class ReleaseWatcher: ObservableObject {
             }
         }
 
-        let candidates = vault.items
+        // 轮转窗口：每次从上次停下的位置继续，收藏再多也能在若干轮内全部覆盖
+        let all = vault.items
             .filter { $0.mark != .archived }
             .sorted { ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast) }
-            .prefix(batchLimit)
+
+        let cursorKey = "gv.releaseWatcher.cursor"
+        let cursor = min(UserDefaults.standard.integer(forKey: cursorKey), max(all.count - 1, 0))
+        let rotated = Array(all[cursor...]) + Array(all[..<cursor])
+        let candidates = Array(rotated.prefix(batchLimit))
+        UserDefaults.standard.set((cursor + candidates.count) % max(all.count, 1), forKey: cursorKey)
 
         guard !candidates.isEmpty else {
             newReleaseCount = 0

@@ -102,7 +102,7 @@ struct BadgesView: View {
 
             HStack(spacing: 4) {
                 Image(systemName: item.unlocked ? "checkmark.circle.fill" : "circle.dotted")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(item.unlocked ? DS.success : DS.textTertiary)
                 Text(item.unlocked ? "已解锁" : item.progressText)
                     .font(.system(size: 10, weight: .medium))

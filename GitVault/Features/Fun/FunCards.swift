@@ -111,7 +111,7 @@ struct HealthCard: View {
                 .tint(tint)
                 .scaleEffect(x: 1, y: 0.55, anchor: .center)
             Text("\(value)")
-                .font(.system(size: 9, weight: .semibold, design: .rounded))
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
                 .foregroundStyle(DS.textSecondary)
                 .frame(width: 16, alignment: .trailing)
         }
@@ -135,7 +135,7 @@ struct ScoreDial: View {
                     .font(.system(size: 19, weight: .bold, design: .rounded))
                     .foregroundStyle(DS.textPrimary)
                 Text("分")
-                    .font(.system(size: 8))
+                    .font(.system(size: 10))
                     .foregroundStyle(DS.textTertiary)
             }
         }
@@ -184,7 +184,7 @@ struct UpdateBanner: View {
                 onDismiss()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(DS.textTertiary)
                     .frame(width: 22, height: 22)
             }

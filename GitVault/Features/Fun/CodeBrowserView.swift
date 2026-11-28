@@ -100,7 +100,7 @@ struct CodeBrowserView: View {
                                             Spacer()
                                             if let size = entry.size {
                                                 Text(byteText(size))
-                                                    .font(.system(size: 9))
+                                                    .font(.system(size: 10))
                                                     .foregroundStyle(DS.textTertiary)
                                             }
                                         }

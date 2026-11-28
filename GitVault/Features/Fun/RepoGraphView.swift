@@ -122,7 +122,7 @@ struct RepoGraphView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                     Text(repo.owner)
-                        .font(.system(size: 8))
+                        .font(.system(size: 10))
                         .foregroundStyle(DS.textTertiary)
                         .lineLimit(1)
                 }
@@ -142,7 +142,7 @@ struct RepoGraphView: View {
         HStack(spacing: 4) {
             Text(node.emoji).font(.system(size: 10))
             Text(node.title)
-                .font(.system(size: 9, weight: .semibold))
+                .font(.system(size: 10, weight: .semibold))
                 .lineLimit(1)
         }
         .foregroundStyle(DS.textPrimary)

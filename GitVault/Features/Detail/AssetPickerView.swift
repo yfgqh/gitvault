@@ -129,7 +129,7 @@ struct AssetPickerView: View {
                             .truncationMode(.middle)
                         if asset.recommended {
                             Text("推荐")
-                                .font(.system(size: 8, weight: .bold))
+                                .font(.system(size: 10, weight: .bold))
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 2)

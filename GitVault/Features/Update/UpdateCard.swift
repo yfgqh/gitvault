@@ -84,7 +84,7 @@ struct UpdateCard: View {
                         .font(.system(size: 11, design: .monospaced))
                         .foregroundStyle(DS.textTertiary)
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(DS.textTertiary)
                     Text(available.tag)
                         .font(.system(size: 16, weight: .bold, design: .rounded))
@@ -100,7 +100,7 @@ struct UpdateCard: View {
                 onClose?()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(DS.textTertiary)
                     .frame(width: 24, height: 24)
                     .background(Circle().fill(DS.bgTertiary))
@@ -234,7 +234,7 @@ struct UpdateCard: View {
                 }
 
                 Text("下载后请选择保存位置，再用 TrollStore 或自签工具安装")
-                    .font(.system(size: 9))
+                    .font(.system(size: 10))
                     .foregroundStyle(DS.textTertiary.opacity(0.8))
             }
         }
@@ -256,10 +256,10 @@ struct UpdateCard: View {
                     } label: {
                         HStack(spacing: 4) {
                             Text(asset.kindLabel)
-                                .font(.system(size: 9, weight: .bold))
+                                .font(.system(size: 10, weight: .bold))
                                 .foregroundStyle(isOn ? .white : DS.textTertiary)
                             Text(asset.sizeText)
-                                .font(.system(size: 9))
+                                .font(.system(size: 10))
                                 .foregroundStyle(isOn ? .white.opacity(0.85) : DS.textTertiary)
                         }
                         .padding(.horizontal, 8)

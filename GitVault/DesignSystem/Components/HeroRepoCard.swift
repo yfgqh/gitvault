@@ -182,7 +182,7 @@ struct HeartBurst: View {
             ForEach(0..<count, id: \.self) { index in
                 let angle = Double(index) / Double(count) * 2 * .pi
                 Image(systemName: "heart.fill")
-                    .font(.system(size: 7))
+                    .font(.system(size: 10))
                     .foregroundStyle(DS.accentAlt)
                     .offset(
                         x: active ? CGFloat(cos(angle)) * 26 : 0,

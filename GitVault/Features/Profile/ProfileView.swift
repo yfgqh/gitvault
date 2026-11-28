@@ -21,13 +21,13 @@ struct ProfileView: View {
     @State private var exportFile: ExportFile?
     @State private var showAbout = false
     @State private var showBadges = false
-    @State private var showMyRepos = false
     @State private var showPro = false
     @State private var shareTarget: ExportTarget?
     @State private var cacheSizeText = "—"
     @State private var showLanguageDialog = false
     @State private var showStarSync = false
     @State private var showClearConfirm = false
+    @State private var showVaultHealth = false
     @State private var showOfflineSearch = false
     @State private var pendingUpdate: UpdateChecker.Available?
 
@@ -98,7 +98,6 @@ struct ProfileView: View {
                     .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showBadges) { BadgesView() }
-            .sheet(isPresented: $showMyRepos) { MyReposView() }
             .sheet(item: $shareTarget) { target in
                 ShareSheet(items: [target.url])
                     .presentationDetents([.medium, .large])
@@ -425,6 +424,11 @@ struct ProfileView: View {
                     showBadges = true
                 }
                 Divider().padding(.leading, 52)
+                SettingsRow(symbol: "stethoscope", title: "收藏库体检",
+                            detail: String(format: NSLocalizedString("%d 处待处理", comment: ""), VaultHealthScanner.scan(vault.items).count)) {
+                    showVaultHealth = true
+                }
+                Divider().padding(.leading, 52)
                 SettingsRow(symbol: "magnifyingglass.circle", title: "离线搜索", detail: "无网可用") {
                     showOfflineSearch = true
                 }
@@ -500,7 +504,7 @@ struct ProfileView: View {
                         .background(
                             RoundedRectangle(cornerRadius: DS.Radius.chip + 4, style: .continuous)
                                 .fill(appearance == mode
-                                      ? AnyShapeStyle(DS.accent)
+                                      ? AnyShapeStyle(DS.accentSolid)
                                       : AnyShapeStyle(DS.bgSecondary))
                         )
                     }

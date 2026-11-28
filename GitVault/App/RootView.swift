@@ -80,8 +80,10 @@ struct RootView: View {
                 NavigationStack {
                     // .id 让 SwiftUI 在切换仓库时重建视图与 @StateObject，
                     // 否则从「相似项目」进入会复用旧实例，界面不更新
-                    RepoDetailView(repo: repo)
-                        .id(repo.id)
+                    RepoDetailView(repo: repo, onClose: {
+                        DetailPresenter.shared.close()
+                    })
+                    .id(repo.id)
                 }
                 .offset(x: backDrag)
                 .gesture(backGesture)

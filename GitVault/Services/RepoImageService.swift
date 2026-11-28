@@ -28,12 +28,13 @@ actor RepoImageService {
     // MARK: 对外
 
     func previewImage(owner: String, name: String) async -> URL? {
-        // 匿名额度只够浏览，README 抓图降级给 CDN 封面（社交卡 / 头像）兜底
-        guard Keychain.read(Keychain.tokenKey)?.isEmpty == false else { return nil }
         let key = "\(owner)/\(name)"
+        // 缓存命中不耗额度，必须放在闸门之前，否则已有图也会失效
         if let cached = cachedURL(key: key) {
             return cached
         }
+        // 匿名额度只够浏览，README 抓图降级给 CDN 封面（社交卡 / 头像）兜底
+        guard Keychain.read(Keychain.tokenKey)?.isEmpty == false else { return nil }
         if let running = inFlight[key] {
             return await running.value
         }

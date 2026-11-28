@@ -38,7 +38,7 @@ struct SectionHeader: View {
                         Text(actionTitle)
                             .font(DS.Typo.caption)
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.system(size: 10, weight: .bold))
                     }
                     .foregroundStyle(DS.accent)
                 }

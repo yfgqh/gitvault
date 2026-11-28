@@ -12,6 +12,8 @@ import SwiftUI
 
 struct RepoDetailView: View {
     let repo: ShowcaseRepo
+    /// 由呈现方决定关闭方式：overlay 传 presenter.close()，push 走 dismiss
+    var onClose: (() -> Void)? = nil
 
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var vault: VaultStore
@@ -273,7 +275,7 @@ struct RepoDetailView: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(DS.textSecondary)
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(DS.textTertiary)
                 }
             }
@@ -315,7 +317,7 @@ struct RepoDetailView: View {
             if let updated = vm.repo.updatedAt {
                 HStack(spacing: 5) {
                     Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: 10, weight: .semibold))
                     Text("最近更新：" + updated.formatted(date: .abbreviated, time: .shortened))
                     Text("· " + relativeText(updated))
                 }
@@ -327,12 +329,12 @@ struct RepoDetailView: View {
 
     // MARK: 顶部栏（透明 → 毛玻璃）
 
-    /// 两条进入路径都要能返回：
-    /// overlay（presenter 有栈）用 presenter 关；push（作者页 / 我的仓库）用 dismiss
+    /// 关闭方式由呈现方决定，视图不再猜：
+    /// overlay 由 RootView 传 presenter.close()；push 由系统 dismiss 负责
     private func goBack() {
         Haptics.tap()
-        if DetailPresenter.shared.isPresenting {
-            DetailPresenter.shared.close()
+        if let onClose {
+            onClose()
         } else {
             dismissEnvironment()
         }
@@ -399,7 +401,7 @@ struct RepoDetailView: View {
             if let updated = vm.repo.updatedAt {
                 HStack(spacing: 5) {
                     Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: 10, weight: .semibold))
                     Text("最近更新：" + updated.formatted(date: .abbreviated, time: .shortened))
                     Text("· " + relativeText(updated))
                 }
@@ -519,7 +521,7 @@ struct RepoDetailView: View {
                     } label: {
                         HStack(spacing: 3) {
                             Image(systemName: "arrow.clockwise.circle")
-                                .font(.system(size: 9, weight: .bold))
+                                .font(.system(size: 10, weight: .bold))
                             Text("重试翻译")
                                 .font(.system(size: 10, weight: .medium))
                         }
@@ -535,7 +537,7 @@ struct RepoDetailView: View {
                     } label: {
                         HStack(spacing: 3) {
                             Image(systemName: "doc.richtext")
-                                .font(.system(size: 9, weight: .bold))
+                                .font(.system(size: 10, weight: .bold))
                             Text("查看完整 README")
                                 .font(.system(size: 10, weight: .medium))
                         }
@@ -550,7 +552,7 @@ struct RepoDetailView: View {
                 } label: {
                     HStack(spacing: 3) {
                         Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.system(size: 10, weight: .bold))
                         Text("重新读取")
                             .font(.system(size: 10, weight: .medium))
                     }
@@ -633,7 +635,7 @@ struct RepoDetailView: View {
                 .frame(width: 26, height: 20)
 
                 Text(title)
-                    .font(.system(size: 9, weight: .medium))
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(DS.textSecondary)
                     .lineLimit(1)
             }

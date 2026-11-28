@@ -17,6 +17,13 @@ private func dynamicColor(dark: UInt32, light: UInt32) -> Color {
     })
 }
 
+/// 描边色：深色用白、浅色用黑，alpha 由调用方乘
+private func dynamicHairline() -> Color {
+    Color(uiColor: UIColor { trait in
+        trait.userInterfaceStyle == .dark ? UIColor.white : UIColor.black
+    })
+}
+
 /// 带透明度的动态色（玻璃填充用）
 private func dynamicColor(darkAlpha: UInt32, lightAlpha: UInt32) -> Color {
     Color(uiColor: UIColor { trait in
@@ -119,6 +126,7 @@ enum DS {
     // MARK: 字体层级（全部基于系统文本样式，天然支持 Dynamic Type）
 
     enum Typo {
+        // 规则：正文字号下限 10pt；新增层级加在这里，不要在视图里直接写 .system(size:)
         /// 34pt Bold — 页面大标题
         static let largeTitle = Font.system(.largeTitle, design: .default).weight(.bold)
         /// 22pt Semibold — 区块标题
@@ -193,7 +201,10 @@ extension View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(strokeOpacity), lineWidth: 1)
+                    .strokeBorder(
+                        dynamicHairline().opacity(strokeOpacity),
+                        lineWidth: 1
+                    )
             )
     }
 

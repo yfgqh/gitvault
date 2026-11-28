@@ -272,9 +272,10 @@ final class VaultStore: ObservableObject {
     }
 
     /// 从损坏数据里逐条捞回能解码的条目
-    private static func salvageItems(from data: Data, decoder: JSONDecoder) -> [VaultItem]? {
+    private static func salvageItems(from data: Data, decoder: JSONDecoder) -> (items: [VaultItem], folders: [VaultFolder])? {
         struct Partial: Decodable {
             let items: [FailableItem]
+            let folders: [VaultFolder]?
         }
         struct FailableItem: Decodable {
             let value: VaultItem?
@@ -284,7 +285,8 @@ final class VaultStore: ObservableObject {
         }
         guard let partial = try? decoder.decode(Partial.self, from: data) else { return nil }
         let recovered = partial.items.compactMap(\.value)
-        return recovered.isEmpty ? nil : recovered
+        guard !recovered.isEmpty else { return nil }
+        return (recovered, partial.folders ?? [])
     }
 
     private func persist() {
@@ -317,11 +319,15 @@ final class VaultStore: ObservableObject {
         } else {
             // 旧格式 / 损坏：备份后从空库开始，绝不因为本地数据崩在启动阶段
             // 逐条尝试：能救回来的一条都不丢
-            if let salvaged = Self.salvageItems(from: data, decoder: decoder), !salvaged.isEmpty {
-                items = salvaged
+            if let salvaged = Self.salvageItems(from: data, decoder: decoder), !salvaged.items.isEmpty {
+                // 先留底再覆盖：捞回失败也不能让原文件消失
+                let keep = fileURL.appendingPathExtension("corrupt-\(Int(Date().timeIntervalSince1970))")
+                try? FileManager.default.copyItem(at: fileURL, to: keep)
+                items = salvaged.items
+                folders = salvaged.folders
                 reindex()
                 persist()
-                CrashReporter.logSync("vault: salvaged \(salvaged.count) items from corrupt file")
+                CrashReporter.logSync("vault: salvaged \(salvaged.items.count) items / \(salvaged.folders.count) folders, backup kept")
                 return
             }
             let backup = fileURL.appendingPathExtension("corrupt-\(Int(Date().timeIntervalSince1970))")
