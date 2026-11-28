@@ -21,6 +21,7 @@ struct UpdateCard: View {
     @State private var showFolderPicker = false
     @State private var pickedFolderName: String?
     @State private var showNotes = false
+    @State private var selectedAsset: UpdateChecker.Asset?
 
     private var currentVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
@@ -85,13 +86,16 @@ struct UpdateCard: View {
                 Text("发现新版本")
                     .font(.system(size: 10))
                     .foregroundStyle(DS.textTertiary)
-                HStack(spacing: 6) {
+                HStack(spacing: 5) {
+                    Text(currentVersion)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(DS.textTertiary)
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(DS.textTertiary)
                     Text(available.tag)
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundStyle(DS.textPrimary)
-                    Text("当前 \(currentVersion)")
-                        .font(.system(size: 9))
-                        .foregroundStyle(DS.textTertiary)
                 }
             }
 
@@ -154,7 +158,7 @@ struct UpdateCard: View {
                     .progressViewStyle(.linear)
                     .tint(DS.accent)
                 HStack {
-                    Text(String(format: NSLocalizedString("正在下载 %d%%", comment: ""), Int(progress * 100)))
+                    Text(String(format: NSLocalizedString("正在下载 %d%% · %@", comment: ""), Int(progress * 100), installer.activeRoute.title))
                         .font(.system(size: 10))
                         .foregroundStyle(DS.textTertiary)
                     Spacer()
@@ -182,6 +186,10 @@ struct UpdateCard: View {
             }
         default:
             VStack(spacing: 6) {
+                if available.assets.count > 1 {
+                    assetPicker
+                }
+
                 Button {
                     startDownload()
                 } label: {
@@ -227,26 +235,59 @@ struct UpdateCard: View {
         }
     }
 
+    /// 当前选中的资产（默认 IPA）
+    private var active: UpdateChecker.Asset? {
+        selectedAsset ?? available.ipa ?? available.assets.first
+    }
+
+    private var assetPicker: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(available.assets) { asset in
+                    let isOn = active?.id == asset.id
+                    Button {
+                        Haptics.selection()
+                        selectedAsset = asset
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(asset.kindLabel)
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(isOn ? .white : DS.textTertiary)
+                            Text(asset.sizeText)
+                                .font(.system(size: 9))
+                                .foregroundStyle(isOn ? .white.opacity(0.85) : DS.textTertiary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule().fill(isOn ? DS.accent.opacity(0.85) : DS.bgTertiary)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
     private var downloadTitle: String {
-        let size = available.sizeText
-        if size.isEmpty { return NSLocalizedString("下载更新", comment: "") }
-        return String(format: NSLocalizedString("下载更新（%@）", comment: ""), size)
+        guard let asset = active else { return NSLocalizedString("下载更新", comment: "") }
+        let name = asset.name.count > 26 ? asset.kindLabel : asset.name
+        if asset.sizeText.isEmpty { return String(format: NSLocalizedString("下载 %@", comment: ""), name) }
+        return String(format: NSLocalizedString("下载 %@（%@）", comment: ""), name, asset.sizeText)
     }
 
     private func startDownload() {
         Haptics.tap()
-        guard Keychain.read(Keychain.tokenKey)?.isEmpty == false else {
-            env.show("私有仓库需要先登录 GitHub 才能下载", kind: .warning)
-            return
-        }
-        guard available.downloadURL != nil else {
-            env.show("这个版本没有附带 IPA，去发布页看看", kind: .warning)
+        // 仓库已公开，资产可匿名下载；登录用户仍带 token 提升额度
+        guard let asset = active else {
+            env.show("这个版本没有可下载的资产，去发布页看看", kind: .warning)
             if let page = available.url { openURL(page) }
             return
         }
-        // 先下载到沙盒，完成后再让用户选择保存位置
-        installer.download(from: available.downloadURL!,
-                           filename: available.assetName ?? "GitVault-\(available.tag).ipa",
+        // 先下载到沙盒，完成后再让用户选择保存位置；失败会自动换镜像重试
+        installer.allowsMirrorFallback = true
+        installer.download(from: asset.url,
+                           filename: asset.name,
                            to: nil)
     }
 }

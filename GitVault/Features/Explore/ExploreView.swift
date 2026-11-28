@@ -64,10 +64,6 @@ struct ExploreView: View {
                         .screenPadding()
                     }
 
-                    if let update = env.update.available {
-                        UpdateCard(available: update)
-                    }
-
                     if let archive = archiveItem {
                         Button { Haptics.tap(); DetailPresenter.shared.open(ShowcaseRepo(entry: archive.item)) } label: {
                             TodayArchiveCard(item: archive.item, daysAgo: archive.days)

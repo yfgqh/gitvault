@@ -11,21 +11,61 @@ import Combine
 
 @MainActor
 final class UpdateChecker: ObservableObject {
+    /// Release 里的一个资产（ipa / zip / dSYM / 源码包）
+    struct Asset: Equatable, Identifiable {
+        let name: String
+        let size: Int
+        let url: URL
+
+        var id: String { name }
+
+        var isIPA: Bool { name.lowercased().hasSuffix(".ipa") }
+
+        var sizeText: String {
+            guard size > 0 else { return "" }
+            if size >= 1_048_576 {
+                return String(format: "%.1f MB", Double(size) / 1_048_576)
+            }
+            return String(format: "%.0f KB", Double(size) / 1024)
+        }
+
+        /// 展示用的类型名
+        var kindLabel: String {
+            let lower = name.lowercased()
+            if lower.hasSuffix(".ipa") { return "IPA" }
+            if lower.hasSuffix(".zip") { return "ZIP" }
+            if lower.hasSuffix(".dmg") { return "DMG" }
+            if lower.hasSuffix(".apk") { return "APK" }
+            if lower.hasSuffix(".tar.gz") { return "TGZ" }
+            if lower.hasSuffix(".dsym.zip") { return "dSYM" }
+            if let dot = name.lastIndex(of: ".") { return String(name[name.index(after: dot)...]).uppercased() }
+            return NSLocalizedString("文件", comment: "")
+        }
+    }
+
     struct Available: Equatable, Identifiable {
         let tag: String
         let name: String
         let notes: String
         let url: URL?
-        /// Release 里 .ipa 资产的名称 / 体积 / 下载地址（私有仓库需带 token）
-        var assetName: String?
-        var assetSize: Int?
-        var downloadURL: URL?
+        /// 全部资产，IPA 排在最前
+        var assets: [Asset] = []
+        /// 已安装的版本（来自 Bundle）
+        var installedVersion: String = UpdateChecker.currentVersion
 
         var id: String { tag }
 
-        var sizeText: String {
-            guard let size = assetSize, size > 0 else { return "" }
-            return String(format: "%.1f MB", Double(size) / 1_048_576)
+        var ipa: Asset? { assets.first(where: { $0.isIPA }) }
+
+        /// 兼容旧调用点
+        var assetName: String? { ipa?.name }
+        var assetSize: Int? { ipa?.size }
+        var downloadURL: URL? { ipa?.url }
+
+        var sizeText: String { ipa?.sizeText ?? "" }
+
+        var hasUpdate: Bool {
+            UpdateChecker.compare(UpdateChecker.normalize(tag), UpdateChecker.normalize(installedVersion)) > 0
         }
     }
 
@@ -105,15 +145,20 @@ final class UpdateChecker: ObservableObject {
                 available = nil
                 return
             }
-            let ipa = (release.assets ?? []).first { $0.name.lowercased().hasSuffix(".ipa") }
+            // 收集全部可下载资产，IPA 优先
+            let all = (release.assets ?? []).compactMap { raw -> Asset? in
+                guard let url = URL(string: raw.browserDownloadURL) else { return nil }
+                return Asset(name: raw.name, size: raw.size, url: url)
+            }
+            let sorted = all.filter { $0.isIPA } + all.filter { !$0.isIPA }.sorted { $0.size > $1.size }
+
             let info = Available(
                 tag: release.tagName,
                 name: release.name ?? release.tagName,
                 notes: String((release.body ?? "").prefix(600)),
                 url: URL(string: release.htmlURL),
-                assetName: ipa?.name,
-                assetSize: ipa?.size,
-                downloadURL: ipa.flatMap { URL(string: $0.browserDownloadURL) }
+                assets: sorted,
+                installedVersion: Self.currentVersion
             )
             available = info
             // 供启动时弹出更新卡

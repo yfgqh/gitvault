@@ -680,3 +680,12 @@
 "翻译未完成：%@" = "Translation incomplete: %@";
 "翻译结果为空，可点右上角重试" = "Translation came back empty — retry from the top right";
 "重试翻译" = "Retry translation";
+
+/* 3.2.3 */
+"直连" = "Direct";
+"文件" = "File";
+"所有下载源都失败了" = "All download sources failed";
+"正在下载 %d%% · %@" = "Downloading %d%% · %@";
+"下载 %@" = "Download %@";
+"下载 %@（%@）" = "Download %@ (%@)";
+"这个版本没有可下载的资产，去发布页看看" = "This release has nothing to download — check the release page";

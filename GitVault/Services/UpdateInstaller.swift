@@ -10,6 +10,42 @@ import Foundation
 import Combine
 import UniformTypeIdentifiers
 
+// MARK: - 下载源
+
+/// GitHub Releases 在国内常常很慢，这里允许按顺序尝试镜像前缀。
+enum DownloadRoute: String, CaseIterable, Identifiable {
+    case direct
+    case ghproxy
+    case ghproxyCom
+    case mirrorGhproxy
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .direct: return NSLocalizedString("直连", comment: "")
+        case .ghproxy: return "ghproxy.net"
+        case .ghproxyCom: return "gh-proxy.com"
+        case .mirrorGhproxy: return "mirror.ghproxy"
+        }
+    }
+
+    /// 镜像前缀：把原始地址整体拼在后面
+    var prefix: String? {
+        switch self {
+        case .direct: return nil
+        case .ghproxy: return "https://ghproxy.net/"
+        case .ghproxyCom: return "https://gh-proxy.com/"
+        case .mirrorGhproxy: return "https://mirror.ghproxy.com/"
+        }
+    }
+
+    func apply(to url: URL) -> URL {
+        guard let prefix, let wrapped = URL(string: prefix + url.absoluteString) else { return url }
+        return wrapped
+    }
+}
+
 /// 下载阶段（放在文件级，供非隔离的 URLSession 代理引用）
 enum UpdatePhase: Equatable {
     case idle
@@ -37,29 +73,64 @@ final class UpdateInstaller: ObservableObject {
 
     // MARK: 下载
 
+    /// 当前使用的下载源（界面上显示）
+    @Published private(set) var activeRoute: DownloadRoute = .direct
+    /// 是否允许失败后自动尝试镜像
+    var allowsMirrorFallback = true
+
+    private var pendingURL: URL?
+    private var pendingName: String = ""
+    private var pendingDirectory: URL?
+    private var routeQueue: [DownloadRoute] = []
+    private var routeIndex = 0
+
     /// - Parameters:
     ///   - directory: 用户选定的保存目录；nil 时落到沙盒 Documents/Updates
     func download(from url: URL, filename: String, to directory: URL?) {
         guard !isDownloading else { return }
 
-        // 外部目录需要安全作用域授权，保持到文件搬运完成
-        if let directory {
+        pendingURL = url
+        pendingName = filename
+        pendingDirectory = directory
+
+        // 直连优先；允许镜像时再依次尝试
+        routeQueue = allowsMirrorFallback
+            ? [.direct, .ghproxy, .ghproxyCom, .mirrorGhproxy]
+            : [.direct]
+        routeIndex = 0
+        startCurrentRoute()
+    }
+
+    private func startCurrentRoute() {
+        guard routeIndex < routeQueue.count, let url = pendingURL else {
+            phase = .failed(NSLocalizedString("所有下载源都失败了", comment: ""))
+            cleanup()
+            return
+        }
+
+        let route = routeQueue[routeIndex]
+        activeRoute = route
+
+        // 外部目录只在第一次授权，后续重试复用
+        if let directory = pendingDirectory, scopedURL == nil {
             let granted = directory.startAccessingSecurityScopedResource()
             scopedURL = granted ? directory : nil
         }
 
         phase = .downloading(0)
 
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: route.apply(to: url))
+        request.timeoutInterval = 30
         request.setValue("application/octet-stream", forHTTPHeaderField: "Accept")
         request.setValue("GitVault/\(UpdateChecker.currentVersion)", forHTTPHeaderField: "User-Agent")
-        if let token = Keychain.read(Keychain.tokenKey), !token.isEmpty {
+        // 镜像通常不需要（也不接受）认证头；只有直连带 token
+        if route == .direct, let token = Keychain.read(Keychain.tokenKey), !token.isEmpty {
             request.setValue("token \(token)", forHTTPHeaderField: "Authorization")
         }
 
         let delegate = DownloadDelegate(
-            destinationName: filename,
-            destinationDirectory: directory,
+            destinationName: pendingName,
+            destinationDirectory: pendingDirectory,
             onProgress: { [weak self] progress in
                 Task { @MainActor in
                     guard let self else { return }
@@ -71,6 +142,18 @@ final class UpdateInstaller: ObservableObject {
             onFinish: { [weak self] result in
                 Task { @MainActor in
                     guard let self else { return }
+                    self.session?.invalidateAndCancel()
+                    self.session = nil
+                    self.task = nil
+
+                    if case .failed = result {
+                        // 换下一个源再试
+                        self.routeIndex += 1
+                        if self.routeIndex < self.routeQueue.count {
+                            self.startCurrentRoute()
+                            return
+                        }
+                    }
                     self.phase = result
                     self.cleanup()
                 }
