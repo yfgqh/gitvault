@@ -27,30 +27,35 @@ struct ElasticRefresh<Content: View>: View {
     @State private var spin: Double = 0
     @State private var showDone = false
 
+    private let elasticRefreshSpace = "elasticRefresh"
+
     private var progress: CGFloat {
         min(max(pull / threshold, 0), 1.4)
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                GeometryReader { g in
-                    Color.clear.preference(
-                        key: ScrollPullKey.self,
-                        value: g.frame(in: .named("elasticRefresh")).minY
-                    )
-                }
-                .frame(height: 0)
-
-                indicator
+        // 坐标空间必须挂在外层容器：ScrollView 自身不提供随滚动变化的坐标系
+        ZStack(alignment: .top) {
+            ScrollView {
+                VStack(spacing: 0) {
+                    GeometryReader { g in
+                        Color.clear.preference(
+                            key: ScrollPullKey.self,
+                            value: g.frame(in: .named(elasticRefreshSpace)).minY
+                        )
+                    }
                     .frame(height: 0)
-                    .offset(y: min(pull * 0.55, threshold))
 
-                content()
+                    indicator
+                        .frame(height: 0)
+                        .offset(y: min(pull * 0.55, threshold))
+
+                    content()
+                }
             }
+            .scrollIndicators(.hidden)
         }
-        .coordinateSpace(name: "elasticRefresh")
-        .scrollIndicators(.hidden)
+        .coordinateSpace(name: elasticRefreshSpace)
         .onPreferenceChange(ScrollPullKey.self) { value in
             handle(value)
         }
@@ -98,7 +103,7 @@ struct ElasticRefresh<Content: View>: View {
             armed = true
         }
         // 松手回弹到接近 0 且之前越过阈值 → 触发刷新
-        if armed, pull < 6, !isRefreshing {
+        if armed, pull < 14, !isRefreshing {
             armed = false
             trigger()
         }

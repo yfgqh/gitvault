@@ -77,7 +77,6 @@ struct RepoDetailView: View {
                     }
                 }
                 .scrollIndicators(.hidden)
-                .coordinateSpace(name: "detailScroll")
                 .onPreferenceChange(DetailScrollKey.self) { value in
                     scrollOffset = value
                 }
@@ -91,6 +90,7 @@ struct RepoDetailView: View {
                         .frame(width: proxy.size.width)
                 }
             }
+            .coordinateSpace(name: "detailScroll")
         }
         .navigationBarHidden(true)
         .onChange(of: vm.isLoadingDetail) { loading in

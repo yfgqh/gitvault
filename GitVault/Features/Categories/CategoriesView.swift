@@ -11,6 +11,19 @@ struct CategoriesView: View {
     @EnvironmentObject private var env: AppEnvironment
     @Environment(\.horizontalSizeClass) private var sizeClass
 
+    @State private var scrollOffset: CGFloat = 0
+
+    /// 0 = 展开，1 = 完全收起
+    private var collapseProgress: CGFloat {
+        min(max(-scrollOffset / 84, 0), 1)
+    }
+
+    private var topInset: CGFloat {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.windows.first?.safeAreaInsets.top ?? 44
+    }
+
     private var columns: [GridItem] {
         sizeClass == .regular
             ? Array(repeating: GridItem(.flexible(), spacing: DS.Space.m), count: 3)
@@ -20,34 +33,70 @@ struct CategoriesView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: DS.Space.l) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("6 个主题场景")
-                            .font(DS.Typo.caption)
-                            .foregroundStyle(DS.textTertiary)
-                        Text("分类")
-                            .font(DS.Typo.largeTitle)
-                            .foregroundStyle(DS.textPrimary)
-                    }
-                    .screenPadding()
-                    .padding(.top, DS.Space.s)
-
-                    LazyVGrid(columns: columns, spacing: DS.Space.m) {
-                        ForEach(RepoCategory.allCases.indexed) { entry in
-                            NavigationLink(value: CategoryRoute(category: entry.item)) {
-                                CategoryLargeCard(category: entry.item, count: env.categoryCount(entry.item))
-                            }
-                            .buttonStyle(.springPressCard)
-                            .staggerAppear(entry.index)
+            ZStack(alignment: .top) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: DS.Space.l) {
+                        GeometryReader { g in
+                            Color.clear.preference(
+                                key: CategoriesScrollKey.self,
+                                value: g.frame(in: .named("categoriesScroll")).minY
+                            )
                         }
-                    }
-                    .screenPadding()
+                        .frame(height: 0)
 
-                    Color.clear.frame(height: DS.Space.tabBarInset)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("6 个主题场景")
+                                .font(DS.Typo.caption)
+                                .foregroundStyle(DS.textTertiary)
+                                .opacity(Double(1 - collapseProgress))
+                            Text("分类")
+                                .font(.system(size: 34 - 13 * collapseProgress, weight: .bold))
+                                .foregroundStyle(DS.textPrimary)
+                                .offset(y: -2 * collapseProgress)
+                        }
+                        .screenPadding()
+                        .padding(.top, DS.Space.s)
+
+                        LazyVGrid(columns: columns, spacing: DS.Space.m) {
+                            ForEach(RepoCategory.allCases.indexed) { entry in
+                                NavigationLink(value: CategoryRoute(category: entry.item)) {
+                                    CategoryLargeCard(category: entry.item, count: env.categoryCount(entry.item))
+                                }
+                                .buttonStyle(.springPressCard)
+                                .staggerAppear(entry.index)
+                            }
+                        }
+                        .screenPadding()
+
+                        Color.clear.frame(height: DS.Space.tabBarInset)
+                    }
+                }
+                .scrollIndicators(.hidden)
+                .onPreferenceChange(CategoriesScrollKey.self) { value in
+                    scrollOffset = value
+                }
+
+                // 顶部栏：透明 → 毛玻璃
+                HStack {
+                    Text("分类")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(DS.textPrimary)
+                        .opacity(Double(max(0, (collapseProgress - 0.5) / 0.5)))
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, DS.Space.screen)
+                .padding(.top, topInset + 2)
+                .padding(.bottom, 6)
+                .background {
+                    if collapseProgress > 0.02 {
+                        Rectangle()
+                            .fill(.ultraThinMaterial)
+                            .opacity(Double(collapseProgress))
+                            .ignoresSafeArea(edges: .top)
+                    }
                 }
             }
-            .scrollIndicators(.hidden)
+            .coordinateSpace(name: "categoriesScroll")
             .background(DS.bgPrimary)
             .navigationBarHidden(true)
             .navigationDestination(for: CategoryRoute.self) { route in
@@ -260,5 +309,13 @@ struct CategoryFeedView: View {
 #Preview("二级主题") {
     NavigationStack {
         CategoryFeedView(category: .ai)
+    }
+}
+
+/// 分类页顶部偏移
+struct CategoriesScrollKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
