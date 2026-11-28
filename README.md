@@ -14,6 +14,7 @@
 ![UI](https://img.shields.io/badge/100%25-SwiftUI-blue?style=flat-square)
 ![Size](https://img.shields.io/badge/IPA-2.7%20MB-brightgreen?style=flat-square)
 ![Dependencies](https://img.shields.io/badge/third--party%20deps-0-orange?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 ![Trackers](https://img.shields.io/badge/ads%20%2F%20trackers-none-lightgrey?style=flat-square)
 
 [下载最新版](https://github.com/yfgqh/gitvault/releases/latest) · [更新日志](https://github.com/yfgqh/gitvault/releases) · [Telegram 群](https://t.me/GitVaultipa)
@@ -180,6 +181,12 @@ GitVault 提供**未签名 IPA**，需要自行安装：
 - 数据来源 [GitHub REST API v3](https://docs.github.com/rest)；
 - 本项目与 GitHub 官方**无隶属关系**，所有项目内容版权归原作者所有；
 - 应用内展示的 README、描述、图标均来自对应仓库，仅作索引与预览用途。
+
+## 许可
+
+本项目代码以 [MIT License](LICENSE) 开源，可自由使用、修改与分发，保留版权声明即可。
+
+需要注意：**MIT 只覆盖本项目自身的代码**。应用内展示的第三方仓库内容（README 文本、项目描述、头像与图标）版权归各原作者所有，不在本许可范围内。
 
 ---
 
