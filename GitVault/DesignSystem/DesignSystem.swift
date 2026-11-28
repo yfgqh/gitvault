@@ -55,8 +55,8 @@ enum DS {
 
     // MARK: 强调色
 
-    static let accent = Color(hex: 0x2FB3A0)
-    static let accentAlt = Color(hex: 0x4FCBBB)
+    static let accent = Color(hex: 0x6E7BFF)
+    static let accentAlt = Color(hex: 0xA66CFF)
 
     /// 主渐变：#6E7BFF → #A66CFF（左上到右下）
     static let accentGradient = LinearGradient(

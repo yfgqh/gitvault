@@ -18,6 +18,8 @@ struct ScrollPullKey: PreferenceKey {
 struct ElasticRefresh<Content: View>: View {
     /// 触发刷新的距离
     var threshold: CGFloat = 68
+    /// 子视图正在横向拖动时，临时关闭纵向滚动
+    var isScrollDisabled: Bool = false
     var action: () async -> Void
     @ViewBuilder var content: () -> Content
 
@@ -54,6 +56,7 @@ struct ElasticRefresh<Content: View>: View {
                 }
             }
             .scrollIndicators(.hidden)
+            .scrollDisabled(isScrollDisabled)
         }
         .coordinateSpace(name: elasticRefreshSpace)
         .onPreferenceChange(ScrollPullKey.self) { value in

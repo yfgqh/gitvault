@@ -2,8 +2,8 @@
 //  CardStack.swift
 //  GitVault
 //
-//  封面流（CoverFlow）：中间一张最大，两侧沿 Y 轴旋转立起并向内透视，
-//  拖动时整排跟着手指走，松手吸附到最近一张。
+//  封面流（CoverFlow）：中间一张最大，两侧沿 Y 轴旋转立起并向内透视。
+//  与父级纵向滚动共存：只有横向主导的拖动才接管手势。
 //
 
 import SwiftUI
@@ -11,12 +11,14 @@ import SwiftUI
 struct CardStack<Item: Identifiable, Card: View>: View {
     let items: [Item]
     let visibleCount: Int
+    /// 是否正在横向拖动（供父级关闭纵向滚动）
+    var isHorizontalDrag: Binding<Bool> = .constant(false)
     @ViewBuilder var card: (Item) -> Card
     var onTap: (Item) -> Void
 
     @State private var index: Int = 0
     @State private var drag: CGFloat = 0
-    @State private var isDragging = false
+    @State private var lockedAxis: Axis? = nil
 
     private var count: Int { items.count }
 
@@ -25,7 +27,6 @@ struct CardStack<Item: Identifiable, Card: View>: View {
             let width = geo.size.width
             let cardWidth = width * 0.76
             let step = cardWidth * 0.46
-            // 拖动时的连续位置：向右拖（正）露出前一张
             let progress = CGFloat(index) - drag / max(step, 1)
 
             ZStack {
@@ -55,13 +56,11 @@ struct CardStack<Item: Identifiable, Card: View>: View {
                 }
             }
             .frame(width: width, height: geo.size.height)
-            .contentShape(Rectangle())
-            .gesture(horizontalDrag(step: step))
+            .simultaneousGesture(dragGesture(step: step))
         }
     }
 
     private func scale(for delta: CGFloat) -> CGFloat {
-        // 中间最大，越远越小（最低 0.68）
         max(0.68, 1 - abs(delta) * 0.16)
     }
 
@@ -69,31 +68,48 @@ struct CardStack<Item: Identifiable, Card: View>: View {
         Double(max(0.25, 1 - abs(delta) * 0.34))
     }
 
-    private func horizontalDrag(step: CGFloat) -> some Gesture {
-        DragGesture(minimumDistance: 6)
+    private func dragGesture(step: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 8)
             .onChanged { value in
-                isDragging = true
+                let dx = value.translation.width
+                let dy = value.translation.height
+
+                // 首次移动时锁定方向：横向才接管，纵向交还给外层 ScrollView
+                if lockedAxis == nil {
+                    guard abs(dx) > 6 || abs(dy) > 6 else { return }
+                    if abs(dx) > abs(dy) * 1.2 {
+                        lockedAxis = .horizontal
+                        isHorizontalDrag.wrappedValue = true
+                    } else {
+                        lockedAxis = .vertical
+                    }
+                }
+                guard lockedAxis == .horizontal else { return }
+
                 // 两端加阻尼，避免拖出边界太远
-                let raw = value.translation.width
-                if (index == 0 && raw > 0) || (index == count - 1 && raw < 0) {
-                    drag = raw * 0.35
+                if (index == 0 && dx > 0) || (index == count - 1 && dx < 0) {
+                    drag = dx * 0.32
                 } else {
-                    drag = raw
+                    drag = dx
                 }
             }
             .onEnded { value in
-                isDragging = false
+                let wasHorizontal = lockedAxis == .horizontal
+                lockedAxis = nil
+                isHorizontalDrag.wrappedValue = false
+
+                guard wasHorizontal else { return }
+
                 let projected = value.predictedEndTranslation.width
                 let moved = abs(projected) > step * 0.42 || abs(value.translation.width) > step * 0.34
 
                 var target = index
                 if moved {
-                    // 左滑（负位移）看下一张
                     target += (projected < 0 || value.translation.width < 0) ? 1 : -1
                 }
                 target = min(max(target, 0), max(count - 1, 0))
 
-                withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+                withAnimation(.interpolatingSpring(stiffness: 260, damping: 30)) {
                     index = target
                     drag = 0
                 }

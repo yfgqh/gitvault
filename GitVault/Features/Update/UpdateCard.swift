@@ -56,10 +56,7 @@ struct UpdateCard: View {
             if case .finished(let url) = phase {
                 // 下载完成后直接交给系统打开：TrollStore 会出现在「用…打开」里
                 Haptics.success()
-                let handled = DocumentOpener.shared.open(url)
-                if !handled {
-                    env.show("没有找到能打开 IPA 的应用，请确认已安装 TrollStore", kind: .warning)
-                }
+                DocumentOpener.shared.present(url)
             }
             if case .failed(let message) = phase {
                 env.show(message, kind: .warning)
@@ -176,7 +173,7 @@ struct UpdateCard: View {
                 Spacer()
                 Button(NSLocalizedString("再次打开", comment: "")) {
                     if case .finished(let url) = installer.phase {
-                        DocumentOpener.shared.open(url)
+                        DocumentOpener.shared.present(url)
                     }
                 }
                 .font(.system(size: 10, weight: .medium))
@@ -185,6 +182,8 @@ struct UpdateCard: View {
                 Button(NSLocalizedString("另存", comment: "")) {
                     if case .finished(let url) = installer.phase {
                         DocumentOpener.shared.export(url)
+                    } else {
+                        env.show("文件还没下载完成", kind: .warning)
                     }
                 }
                 .font(.system(size: 10, weight: .medium))

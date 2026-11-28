@@ -17,6 +17,8 @@ struct ExploreView: View {
     @Environment(\.openURL) private var openURL
     @StateObject private var vm = ExploreViewModel()
     @State private var showSettings = false
+    /// 精选卡横向拖动中：暂停纵向滚动，避免手势打架
+    @State private var isCardDragging = false
 
     private var topicColumns: [GridItem] {
         sizeClass == .regular
@@ -40,7 +42,7 @@ struct ExploreView: View {
 
     var body: some View {
         NavigationStack {
-            ElasticRefresh(action: { await vm.reload(profile: discoveryProfile) }) {
+            ElasticRefresh(isScrollDisabled: isCardDragging, action: { await vm.reload(profile: discoveryProfile) }) {
                 VStack(alignment: .leading, spacing: DS.Space.l) {
                     header
                         .screenPadding()
@@ -174,7 +176,9 @@ struct ExploreView: View {
                     .screenPadding()
             } else {
                 // 可拖拽卡片堆叠：拖动按位移旋转，甩出后下一张补位
-                CardStack(items: vm.feed.featured, visibleCount: 3) { repo in
+                CardStack(items: vm.feed.featured,
+                          visibleCount: 3,
+                          isHorizontalDrag: $isCardDragging) { repo in
                     HeroRepoCard(
                         repo: repo,
                         isSaved: vault.isSaved(repo.id)
